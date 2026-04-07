@@ -1,0 +1,17 @@
+version: '3.9'
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - '8080:8080'
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - '4200:4200'
+    restart: unless-stopped
+    environment:
+      - BACKEND_URL=http://localhost:8080
