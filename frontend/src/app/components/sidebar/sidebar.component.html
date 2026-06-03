@@ -1,0 +1,42 @@
+<aside class="sidebar">
+  <div class="sidebar__brand">Applied AI</div>
+
+  <nav class="sidebar__nav" aria-label="Seitennavigation">
+    <a
+      class="sidebar__link"
+      routerLink="/home"
+      routerLinkActive="sidebar__link--active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Home
+    </a>
+    <a
+      class="sidebar__link"
+      routerLink="/image_agent"
+      routerLinkActive="sidebar__link--active"
+    >
+      Image Agent
+    </a>
+    <a
+      class="sidebar__link"
+      routerLink="/text_agent"
+      routerLinkActive="sidebar__link--active"
+    >
+      Text Agent
+    </a>
+    <a
+      class="sidebar__link"
+      routerLink="/logs"
+      routerLinkActive="sidebar__link--active"
+    >
+      Logs
+    </a>
+    <a
+      class="sidebar__link"
+      routerLink="/rag"
+      routerLinkActive="sidebar__link--active"
+    >
+      Rag
+    </a>
+  </nav>
+</aside>
