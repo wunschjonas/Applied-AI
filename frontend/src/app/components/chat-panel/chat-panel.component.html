@@ -1,0 +1,10 @@
+<div class="chat-panel">
+  <div class="chat-panel__history">
+    <app-chat [messages]="messages()" />
+  </div>
+
+  <app-chat-input
+    (userSend)="userSend.emit($event)"
+    (agentSend)="agentSend.emit($event)"
+  />
+</div>

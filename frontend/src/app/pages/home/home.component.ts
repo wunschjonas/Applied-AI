@@ -1,42 +1,30 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
-import { ChatComponent } from '../../components/chat/chat.component';
+import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
 import { ChatFacade } from '../../facades/chat.facade';
 import { ChatSender } from '../../models/chat.model';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [SidebarComponent, ChatComponent],
+  imports: [SidebarComponent, ChatPanelComponent],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
 })
 export class HomeComponent {
   public chatFacade = inject(ChatFacade);
 
-  public inputText = signal<string>('');
-
-  public sendMessage(): void {
-    const text = this.inputText().trim();
-    if (!text) return;
-
-    const updatedChat = [
+  public onUserSend(text: string): void {
+    this.chatFacade.updateMainAgentChat([
       ...this.chatFacade.mainAgentChat(),
       { sender: ChatSender.User, text },
-    ];
-    this.chatFacade.updateMainAgentChat(updatedChat);
-    this.inputText.set('');
+    ]);
   }
 
-  public simulateAgentMessage(): void {
-    const text = this.inputText().trim();
-    if (!text) return;
-
-    const updatedChat = [
+  public onAgentSend(text: string): void {
+    this.chatFacade.updateMainAgentChat([
       ...this.chatFacade.mainAgentChat(),
       { sender: ChatSender.Agent, text },
-    ];
-    this.chatFacade.updateMainAgentChat(updatedChat);
-    this.inputText.set('');
+    ]);
   }
 }

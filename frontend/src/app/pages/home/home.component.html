@@ -12,39 +12,11 @@
         </p>
       </div>
 
-      <div class="status-panel">
-        <div class="chat-history">
-          <app-chat [messages]="chatFacade.mainAgentChat()" />
-        </div>
-
-        <label class="status-panel__label" for="agent-command">
-          Befehl an den Agenten
-        </label>
-
-        <textarea
-          id="agent-command"
-          placeholder="Beschreibe, was dein Agent als Naechstes erledigen soll ..."
-          [value]="inputText()"
-          (input)="inputText.set($any($event.target).value)"
-          (keydown.enter)="$event.preventDefault(); sendMessage()"
-        ></textarea>
-
-        <div class="status-panel__footer">
-          <span class="status-panel__hint">
-            Spaeter kann diese Eingabe an deinen LangGraph-Agenten gesendet
-            werden.
-          </span>
-
-          <button
-            type="button"
-            (click)="simulateAgentMessage()"
-            class="btn-secondary"
-          >
-            Agent Test
-          </button>
-          <button type="button" (click)="sendMessage()">Senden</button>
-        </div>
-      </div>
+      <app-chat-panel
+        [messages]="chatFacade.mainAgentChat()"
+        (userSend)="onUserSend($event)"
+        (agentSend)="onAgentSend($event)"
+      />
     </div>
   </section>
 </div>

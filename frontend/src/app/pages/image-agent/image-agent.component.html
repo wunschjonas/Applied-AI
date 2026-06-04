@@ -2,6 +2,13 @@
   <app-sidebar />
 
   <section class="page-content">
-    <h1>Image Agent</h1>
+    <div class="agent-stage">
+      <h1>Image Agent</h1>
+      <app-chat-panel
+        [messages]="chatFacade.imageAgentChat()"
+        (userSend)="onUserSend($event)"
+        (agentSend)="onAgentSend($event)"
+      />
+    </div>
   </section>
 </div>
