@@ -58,6 +58,17 @@ button:hover {
   transform: translateY(-1px);
 }
 
+.btn-secondary {
+  background: transparent;
+  color: #17324d;
+  border: 1.5px solid #17324d;
+
+  &:hover {
+    background: #dce8f5;
+    transform: translateY(-1px);
+  }
+}
+
 textarea::placeholder {
   color: #7a8da3;
 }
@@ -122,6 +133,16 @@ textarea::placeholder {
   color: #6b7f94;
   font-size: 0.92rem;
   line-height: 1.5;
+}
+
+.chat-history {
+  display: flex;
+  flex-direction: column;
+  height: 300px;
+  overflow-y: auto;
+  padding: 0.75rem 0.25rem;
+  border-bottom: 1px solid #e4edf5;
+  margin-bottom: 0.25rem;
 }
 
 @media (max-width: 900px) {
