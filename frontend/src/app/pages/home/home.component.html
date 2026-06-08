@@ -2,35 +2,13 @@
   <app-sidebar />
 
   <section class="page-content">
-    <div class="home-stage">
-      <div class="home-copy">
-        <span class="eyebrow">Agent Workspace</span>
-        <h1>Home</h1>
-        <p>
-          Gib deinem Agenten hier direkt einen Befehl. Die Eingabe ist als
-          zentrale Prompt-Leiste vorbereitet.
-        </p>
-      </div>
-
-      <div class="status-panel">
-        <label class="status-panel__label" for="agent-command">
-          Befehl an den Agenten
-        </label>
-
-        <textarea
-          id="agent-command"
-          placeholder="Beschreibe, was dein Agent als Naechstes erledigen soll ..."
-        ></textarea>
-
-        <div class="status-panel__footer">
-          <span class="status-panel__hint">
-            Spaeter kann diese Eingabe an deinen LangGraph-Agenten gesendet
-            werden.
-          </span>
-
-          <button type="button">Senden</button>
-        </div>
-      </div>
+    <div class="agent-stage">
+      <h1>Home</h1>
+      <app-chat-panel
+        [messages]="chatFacade.mainAgentChat()"
+        (userSend)="onUserSend($event)"
+        (agentSend)="onAgentSend($event)"
+      />
     </div>
   </section>
 </div>
