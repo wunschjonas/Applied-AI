@@ -1,0 +1,100 @@
+.page-shell {
+  display: flex;
+  height: 100vh;
+}
+
+.page-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #17324d;
+    margin-bottom: 2rem;
+  }
+}
+
+.contact-table {
+  width: 100%;
+  max-width: 720px;
+  border-collapse: collapse;
+  margin-bottom: 2.5rem;
+
+  th,
+  td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.925rem;
+    border-bottom: 1px solid #d6dce5;
+  }
+
+  th {
+    font-weight: 700;
+    color: #17324d;
+    background: #eef3f8;
+  }
+
+  td {
+    color: #34506b;
+  }
+
+  a {
+    color: #17324d;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  tbody tr:hover td {
+    background: #f7f9fc;
+  }
+}
+
+.impressum {
+  max-width: 720px;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid #d6dce5;
+  color: #34506b;
+
+  h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #17324d;
+    margin-bottom: 0.75rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #17324d;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+}
+
+.btn-submit {
+  align-self: flex-start;
+  padding: 0.75rem 2rem;
+  background: #17324d;
+  color: #f8fbff;
+  border: none;
+  border-radius: 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background: #1f4570;
+  }
+}

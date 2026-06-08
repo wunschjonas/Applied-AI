@@ -1,0 +1,63 @@
+from datetime import datetime
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field, constr
+
+
+class Platform(str, Enum):
+    linkedin = "linkedin"
+    instagram = "instagram"
+    x = "x"
+    blog = "blog"
+
+
+class PostStatus(str, Enum):
+    draft = "draft"
+    processing = "processing"
+    preview_ready = "preview_ready"
+    error = "error"
+
+
+class PostCreate(BaseModel):
+    title: constr(min_length=3, max_length=200)
+    topic: constr(min_length=3, max_length=200)
+    platform: Platform
+    target_audience: constr(min_length=3, max_length=300)
+    tone_of_voice: constr(min_length=3, max_length=120)
+    goal: constr(min_length=3, max_length=250)
+    additional_context: str | None = Field(default=None, max_length=1000)
+
+
+class PostUpdate(BaseModel):
+    title: constr(min_length=3, max_length=200) | None = None
+    topic: constr(min_length=3, max_length=200) | None = None
+    platform: Platform | None = None
+    target_audience: constr(min_length=3, max_length=300) | None = None
+    tone_of_voice: constr(min_length=3, max_length=120) | None = None
+    goal: constr(min_length=3, max_length=250) | None = None
+    additional_context: str | None = Field(default=None, max_length=1000)
+
+
+class AgentTraceStep(BaseModel):
+    timestamp: datetime
+    thought: str
+    action: str
+    observation: str
+
+
+class PostPreview(BaseModel):
+    generated_text: str
+    post_structure: dict[str, Any]
+    hashtags: list[str]
+    image_prompt_optional: str | None = None
+    created_at: datetime
+
+
+class PostResponse(PostCreate):
+    id: str
+    status: PostStatus
+    preview: PostPreview | None = None
+    agent_trace: list[AgentTraceStep] = []
+    created_at: datetime
+    updated_at: datetime 

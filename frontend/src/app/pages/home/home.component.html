@@ -1,0 +1,14 @@
+<div class="page-shell">
+  <app-sidebar />
+
+  <section class="page-content">
+    <div class="agent-stage">
+      <h1>Home</h1>
+      <app-chat-panel
+        [messages]="chatFacade.mainAgentChat()"
+        (userSend)="onUserSend($event)"
+        (agentSend)="onAgentSend($event)"
+      />
+    </div>
+  </section>
+</div>

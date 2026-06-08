@@ -1,0 +1,10 @@
+<div class="chat">
+  <div
+    *ngFor="let message of messages()"
+    class="chat__message"
+    [class.chat__message--user]="message.sender === ChatSender.User"
+    [class.chat__message--agent]="message.sender === ChatSender.Agent"
+  >
+    <span class="chat__bubble">{{ message.text }}</span>
+  </div>
+</div>
