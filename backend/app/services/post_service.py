@@ -6,9 +6,10 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 
-from app.agents.manager_agent import ManagerAgent
 from app.core.config import settings
 from app.schemas.post import PostCreate, PostResponse, PostStatus, PostUpdate
+from app.services.agent_service import AgentService
+from app.services.trace_service import TraceService
 from app.storage.json_store import JSONStore
 
 
@@ -74,17 +75,41 @@ class PostService:
         self.store.save(post)
 
         try:
-            hf_token = settings.hf_token.get_secret_value() if settings.hf_token else None
-
-            agent = ManagerAgent(
-                hf_token=hf_token,
-                hf_model_id=settings.hf_model_id,
+            message = (
+                f"Create a {post['platform']} post about {post['topic']} for "
+                f"{post['target_audience']} in a {post['tone_of_voice']} tone. Goal: {post['goal']}. "
+                f"{post.get('additional_context') or ''}"
             )
+            result = AgentService().manager_chat(
+                message=message,
+                context={
+                    "tone": post["tone_of_voice"],
+                    "target_audience": post["target_audience"],
+                },
+            )
+            text_artifact = result["generated_artifacts"].get("text", {})
+            image_artifact = result["generated_artifacts"].get("image", {})
+            trace = TraceService().get_trace(result["trace_id"])
 
-            result = agent.run(post)
-
-            post["preview"] = result["preview"]
-            post["agent_trace"] = result["agent_trace"]
+            post["preview"] = {
+                "generated_text": text_artifact.get("generated_text", result["assistant_message"]),
+                "post_structure": {
+                    "manager_response": result["assistant_message"],
+                    "used_agents": result["used_agents"],
+                },
+                "hashtags": text_artifact.get("hashtags", []),
+                "image_prompt_optional": image_artifact.get("image_prompt"),
+                "created_at": datetime.utcnow().isoformat(),
+            }
+            post["agent_trace"] = [
+                {
+                    "timestamp": step["timestamp"],
+                    "thought": step["decision"],
+                    "action": step["action"],
+                    "observation": step["observation"],
+                }
+                for step in trace["steps"]
+            ]
             post["status"] = PostStatus.preview_ready.value
             post["updated_at"] = datetime.utcnow().isoformat()
 
