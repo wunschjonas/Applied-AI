@@ -1,32 +1,77 @@
 [
   {
-    "id": "92792323-c7d7-4e20-a10c-d5eac7ae2f08::image_agent",
-    "chat_id": "92792323-c7d7-4e20-a10c-d5eac7ae2f08::image_agent",
-    "post_id": "92792323-c7d7-4e20-a10c-d5eac7ae2f08",
+    "id": "5935a040-cfee-4058-b539-962345a852db::image_agent",
+    "chat_id": "5935a040-cfee-4058-b539-962345a852db::image_agent",
+    "post_id": "5935a040-cfee-4058-b539-962345a852db",
     "agent": "image_agent",
-    "created_at": "2026-06-09T15:06:33.528007",
-    "updated_at": "2026-06-09T15:06:33.529966",
+    "created_at": "2026-06-09T15:20:26.149114",
+    "updated_at": "2026-06-09T15:20:26.151070",
     "messages": [
       {
         "role": "USER",
-        "content": "Init Nachricht an den ImageAgent",
-        "timestamp": "2026-06-09T15:06:33.529957",
+        "content": "Hallo",
+        "timestamp": "2026-06-09T15:20:26.151039",
         "metadata": {}
       }
     ]
   },
   {
-    "id": "92792323-c7d7-4e20-a10c-d5eac7ae2f08::text_agent",
-    "chat_id": "92792323-c7d7-4e20-a10c-d5eac7ae2f08::text_agent",
-    "post_id": "92792323-c7d7-4e20-a10c-d5eac7ae2f08",
+    "id": "5935a040-cfee-4058-b539-962345a852db::text_agent",
+    "chat_id": "5935a040-cfee-4058-b539-962345a852db::text_agent",
+    "post_id": "5935a040-cfee-4058-b539-962345a852db",
     "agent": "text_agent",
-    "created_at": "2026-06-09T15:06:48.633681",
-    "updated_at": "2026-06-09T15:06:48.635709",
+    "created_at": "2026-06-09T15:20:34.678083",
+    "updated_at": "2026-06-09T15:20:34.679896",
     "messages": [
       {
         "role": "USER",
-        "content": "Init Nachricht an den TextAgent",
-        "timestamp": "2026-06-09T15:06:48.635699",
+        "content": "Nein sag du Halo",
+        "timestamp": "2026-06-09T15:20:34.679889",
+        "metadata": {}
+      }
+    ]
+  },
+  {
+    "id": "917ada8a-b503-4131-9303-eb41e0a75b18::manager_agent",
+    "chat_id": "917ada8a-b503-4131-9303-eb41e0a75b18::manager_agent",
+    "post_id": "917ada8a-b503-4131-9303-eb41e0a75b18",
+    "agent": "manager_agent",
+    "created_at": "2026-06-09T15:26:46.742668",
+    "updated_at": "2026-06-09T15:26:46.806413",
+    "messages": [
+      {
+        "role": "USER",
+        "content": "Hallo",
+        "timestamp": "2026-06-09T15:26:46.799316",
+        "metadata": {
+          "context": {}
+        }
+      },
+      {
+        "role": "AGENT",
+        "content": "Der TextAgent hat Marketing-Text erstellt und der ImageAgent hat einen Bildprompt erstellt. Ein echtes Bild wird in dieser Version noch nicht generiert.",
+        "timestamp": "2026-06-09T15:26:46.806404",
+        "metadata": {
+          "trace_id": "5ba9163f-5706-4861-909b-286acd99e142",
+          "used_agents": [],
+          "generated_artifacts": {},
+          "status": "needs_input"
+        }
+      }
+    ]
+  },
+  {
+    "id": "917ada8a-b503-4131-9303-eb41e0a75b18::image_agent",
+    "chat_id": "917ada8a-b503-4131-9303-eb41e0a75b18::image_agent",
+    "post_id": "917ada8a-b503-4131-9303-eb41e0a75b18",
+    "agent": "image_agent",
+    "created_at": "2026-06-09T15:27:31.781894",
+    "updated_at": "2026-06-09T15:27:31.783889",
+    "messages": [
+      {
+        "role": "USER",
+        "content": "hallo",
+        "timestamp": "2026-06-09T15:27:31.783880",
         "metadata": {}
       }
     ]

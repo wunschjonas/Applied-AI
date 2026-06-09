@@ -18,10 +18,10 @@ log_service = LogService()
 
 @router.post("/chat", response_model=ManagerChatResponse)
 def manager_chat(request: ManagerChatRequest):
-    print("[ManagerAgent] POST /chat aufgerufen")
+    print(f"[ManagerAgent] POST /chat aufgerufen | post_id={request.post_id} | message='{request.message[:80]}'")
     return agent_service.manager_chat(
         message=request.message,
-        chat_id=request.chat_id,
+        post_id=request.post_id,
         context=request.context,
     )
 

@@ -23,7 +23,7 @@ class AgentService:
     def manager_chat(
         self,
         message: str,
-        chat_id: str | None = None,
+        post_id: str,
         context: str | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         try:
@@ -33,7 +33,7 @@ class AgentService:
                 rag_service=self.rag_service,
                 hf_factory=self._hf,
             )
-            return graph.run(message=message, chat_id=chat_id, context=context)
+            return graph.run(message=message, post_id=post_id, context=context)
         except Exception as exc:
             raise self._to_http_error(exc) from exc
 

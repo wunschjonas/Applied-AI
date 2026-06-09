@@ -13,7 +13,7 @@ class ChatMessage(BaseModel):
 
 class ManagerChatRequest(BaseModel):
     message: constr(min_length=1, max_length=4000)
-    chat_id: str | None = None
+    post_id: str
     context: str | dict[str, Any] | None = None
 
 

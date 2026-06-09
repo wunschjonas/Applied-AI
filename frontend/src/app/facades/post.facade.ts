@@ -1,13 +1,15 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
+import { InitPostResponse } from '../models/post.model';
 
 @Injectable({
   providedIn: 'root',
 })
 export class PostFacade {
-  private _currentPostId = signal<string | null>(null);
-  public currentPostId = this._currentPostId.asReadonly();
+  private _currentPost = signal<InitPostResponse | null>(null);
+  public currentPost = this._currentPost.asReadonly();
+  public currentPostId = computed(() => this._currentPost()?.post_id ?? null);
 
-  public updateCurrentPostId(id: string | null): void {
-    this._currentPostId.update((_) => id);
+  public updateCurrentPost(post: InitPostResponse | null): void {
+    this._currentPost.update((_) => post);
   }
 }

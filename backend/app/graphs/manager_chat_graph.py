@@ -50,12 +50,12 @@ class ManagerChatGraph:
     def run(
         self,
         message: str,
-        chat_id: str | None = None,
+        post_id: str,
         context: str | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         final_state = self.graph.invoke(
             {
-                "chat_id": chat_id,
+                "chat_id": f"{post_id}::manager_agent",
                 "user_message": message.strip(),
                 "context": context,
             }
@@ -119,7 +119,9 @@ class ManagerChatGraph:
         return graph.compile()
 
     def init_state_node(self, state: ManagerChatState) -> ManagerChatState:
-        chat = self.chat_service.get_or_create_chat(state.get("chat_id"), agent="manager_agent")
+        chat_id = state.get("chat_id")
+        post_id = chat_id.split("::")[0] if chat_id else None
+        chat = self.chat_service.get_or_create_chat(post_id, agent="manager_agent")
         trace = self.trace_service.create_trace(
             chat_id=chat["chat_id"],
             metadata={"entrypoint": "manager_chat_langgraph", "graph": "ManagerChatGraph"},
