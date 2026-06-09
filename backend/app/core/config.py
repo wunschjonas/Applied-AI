@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     posts_file: Path = data_dir / "posts.json"
     chats_file: Path = data_dir / "chats.json"
     traces_file: Path = data_dir / "traces.json"
+    agent_logs_file: Path = data_dir / "agent_logs.json"
 
     class Config:
         env_file = Path(__file__).resolve().parent.parent.parent / ".env"
