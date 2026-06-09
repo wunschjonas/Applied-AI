@@ -119,7 +119,7 @@ class ManagerChatGraph:
         return graph.compile()
 
     def init_state_node(self, state: ManagerChatState) -> ManagerChatState:
-        chat = self.chat_service.get_or_create_chat(state.get("chat_id"))
+        chat = self.chat_service.get_or_create_chat(state.get("chat_id"), agent="manager_agent")
         trace = self.trace_service.create_trace(
             chat_id=chat["chat_id"],
             metadata={"entrypoint": "manager_chat_langgraph", "graph": "ManagerChatGraph"},
@@ -337,10 +337,10 @@ class ManagerChatGraph:
         return state
 
     def save_trace_node(self, state: ManagerChatState) -> ManagerChatState:
-        self.chat_service.add_message(state["chat"], "user", state["user_message"], {"context": state.get("context") or {}})
+        self.chat_service.add_message(state["chat"], "USER", state["user_message"], {"context": state.get("context") or {}})
         self.chat_service.add_message(
             state["chat"],
-            "assistant",
+            "AGENT",
             state["assistant_message"],
             {
                 "trace_id": state["trace_id"],

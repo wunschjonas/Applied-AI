@@ -109,3 +109,41 @@ class AgentService:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Agent execution failed: {type(exc).__name__}: {exc}",
         )
+
+    def text_agent_chat(self, message: str, chat_id: str | None = None) -> dict[str, Any]:
+        chat = self.chat_service.get_or_create_chat(chat_id, agent="text_agent")
+        self.chat_service.add_message(chat, role="USER", content=message)
+        try:
+            hf = self._hf()
+            reply = hf.generate(
+                system_prompt=(
+                    "You are a marketing copywriter assistant. "
+                    "Help the user with text, posts, slogans and copy for any platform. "
+                    "Be concise and practical."
+                ),
+                user_prompt=message,
+                max_tokens=600,
+            )
+        except Exception as exc:
+            raise self._to_http_error(exc) from exc
+        self.chat_service.add_message(chat, role="AGENT", content=reply)
+        return {"chat_id": chat["chat_id"], "assistant_message": reply}
+
+    def image_agent_chat(self, message: str, chat_id: str | None = None) -> dict[str, Any]:
+        chat = self.chat_service.get_or_create_chat(chat_id, agent="image_agent")
+        self.chat_service.add_message(chat, role="USER", content=message)
+        try:
+            hf = self._hf()
+            reply = hf.generate(
+                system_prompt=(
+                    "You are an image prompt specialist for marketing visuals. "
+                    "Help the user craft image generation prompts, describe visual styles, "
+                    "and suggest composition ideas. Be specific and visual."
+                ),
+                user_prompt=message,
+                max_tokens=600,
+            )
+        except Exception as exc:
+            raise self._to_http_error(exc) from exc
+        self.chat_service.add_message(chat, role="AGENT", content=reply)
+        return {"chat_id": chat["chat_id"], "assistant_message": reply}

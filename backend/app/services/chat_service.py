@@ -14,7 +14,7 @@ class ChatService:
     def __init__(self):
         self.store = JSONStore(settings.chats_file)
 
-    def get_or_create_chat(self, chat_id: str | None = None) -> dict[str, Any]:
+    def get_or_create_chat(self, chat_id: str | None = None, agent: str = "manager_agent") -> dict[str, Any]:
         if chat_id:
             chat = self.store.get(chat_id)
             if not chat:
@@ -26,6 +26,7 @@ class ChatService:
         chat = {
             "id": chat_id,
             "chat_id": chat_id,
+            "agent": agent,
             "created_at": now,
             "updated_at": now,
             "messages": [],
@@ -58,3 +59,6 @@ class ChatService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
 
         return chat
+
+    def get_chats_by_agent(self, agent: str) -> list[dict[str, Any]]:
+        return [c for c in self.store.list() if c.get("agent") == agent]
