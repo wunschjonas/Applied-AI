@@ -27,7 +27,7 @@ class ManagerChatResponse(BaseModel):
 
 class TextAgentChatRequest(BaseModel):
     message: constr(min_length=1, max_length=4000)
-    chat_id: str | None = None
+    post_id: str
 
 
 class TextAgentChatResponse(BaseModel):
@@ -37,7 +37,7 @@ class TextAgentChatResponse(BaseModel):
 
 class ImageAgentChatRequest(BaseModel):
     message: constr(min_length=1, max_length=4000)
-    chat_id: str | None = None
+    post_id: str
 
 
 class ImageAgentChatResponse(BaseModel):

@@ -19,6 +19,16 @@ class PostStatus(str, Enum):
     error = "error"
 
 
+class PostInit(BaseModel):
+    title: constr(min_length=3, max_length=200)
+
+
+class PostInitResponse(BaseModel):
+    post_id: str
+    title: str
+    created_at: datetime
+
+
 class PostCreate(BaseModel):
     title: constr(min_length=3, max_length=200)
     topic: constr(min_length=3, max_length=200)

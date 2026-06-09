@@ -110,8 +110,8 @@ class AgentService:
             detail=f"Agent execution failed: {type(exc).__name__}: {exc}",
         )
 
-    def text_agent_chat(self, message: str, chat_id: str | None = None) -> dict[str, Any]:
-        chat = self.chat_service.get_or_create_chat(chat_id, agent="text_agent")
+    def text_agent_chat(self, message: str, post_id: str) -> dict[str, Any]:
+        chat = self.chat_service.get_or_create_chat(post_id, agent="text_agent")
         self.chat_service.add_message(chat, role="USER", content=message)
         try:
             hf = self._hf()
@@ -129,8 +129,8 @@ class AgentService:
         self.chat_service.add_message(chat, role="AGENT", content=reply)
         return {"chat_id": chat["chat_id"], "assistant_message": reply}
 
-    def image_agent_chat(self, message: str, chat_id: str | None = None) -> dict[str, Any]:
-        chat = self.chat_service.get_or_create_chat(chat_id, agent="image_agent")
+    def image_agent_chat(self, message: str, post_id: str) -> dict[str, Any]:
+        chat = self.chat_service.get_or_create_chat(post_id, agent="image_agent")
         self.chat_service.add_message(chat, role="USER", content=message)
         try:
             hf = self._hf()

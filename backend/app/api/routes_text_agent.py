@@ -28,8 +28,8 @@ def generate_text(request: TextGenerateRequest):
 
 @router.post("/chat", response_model=TextAgentChatResponse)
 def text_agent_chat(request: TextAgentChatRequest):
-    print("[TextAgent] POST /chat aufgerufen")
-    return agent_service.text_agent_chat(message=request.message, chat_id=request.chat_id)
+    print(f"[TextAgent] POST /chat aufgerufen | post_id={request.post_id} | message='{request.message[:80]}'")
+    return agent_service.text_agent_chat(message=request.message, post_id=request.post_id)
 
 
 @router.get("/chats/{chat_id}", response_model=ChatHistoryResponse)

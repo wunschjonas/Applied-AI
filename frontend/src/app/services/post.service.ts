@@ -18,6 +18,17 @@ export class PostService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = 'http://localhost:8080';
 
+  /** POST /api/posts/init */
+  initPost(
+    title: string,
+  ): Observable<{ post_id: string; title: string; created_at: string }> {
+    return this.http.post<{
+      post_id: string;
+      title: string;
+      created_at: string;
+    }>(`${this.baseUrl}/api/posts/init`, { title });
+  }
+
   /** GET /health */
   getHealth(): Observable<HealthResponse> {
     return this.http.get<HealthResponse>(`${this.baseUrl}/health`);
@@ -47,21 +58,21 @@ export class PostService {
   generatePreview(postId: string): Observable<PostPreview> {
     return this.http.post<PostPreview>(
       `${this.baseUrl}/api/posts/${postId}/generate-preview`,
-      {}
+      {},
     );
   }
 
   /** GET /api/posts/:postId/preview */
   getPreview(postId: string): Observable<PostPreview> {
     return this.http.get<PostPreview>(
-      `${this.baseUrl}/api/posts/${postId}/preview`
+      `${this.baseUrl}/api/posts/${postId}/preview`,
     );
   }
 
   /** GET /api/posts/:postId/agent-trace */
   getAgentTrace(postId: string): Observable<AgentTraceStep[]> {
     return this.http.get<AgentTraceStep[]>(
-      `${this.baseUrl}/api/posts/${postId}/agent-trace`
+      `${this.baseUrl}/api/posts/${postId}/agent-trace`,
     );
   }
 

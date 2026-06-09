@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 
 from app.core.config import settings
-from app.schemas.post import PostCreate, PostResponse, PostStatus, PostUpdate
+from app.schemas.post import PostCreate, PostInit, PostInitResponse, PostResponse, PostStatus, PostUpdate
 from app.services.agent_service import AgentService
 from app.services.trace_service import TraceService
 from app.storage.json_store import JSONStore
@@ -16,6 +16,27 @@ from app.storage.json_store import JSONStore
 class PostService:
     def __init__(self):
         self.store = JSONStore(settings.posts_file)
+
+    def init_post(self, post_init: PostInit) -> PostInitResponse:
+        now = datetime.utcnow().isoformat()
+        post_id = str(uuid4())
+        post = {
+            "id": post_id,
+            "title": post_init.title,
+            "status": PostStatus.draft.value,
+            "topic": None,
+            "platform": None,
+            "target_audience": None,
+            "tone_of_voice": None,
+            "goal": None,
+            "additional_context": None,
+            "preview": None,
+            "agent_trace": [],
+            "created_at": now,
+            "updated_at": now,
+        }
+        self.store.save(post)
+        return PostInitResponse(post_id=post_id, title=post_init.title, created_at=now)
 
     def create_post(self, post_create: PostCreate) -> PostResponse:
         now = datetime.utcnow().isoformat()

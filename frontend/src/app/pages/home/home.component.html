@@ -4,6 +4,28 @@
   <section class="page-content">
     <div class="agent-stage">
       <h1>Home</h1>
+
+      <div class="post-init">
+        <input
+          type="text"
+          class="post-title-input"
+          placeholder="Post-Titel eingeben..."
+          [(ngModel)]="postTitle"
+          (keydown.enter)="createPost()"
+        />
+        <button
+          class="create-btn"
+          [disabled]="isCreating() || !postTitle().trim()"
+          (click)="createPost()"
+        >
+          {{ isCreating() ? "Erstelle..." : "Create" }}
+        </button>
+      </div>
+
+      @if (postFacade.currentPostId()) {
+        <p class="post-id-display">Post ID: {{ postFacade.currentPostId() }}</p>
+      }
+
       <app-chat-panel
         [messages]="chatFacade.mainAgentChat()"
         (userSend)="onUserSend($event)"

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-from uuid import uuid4
 
 from fastapi import HTTPException, status
 
@@ -14,18 +13,17 @@ class ChatService:
     def __init__(self):
         self.store = JSONStore(settings.chats_file)
 
-    def get_or_create_chat(self, chat_id: str | None = None, agent: str = "manager_agent") -> dict[str, Any]:
-        if chat_id:
-            chat = self.store.get(chat_id)
-            if not chat:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
+    def get_or_create_chat(self, post_id: str, agent: str) -> dict[str, Any]:
+        chat_id = f"{post_id}::{agent}"
+        chat = self.store.get(chat_id)
+        if chat:
             return chat
 
         now = datetime.utcnow().isoformat()
-        chat_id = str(uuid4())
         chat = {
             "id": chat_id,
             "chat_id": chat_id,
+            "post_id": post_id,
             "agent": agent,
             "created_at": now,
             "updated_at": now,

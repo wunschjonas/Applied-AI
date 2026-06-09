@@ -2,7 +2,9 @@ import { Component, inject } from '@angular/core';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
 import { ChatFacade } from '../../facades/chat.facade';
+import { PostFacade } from '../../facades/post.facade';
 import { ChatSender } from '../../models/chat.model';
+import { ImageAgentService } from '../../services/image-agent.service';
 
 @Component({
   selector: 'app-image-agent',
@@ -13,12 +15,30 @@ import { ChatSender } from '../../models/chat.model';
 })
 export class ImageAgentComponent {
   public chatFacade = inject(ChatFacade);
+  public postFacade = inject(PostFacade);
+  private readonly imageAgentService = inject(ImageAgentService);
 
   public onUserSend(text: string): void {
+    const postId = this.postFacade.currentPostId();
+    if (!postId) return;
+
     this.chatFacade.updateImageAgentChat([
       ...this.chatFacade.imageAgentChat(),
       { sender: ChatSender.User, text },
     ]);
+
+    this.chatFacade.updateIsImageAgentWorking(true);
+
+    this.imageAgentService.chat(text, postId).subscribe({
+      next: (response) => {
+        this.chatFacade.updateImageAgentChat([
+          ...this.chatFacade.imageAgentChat(),
+          { sender: ChatSender.Agent, text: response.message },
+        ]);
+      },
+      complete: () => this.chatFacade.updateIsImageAgentWorking(false),
+      error: () => this.chatFacade.updateIsImageAgentWorking(false),
+    });
   }
 
   public onAgentSend(text: string): void {

@@ -27,8 +27,8 @@ def generate_image_prompt(request: ImagePromptRequest):
 
 @router.post("/chat", response_model=ImageAgentChatResponse)
 def image_agent_chat(request: ImageAgentChatRequest):
-    print("[ImageAgent] POST /chat aufgerufen")
-    return agent_service.image_agent_chat(message=request.message, chat_id=request.chat_id)
+    print(f"[ImageAgent] POST /chat aufgerufen | post_id={request.post_id} | message='{request.message[:80]}'")
+    return agent_service.image_agent_chat(message=request.message, post_id=request.post_id)
 
 
 @router.get("/chats/{chat_id}", response_model=ChatHistoryResponse)
