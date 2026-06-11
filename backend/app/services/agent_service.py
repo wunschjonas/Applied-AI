@@ -127,7 +127,7 @@ class AgentService:
         except Exception as exc:
             raise self._to_http_error(exc) from exc
         self.chat_service.add_message(chat, role="AGENT", content=reply)
-        return {"chat_id": chat["chat_id"], "assistant_message": reply}
+        return {"chat_id": chat["id"], "assistant_message": reply}
 
     def image_agent_chat(self, message: str, post_id: str) -> dict[str, Any]:
         chat = self.chat_service.get_or_create_chat(post_id, agent="image_agent")
@@ -146,4 +146,4 @@ class AgentService:
         except Exception as exc:
             raise self._to_http_error(exc) from exc
         self.chat_service.add_message(chat, role="AGENT", content=reply)
-        return {"chat_id": chat["chat_id"], "assistant_message": reply}
+        return {"chat_id": chat["id"], "assistant_message": reply}

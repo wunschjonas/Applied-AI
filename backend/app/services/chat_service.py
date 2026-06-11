@@ -22,8 +22,6 @@ class ChatService:
         now = datetime.utcnow().isoformat()
         chat = {
             "id": chat_id,
-            "chat_id": chat_id,
-            "post_id": post_id,
             "agent": agent,
             "created_at": now,
             "updated_at": now,

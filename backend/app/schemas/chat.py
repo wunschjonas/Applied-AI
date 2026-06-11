@@ -46,7 +46,7 @@ class ImageAgentChatResponse(BaseModel):
 
 
 class ChatHistoryResponse(BaseModel):
-    chat_id: str
+    id: str
     agent: str
     created_at: datetime
     updated_at: datetime

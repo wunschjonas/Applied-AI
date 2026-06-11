@@ -1,7 +1,7 @@
 [
   {
-    "id": "5935a040-cfee-4058-b539-962345a852db",
-    "title": "Hallo Welt Text in Linked in",
+    "id": "0727efbd-b2ce-49dc-84ea-5665addaa0ab",
+    "title": "Hallo Welt",
     "status": "draft",
     "topic": null,
     "platform": null,
@@ -11,37 +11,7 @@
     "additional_context": null,
     "preview": null,
     "agent_trace": [],
-    "created_at": "2026-06-09T15:19:58.335235",
-    "updated_at": "2026-06-09T15:19:58.335235"
-  },
-  {
-    "id": "9f4280f1-a46f-490d-9e28-71c66655fc62",
-    "title": "hallo Welt",
-    "status": "draft",
-    "topic": null,
-    "platform": null,
-    "target_audience": null,
-    "tone_of_voice": null,
-    "goal": null,
-    "additional_context": null,
-    "preview": null,
-    "agent_trace": [],
-    "created_at": "2026-06-09T15:22:39.284688",
-    "updated_at": "2026-06-09T15:22:39.284688"
-  },
-  {
-    "id": "917ada8a-b503-4131-9303-eb41e0a75b18",
-    "title": "Hallo",
-    "status": "draft",
-    "topic": null,
-    "platform": null,
-    "target_audience": null,
-    "tone_of_voice": null,
-    "goal": null,
-    "additional_context": null,
-    "preview": null,
-    "agent_trace": [],
-    "created_at": "2026-06-09T15:26:34.466004",
-    "updated_at": "2026-06-09T15:26:34.466004"
+    "created_at": "2026-06-11T14:45:05.458373",
+    "updated_at": "2026-06-11T14:45:05.458373"
   }
 ]

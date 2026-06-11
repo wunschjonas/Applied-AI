@@ -123,13 +123,13 @@ class ManagerChatGraph:
         post_id = chat_id.split("::")[0] if chat_id else None
         chat = self.chat_service.get_or_create_chat(post_id, agent="manager_agent")
         trace = self.trace_service.create_trace(
-            chat_id=chat["chat_id"],
+            chat_id=chat["id"],
             metadata={"entrypoint": "manager_chat_langgraph", "graph": "ManagerChatGraph"},
         )
         new_state: ManagerChatState = {
             **state,
             "chat": chat,
-            "chat_id": chat["chat_id"],
+            "chat_id": chat["id"],
             "trace": trace,
             "trace_id": trace["trace_id"],
             "user_message": state["user_message"].strip(),
@@ -150,7 +150,7 @@ class ManagerChatGraph:
             "init_state_node",
             "Initialized Manager chat graph state.",
             "init_state",
-            f"Chat {chat['chat_id']} and trace {trace['trace_id']} are ready.",
+            f"Chat {chat['id']} and trace {trace['trace_id']} are ready.",
         )
         return new_state
 
