@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
 import { ChatFacade } from '../../facades/chat.facade';
@@ -13,12 +13,27 @@ import { TextAgentService } from '../../services/text-agent.service';
   templateUrl: './text-agent.component.html',
   styleUrls: ['./text-agent.component.scss'],
 })
-export class TextAgentComponent {
+export class TextAgentComponent implements OnInit {
   public chatFacade = inject(ChatFacade);
   public postFacade = inject(PostFacade);
   private readonly textAgentService = inject(TextAgentService);
 
   public generatedText = signal<string | null>(null);
+
+  public ngOnInit(): void {
+    const postId = this.postFacade.currentPostId();
+    if (!postId) return;
+    this.textAgentService.getChatHistory(postId).subscribe({
+      next: (history) => {
+        const messages = history.messages.map((m) => ({
+          sender: m.role === 'USER' ? ChatSender.User : ChatSender.Agent,
+          text: m.content,
+        }));
+        this.chatFacade.updateTextAgentChat(messages);
+      },
+      error: (err) => console.error('[TextAgent] Failed to load history:', err),
+    });
+  }
 
   public onUserSend(text: string): void {
     const postId = this.postFacade.currentPostId();

@@ -1,28 +1,80 @@
 [
   {
-    "id": "0727efbd-b2ce-49dc-84ea-5665addaa0ab::image_agent",
+    "id": "28d01257-c11d-4863-8882-739fd885a8d0::image_agent",
     "agent": "image_agent",
-    "created_at": "2026-06-11T14:45:18.571856",
-    "updated_at": "2026-06-11T14:45:18.573798",
+    "created_at": "2026-06-12T11:07:26.452807",
+    "updated_at": "2026-06-12T11:09:09.735551",
     "messages": [
       {
         "role": "USER",
-        "content": "Hallo Image",
-        "timestamp": "2026-06-11T14:45:18.573788",
+        "content": "Nachricht 1 Post 1 Image Agent",
+        "timestamp": "2026-06-12T11:07:26.454361",
+        "metadata": {}
+      },
+      {
+        "role": "USER",
+        "content": "Nachricht 2 Post 1 Image Agent",
+        "timestamp": "2026-06-12T11:09:09.735544",
         "metadata": {}
       }
     ]
   },
   {
-    "id": "0727efbd-b2ce-49dc-84ea-5665addaa0ab::text_agent",
+    "id": "28d01257-c11d-4863-8882-739fd885a8d0::text_agent",
     "agent": "text_agent",
-    "created_at": "2026-06-11T14:45:32.748113",
-    "updated_at": "2026-06-11T14:45:32.749638",
+    "created_at": "2026-06-12T11:07:31.927019",
+    "updated_at": "2026-06-12T11:09:25.770778",
     "messages": [
       {
         "role": "USER",
-        "content": "Hallo Text",
-        "timestamp": "2026-06-11T14:45:32.749629",
+        "content": "Nachricht 1 Post 1 Text Agent",
+        "timestamp": "2026-06-12T11:07:31.929002",
+        "metadata": {}
+      },
+      {
+        "role": "USER",
+        "content": "Nachricht 2 Post 1 Text Agent",
+        "timestamp": "2026-06-12T11:09:25.770770",
+        "metadata": {}
+      }
+    ]
+  },
+  {
+    "id": "5d2bf026-5755-448d-b769-200a8ace45c5::image_agent",
+    "agent": "image_agent",
+    "created_at": "2026-06-12T11:07:54.626382",
+    "updated_at": "2026-06-12T11:10:26.285721",
+    "messages": [
+      {
+        "role": "USER",
+        "content": "Nachricht 1 Post 2 Image Agent",
+        "timestamp": "2026-06-12T11:07:54.628145",
+        "metadata": {}
+      },
+      {
+        "role": "USER",
+        "content": "Nachricht 2 Post 2 Image Agent",
+        "timestamp": "2026-06-12T11:10:26.285714",
+        "metadata": {}
+      }
+    ]
+  },
+  {
+    "id": "5d2bf026-5755-448d-b769-200a8ace45c5::text_agent",
+    "agent": "text_agent",
+    "created_at": "2026-06-12T11:08:30.349927",
+    "updated_at": "2026-06-12T11:10:37.363997",
+    "messages": [
+      {
+        "role": "USER",
+        "content": "Nachricht 1 Post 2 Text Agent",
+        "timestamp": "2026-06-12T11:08:30.351705",
+        "metadata": {}
+      },
+      {
+        "role": "USER",
+        "content": "Nachricht 2 Post 2 Text Agent",
+        "timestamp": "2026-06-12T11:10:37.363989",
         "metadata": {}
       }
     ]

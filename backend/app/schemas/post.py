@@ -64,10 +64,17 @@ class PostPreview(BaseModel):
     created_at: datetime
 
 
-class PostResponse(PostCreate):
+class PostResponse(BaseModel):
     id: str
+    title: str
     status: PostStatus
+    topic: str | None = None
+    platform: Platform | None = None
+    target_audience: str | None = None
+    tone_of_voice: str | None = None
+    goal: str | None = None
+    additional_context: str | None = None
     preview: PostPreview | None = None
     agent_trace: list[AgentTraceStep] = []
     created_at: datetime
-    updated_at: datetime 
+    updated_at: datetime

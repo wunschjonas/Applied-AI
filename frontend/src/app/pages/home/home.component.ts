@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
@@ -8,6 +8,7 @@ import { PostFacade } from '../../facades/post.facade';
 import { PostService } from '../../services/post.service';
 import { ManagerAgentService } from '../../services/manager-agent.service';
 import { ChatSender } from '../../models/chat.model';
+import { Post } from '../../models/post.model';
 
 @Component({
   selector: 'app-home',
@@ -16,7 +17,7 @@ import { ChatSender } from '../../models/chat.model';
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit {
   public chatFacade = inject(ChatFacade);
   public postFacade = inject(PostFacade);
   private readonly postService = inject(PostService);
@@ -24,6 +25,29 @@ export class HomeComponent {
 
   public postTitle = signal('');
   public isCreating = signal(false);
+  public allPosts = signal<Post[]>([]);
+  public isLoadingPosts = signal(false);
+
+  public ngOnInit(): void {
+    this.loadPosts();
+  }
+
+  public loadPosts(): void {
+    this.isLoadingPosts.set(true);
+    this.postService.getAllPosts().subscribe({
+      next: (posts) => this.allPosts.set(posts),
+      error: (err) => console.error('[Home] Failed to load posts:', err),
+      complete: () => this.isLoadingPosts.set(false),
+    });
+  }
+
+  public selectPost(post: Post): void {
+    this.postFacade.updateCurrentPost({
+      post_id: post.id,
+      title: post.title,
+      created_at: '',
+    });
+  }
 
   public createPost(): void {
     const title = this.postTitle().trim();
@@ -35,6 +59,7 @@ export class HomeComponent {
         console.log('[Home] Response:', response);
         this.postFacade.updateCurrentPost(response);
         this.postTitle.set('');
+        this.loadPosts();
       },
       error: (err) => {
         console.error('[Home] Error:', err);
