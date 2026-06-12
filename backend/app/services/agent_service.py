@@ -18,7 +18,7 @@ class AgentService:
     def __init__(self):
         self.chat_service = ChatService()
         self.trace_service = TraceService()
-        self.rag_service = RAGService()
+        self.rag_service = RAGService(memory_url=settings.mcp_memory_url)
 
     def manager_chat(
         self,

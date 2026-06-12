@@ -217,6 +217,7 @@ class ManagerChatGraph:
                 tone=self._context_value(state.get("context"), "tone", "professional"),
                 target_audience=self._context_value(state.get("context"), "target_audience"),
                 context=state.get("context"),
+                rag_context=state.get("rag_context"),
             )
             state["generated_artifacts"]["text"] = result
             state["used_agents"].append("TextAgent")
@@ -242,6 +243,7 @@ class ManagerChatGraph:
                 platform=state.get("platform"),
                 visual_style=self._context_value(state.get("context"), "visual_style"),
                 context=state.get("context"),
+                rag_context=state.get("rag_context"),
             )
             state["generated_artifacts"]["image"] = result
             state["used_agents"].append("ImageAgent")

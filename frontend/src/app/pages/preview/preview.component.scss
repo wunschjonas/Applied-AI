@@ -24,8 +24,9 @@ h2 {
 
 .preview-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1.75rem;
+  max-width: 800px;
 }
 
 .preview-card {

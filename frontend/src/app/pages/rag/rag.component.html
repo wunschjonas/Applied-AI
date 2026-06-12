@@ -2,6 +2,118 @@
   <app-sidebar />
 
   <section class="page-content">
-    <h1>Rag</h1>
+    <h1>Gedächtnis</h1>
+    <p class="page-subtitle">Speichere Fakten und Kontext, die die Agenten bei der Inhaltserstellung berücksichtigen.</p>
+
+    <div class="memory-layout">
+
+      <!-- LINKE SPALTE: Speichern + Suchen -->
+      <div class="memory-left">
+
+        <!-- Fakt speichern -->
+        <div class="memory-card">
+          <h2 class="card-title">Fakt speichern</h2>
+
+          <label class="field-label" for="storeContent">Inhalt</label>
+          <textarea
+            id="storeContent"
+            class="memory-textarea"
+            placeholder="z.B. Unsere Zielgruppe sind Fachkräfte zwischen 25 und 35."
+            [ngModel]="storeContent()"
+            (ngModelChange)="storeContent.set($event)"
+            rows="4"
+          ></textarea>
+
+          <label class="field-label" for="storeTags">Tags <span class="field-hint">(optional, kommagetrennt)</span></label>
+          <input
+            id="storeTags"
+            type="text"
+            class="memory-input"
+            placeholder="z.B. zielgruppe, brand"
+            [ngModel]="storeTags()"
+            (ngModelChange)="storeTags.set($event)"
+          />
+
+          <div class="card-actions">
+            <button
+              class="primary-btn"
+              [disabled]="isStoring() || !storeContent().trim()"
+              (click)="store()"
+            >
+              {{ isStoring() ? 'Speichert...' : 'Speichern' }}
+            </button>
+            @if (storeSuccess()) {
+              <span class="success-msg">&#10003; Erfolgreich gespeichert</span>
+            }
+          </div>
+        </div>
+
+        <!-- Semantisch suchen -->
+        <div class="memory-card">
+          <h2 class="card-title">Semantisch suchen</h2>
+
+          <div class="search-row">
+            <input
+              type="text"
+              class="memory-input"
+              placeholder="z.B. Zielgruppe, Tonalität, Produktname..."
+              [ngModel]="searchQuery()"
+              (ngModelChange)="searchQuery.set($event)"
+              (keydown.enter)="search()"
+            />
+            <button
+              class="primary-btn"
+              [disabled]="isSearching() || !searchQuery().trim()"
+              (click)="search()"
+            >
+              {{ isSearching() ? 'Sucht...' : 'Suchen' }}
+            </button>
+          </div>
+
+          @if (hasSearched()) {
+            @if (searchResults().length > 0) {
+              <ul class="result-list">
+                @for (result of searchResults(); track $index) {
+                  <li class="result-item">{{ result }}</li>
+                }
+              </ul>
+            } @else {
+              <p class="empty-msg">Keine passenden Einträge gefunden.</p>
+            }
+          }
+        </div>
+
+      </div>
+
+      <!-- RECHTE SPALTE: Alle Einträge -->
+      <div class="memory-right">
+        <div class="memory-card memory-card--full">
+          <div class="card-header">
+            <h2 class="card-title">Alle Einträge</h2>
+            <button
+              class="refresh-btn"
+              (click)="loadAll()"
+              [disabled]="isLoadingList()"
+              title="Aktualisieren"
+            >
+              &#x21bb;
+            </button>
+          </div>
+
+          @if (isLoadingList()) {
+            <p class="loading-msg">Lädt...</p>
+          } @else if (allEntries().length === 0) {
+            <p class="empty-msg">Noch keine Einträge gespeichert.</p>
+          } @else {
+            <ul class="entry-list">
+              @for (entry of allEntries(); track $index) {
+                <li class="entry-item">{{ entry }}</li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+
+    </div>
   </section>
 </div>
