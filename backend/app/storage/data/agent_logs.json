@@ -1,38 +1,30 @@
 [
   {
-    "id": "a1b2c3d4-0001-0001-0001-000000000001",
-    "agent": "text_agent",
-    "timestamp": "2026-06-09T09:00:00.000000",
-    "action": "generate_text",
-    "input_summary": "Erstelle einen LinkedIn-Post über KI-Trends 2026",
-    "status": "success",
-    "duration_ms": 1340
-  },
-  {
-    "id": "a1b2c3d4-0002-0002-0002-000000000002",
-    "agent": "text_agent",
-    "timestamp": "2026-06-09T09:15:00.000000",
-    "action": "generate_text",
-    "input_summary": "Schreibe einen Instagram-Post für ein neues Produkt",
-    "status": "error",
-    "duration_ms": 320
-  },
-  {
-    "id": "a1b2c3d4-0003-0003-0003-000000000003",
+    "id": "db945399-f355-4214-b351-3c6b20f78a04",
+    "run_id": "353ed8cd-f511-40f5-95e0-cbeeae5d09c0",
     "agent": "image_agent",
-    "timestamp": "2026-06-09T09:30:00.000000",
-    "action": "generate_image_prompt",
-    "input_summary": "Erstelle ein Bild-Prompt für einen modernen Büro-Workspace",
-    "status": "success",
-    "duration_ms": 980
+    "timestamp": "2026-06-12T19:18:47.522407",
+    "step": "image_chat",
+    "tool_called": "huggingface_generate",
+    "decision": null,
+    "action": "image_chat",
+    "input_summary": "Hallo Image Agent",
+    "output_summary": "ValueError: HF_TOKEN is missing. Configure it in backend/.env before calling an agent.",
+    "status": "error",
+    "duration_ms": 8
   },
   {
-    "id": "a1b2c3d4-0004-0004-0004-000000000004",
-    "agent": "manager_agent",
-    "timestamp": "2026-06-09T09:45:00.000000",
-    "action": "manager_chat",
-    "input_summary": "Hilf mir eine komplette Kampagne für mein Startup zu erstellen",
-    "status": "success",
-    "duration_ms": 2150
+    "id": "f09525b3-63db-4fd7-89a9-3982bf6f9a21",
+    "run_id": "478067cb-e42d-4239-bd7e-699e76bd68ac",
+    "agent": "text_agent",
+    "timestamp": "2026-06-12T19:18:54.800052",
+    "step": "text_chat",
+    "tool_called": "huggingface_generate",
+    "decision": null,
+    "action": "text_chat",
+    "input_summary": "Hallo Text Agent",
+    "output_summary": "ValueError: HF_TOKEN is missing. Configure it in backend/.env before calling an agent.",
+    "status": "error",
+    "duration_ms": 8
   }
 ]

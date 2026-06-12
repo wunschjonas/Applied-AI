@@ -19,13 +19,23 @@ class LogService:
         input_summary: str,
         status: str,
         duration_ms: int,
+        run_id: str | None = None,
+        step: str | None = None,
+        tool_called: str | None = None,
+        decision: str | None = None,
+        output_summary: str | None = None,
     ) -> dict[str, Any]:
-        entry = {
+        entry: dict[str, Any] = {
             "id": str(uuid4()),
+            "run_id": run_id or str(uuid4()),
             "agent": agent,
             "timestamp": datetime.utcnow().isoformat(),
+            "step": step or action,
+            "tool_called": tool_called,
+            "decision": decision,
             "action": action,
-            "input_summary": input_summary[:200],
+            "input_summary": input_summary[:300],
+            "output_summary": output_summary[:300] if output_summary else None,
             "status": status,
             "duration_ms": duration_ms,
         }

@@ -89,10 +89,34 @@
     align-items: center;
     justify-content: space-between;
 
-    .log-action {
+    .log-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .log-step {
       font-weight: 600;
       color: #17324d;
       font-size: 0.95rem;
+    }
+
+    .tool-badge {
+      padding: 0.15rem 0.6rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+
+      &.hf {
+        background: #ede9fe;
+        color: #5b21b6;
+      }
+
+      &.mcp {
+        background: #dbeafe;
+        color: #1d4ed8;
+      }
     }
 
     .log-status {
@@ -101,6 +125,7 @@
       font-size: 0.78rem;
       font-weight: 600;
       text-transform: uppercase;
+      white-space: nowrap;
 
       &.success {
         background: #e6f7ee;
@@ -111,13 +136,42 @@
         background: #fdecea;
         color: #c0392b;
       }
+
+      &.skipped {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+    }
+  }
+
+  .log-decision {
+    font-size: 0.85rem;
+    color: #4a5568;
+    padding: 0.3rem 0.6rem;
+    background: #f8f9fb;
+    border-left: 3px solid #6366f1;
+    border-radius: 0 4px 4px 0;
+
+    .decision-label {
+      font-weight: 600;
+      color: #6366f1;
     }
   }
 
   .log-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+
     .log-summary {
       color: #4a5568;
       font-size: 0.9rem;
+    }
+
+    .log-output {
+      color: #6b7280;
+      font-size: 0.85rem;
+      font-style: italic;
     }
   }
 
@@ -135,6 +189,13 @@
       border-radius: 4px;
       font-size: 0.78rem;
       font-weight: 600;
+    }
+
+    .log-run-id {
+      color: #a0aec0;
+      font-size: 0.75rem;
+      font-family: monospace;
+      cursor: help;
     }
 
     .log-meta,

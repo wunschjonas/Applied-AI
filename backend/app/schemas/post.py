@@ -1,4 +1,3 @@
-from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -26,7 +25,6 @@ class PostInit(BaseModel):
 class PostInitResponse(BaseModel):
     post_id: str
     title: str
-    created_at: datetime
 
 
 class PostCreate(BaseModel):
@@ -35,7 +33,6 @@ class PostCreate(BaseModel):
     platform: Platform
     target_audience: constr(min_length=3, max_length=300)
     tone_of_voice: constr(min_length=3, max_length=120)
-    goal: constr(min_length=3, max_length=250)
     additional_context: str | None = Field(default=None, max_length=1000)
 
 
@@ -45,15 +42,7 @@ class PostUpdate(BaseModel):
     platform: Platform | None = None
     target_audience: constr(min_length=3, max_length=300) | None = None
     tone_of_voice: constr(min_length=3, max_length=120) | None = None
-    goal: constr(min_length=3, max_length=250) | None = None
     additional_context: str | None = Field(default=None, max_length=1000)
-
-
-class AgentTraceStep(BaseModel):
-    timestamp: datetime
-    thought: str
-    action: str
-    observation: str
 
 
 class PostPreview(BaseModel):
@@ -61,7 +50,6 @@ class PostPreview(BaseModel):
     post_structure: dict[str, Any]
     hashtags: list[str]
     image_prompt_optional: str | None = None
-    created_at: datetime
 
 
 class PostResponse(BaseModel):
@@ -72,9 +60,5 @@ class PostResponse(BaseModel):
     platform: Platform | None = None
     target_audience: str | None = None
     tone_of_voice: str | None = None
-    goal: str | None = None
     additional_context: str | None = None
     preview: PostPreview | None = None
-    agent_trace: list[AgentTraceStep] = []
-    created_at: datetime
-    updated_at: datetime

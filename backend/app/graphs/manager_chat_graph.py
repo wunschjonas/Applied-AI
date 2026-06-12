@@ -10,6 +10,7 @@ from app.agents.manager_agent import AgentIntent, ManagerAgent
 from app.agents.text_agent import TextAgent
 from app.services.chat_service import ChatService
 from app.services.huggingface_service import HuggingFaceService
+from app.services.log_service import LogService
 from app.services.rag_service import RAGService
 from app.services.trace_service import TraceService
 
@@ -40,11 +41,13 @@ class ManagerChatGraph:
         trace_service: TraceService,
         rag_service: RAGService,
         hf_factory: Callable[[], HuggingFaceService],
+        log_service: LogService | None = None,
     ):
         self.chat_service = chat_service
         self.trace_service = trace_service
         self.rag_service = rag_service
         self.hf_factory = hf_factory
+        self.log_service = log_service or LogService()
         self.graph = self._build_graph()
 
     def run(
@@ -155,40 +158,57 @@ class ManagerChatGraph:
         return new_state
 
     def classify_intent_node(self, state: ManagerChatState) -> ManagerChatState:
+        t0 = datetime.utcnow()
         intent = self._classify(state["user_message"])
         state["intent"] = intent.label
-        self._add_step(
-            state,
-            "classify_intent_node",
-            intent.decision,
-            "classify_intent",
-            intent.observation,
-            "needs_input" if intent.needs_clarification else "success",
+        status = "needs_input" if intent.needs_clarification else "success"
+        self._add_step(state, "classify_intent_node", intent.decision, "classify_intent", intent.observation, status)
+        self.log_service.add_log(
+            agent="manager_agent",
+            action="manager_chat",
+            input_summary=state["user_message"][:300],
+            status=status,
+            duration_ms=self._ms(t0),
+            run_id=state.get("trace_id"),
+            step="classify_intent",
+            decision=f"{intent.label} — {intent.observation}",
+            output_summary=f"Intent: {intent.label}",
         )
         return state
 
     def rag_decision_node(self, state: ManagerChatState) -> ManagerChatState:
+        t0 = datetime.utcnow()
         rag_needed = self.rag_service.is_needed(state["user_message"])
         state["rag_needed"] = rag_needed
-        self._add_step(
-            state,
-            "rag_decision_node",
-            "Checked whether retrieval context is needed.",
-            "decide_rag",
-            "RAG placeholder selected." if rag_needed else "RAG not needed for this request.",
-            "skipped" if not rag_needed else "success",
+        status = "success" if rag_needed else "skipped"
+        observation = "RAG retrieval needed." if rag_needed else "RAG not needed for this request."
+        self._add_step(state, "rag_decision_node", "Checked whether retrieval context is needed.", "decide_rag", observation, status)
+        self.log_service.add_log(
+            agent="manager_agent",
+            action="manager_chat",
+            input_summary=state["user_message"][:300],
+            status=status,
+            duration_ms=self._ms(t0),
+            run_id=state.get("trace_id"),
+            step="rag_decision",
+            decision=observation,
         )
         return state
 
     def rag_retrieval_node(self, state: ManagerChatState) -> ManagerChatState:
+        t0 = datetime.utcnow()
         state["rag_context"] = self.rag_service.retrieve(state["user_message"], state.get("context"))
-        self._add_step(
-            state,
-            "rag_retrieval_node",
-            "RAG was requested by the user message.",
-            "retrieve_rag_context",
-            state["rag_context"],
-            "skipped",
+        self._add_step(state, "rag_retrieval_node", "RAG was requested by the user message.", "retrieve_rag_context", state["rag_context"], "success")
+        self.log_service.add_log(
+            agent="manager_agent",
+            action="manager_chat",
+            input_summary=state["user_message"][:300],
+            status="success",
+            duration_ms=self._ms(t0),
+            run_id=state.get("trace_id"),
+            step="rag_retrieval",
+            tool_called="mcp_memory_search",
+            output_summary=state["rag_context"][:300] if state.get("rag_context") else "No results",
         )
         return state
 
@@ -199,16 +219,11 @@ class ManagerChatGraph:
             "text_and_image": "Route to TextAgent first, then ImageAgent.",
             "clarification_needed": "Route to clarification response.",
         }.get(state["intent"], "Unknown intent.")
-        self._add_step(
-            state,
-            "route_by_intent",
-            f"Routing selected for intent={state['intent']}.",
-            "route_by_intent",
-            observation,
-        )
+        self._add_step(state, "route_by_intent", f"Routing selected for intent={state['intent']}.", "route_by_intent", observation)
         return state
 
     def text_agent_node(self, state: ManagerChatState) -> ManagerChatState:
+        t0 = datetime.utcnow()
         try:
             result = TextAgent(self.hf_factory(), self.trace_service).generate(
                 task=state["user_message"],
@@ -221,21 +236,38 @@ class ManagerChatGraph:
             )
             state["generated_artifacts"]["text"] = result
             state["used_agents"].append("TextAgent")
-            self._add_step(
-                state,
-                "text_agent_node",
-                "TextAgent completed successfully.",
-                "call_text_agent",
-                "Text artifact stored in graph state.",
+            self._add_step(state, "text_agent_node", "TextAgent completed successfully.", "call_text_agent", "Text artifact stored in graph state.")
+            self.log_service.add_log(
+                agent="text_agent",
+                action="manager_chat",
+                input_summary=state["user_message"][:300],
+                status="success",
+                duration_ms=self._ms(t0),
+                run_id=state.get("trace_id"),
+                step="generate_text",
+                tool_called="huggingface_generate",
+                output_summary=f"{len(result.get('generated_text', ''))} chars, {len(result.get('hashtags', []))} hashtags",
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
             state["errors"].append(error)
             state["status"] = "error"
             self._add_step(state, "text_agent_node", "TextAgent failed.", "call_text_agent", error, "error")
+            self.log_service.add_log(
+                agent="text_agent",
+                action="manager_chat",
+                input_summary=state["user_message"][:300],
+                status="error",
+                duration_ms=self._ms(t0),
+                run_id=state.get("trace_id"),
+                step="generate_text",
+                tool_called="huggingface_generate",
+                output_summary=error[:300],
+            )
         return state
 
     def image_agent_node(self, state: ManagerChatState) -> ManagerChatState:
+        t0 = datetime.utcnow()
         try:
             result = ImageAgent(self.hf_factory(), self.trace_service).generate_prompt(
                 task=state["user_message"],
@@ -247,33 +279,53 @@ class ManagerChatGraph:
             )
             state["generated_artifacts"]["image"] = result
             state["used_agents"].append("ImageAgent")
-            self._add_step(
-                state,
-                "image_agent_node",
-                "ImageAgent completed successfully.",
-                "call_image_agent",
-                "Image prompt artifact stored in graph state. No image file was generated.",
+            self._add_step(state, "image_agent_node", "ImageAgent completed successfully.", "call_image_agent", "Image prompt artifact stored in graph state. No image file was generated.")
+            self.log_service.add_log(
+                agent="image_agent",
+                action="manager_chat",
+                input_summary=state["user_message"][:300],
+                status="success",
+                duration_ms=self._ms(t0),
+                run_id=state.get("trace_id"),
+                step="generate_image_prompt",
+                tool_called="huggingface_generate",
+                output_summary=f"Image prompt: {len(result.get('image_prompt', ''))} chars",
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
             state["errors"].append(error)
             state["status"] = "error"
             self._add_step(state, "image_agent_node", "ImageAgent failed.", "call_image_agent", error, "error")
+            self.log_service.add_log(
+                agent="image_agent",
+                action="manager_chat",
+                input_summary=state["user_message"][:300],
+                status="error",
+                duration_ms=self._ms(t0),
+                run_id=state.get("trace_id"),
+                step="generate_image_prompt",
+                tool_called="huggingface_generate",
+                output_summary=error[:300],
+            )
         return state
 
     def clarification_node(self, state: ManagerChatState) -> ManagerChatState:
+        t0 = datetime.utcnow()
         state["assistant_message"] = (
             "Soll ich Marketing-Text, einen Bildprompt oder beides erstellen? "
             "Nenne gern auch Plattform, Zielgruppe und Tonalitaet."
         )
         state["status"] = "needs_input"
-        self._add_step(
-            state,
-            "clarification_node",
-            "The request is unclear.",
-            "ask_clarification",
-            "No HuggingFace call was made.",
-            "needs_input",
+        self._add_step(state, "clarification_node", "The request is unclear.", "ask_clarification", "No HuggingFace call was made.", "needs_input")
+        self.log_service.add_log(
+            agent="manager_agent",
+            action="manager_chat",
+            input_summary=state["user_message"][:300],
+            status="skipped",
+            duration_ms=self._ms(t0),
+            run_id=state.get("trace_id"),
+            step="ask_clarification",
+            decision="Intent unclear — asked user for text/image/both + platform/audience/tone",
         )
         return state
 
@@ -410,3 +462,6 @@ class ManagerChatGraph:
         if isinstance(context, dict):
             return context.get(key, default)
         return default
+
+    def _ms(self, start: datetime) -> int:
+        return int((datetime.utcnow() - start).total_seconds() * 1000)

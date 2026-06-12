@@ -1,5 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe, SlicePipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { LogService } from '../../services/log.service';
@@ -10,7 +10,7 @@ export type LogFilter = 'all' | 'manager' | 'text' | 'image';
 @Component({
   selector: 'app-logs',
   standalone: true,
-  imports: [SidebarComponent, CommonModule],
+  imports: [SidebarComponent, CommonModule, DatePipe, SlicePipe],
   templateUrl: './logs.component.html',
   styleUrls: ['./logs.component.scss'],
 })

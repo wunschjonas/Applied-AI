@@ -56,8 +56,3 @@ def get_preview(post_id: str):
     print(f"[Posts] GET /api/posts/{post_id}/preview aufgerufen")
     return post_service.get_preview(post_id)
 
-
-@router.get("/{post_id}/agent-trace")
-def get_agent_trace(post_id: str):
-    print(f"[Posts] GET /api/posts/{post_id}/agent-trace aufgerufen")
-    return post_service.get_agent_trace(post_id)

@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, constr
@@ -7,8 +6,6 @@ from pydantic import BaseModel, Field, constr
 class ChatMessage(BaseModel):
     role: Literal["USER", "AGENT"]
     content: str
-    timestamp: datetime
-    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ManagerChatRequest(BaseModel):
@@ -48,6 +45,4 @@ class ImageAgentChatResponse(BaseModel):
 class ChatHistoryResponse(BaseModel):
     id: str
     agent: str
-    created_at: datetime
-    updated_at: datetime
     messages: list[ChatMessage] = Field(default_factory=list)
