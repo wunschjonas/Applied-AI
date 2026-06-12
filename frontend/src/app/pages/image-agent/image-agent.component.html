@@ -4,6 +4,13 @@
   <section class="page-content">
     <div class="agent-stage">
       <h1>Image Agent</h1>
+      <div class="preview-box">
+        @if (generatedImageUrl()) {
+          <img [src]="generatedImageUrl()" alt="Generiertes Bild" />
+        } @else {
+          <span class="preview-placeholder">Noch kein Bild generiert</span>
+        }
+      </div>
       <app-chat-panel
         [messages]="chatFacade.imageAgentChat()"
         (userSend)="onUserSend($event)"

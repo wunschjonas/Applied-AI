@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
 import { ChatFacade } from '../../facades/chat.facade';
@@ -18,6 +18,8 @@ export class TextAgentComponent {
   public postFacade = inject(PostFacade);
   private readonly textAgentService = inject(TextAgentService);
 
+  public generatedText = signal<string | null>(null);
+
   public onUserSend(text: string): void {
     const postId = this.postFacade.currentPostId();
     if (!postId) return;
@@ -33,6 +35,7 @@ export class TextAgentComponent {
           ...this.chatFacade.textAgentChat(),
           { sender: ChatSender.Agent, text: response.message },
         ]);
+        this.generatedText.set(response.message);
       },
       complete: () => this.chatFacade.updateIsTextAgentWorking(false),
       error: () => this.chatFacade.updateIsTextAgentWorking(false),

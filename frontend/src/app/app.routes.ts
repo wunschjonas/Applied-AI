@@ -40,6 +40,13 @@ export const routes: Routes = [
       import('./pages/rag/rag.component').then((module) => module.RagComponent),
   },
   {
+    path: 'preview',
+    loadComponent: () =>
+      import('./pages/preview/preview.component').then(
+        (module) => module.PreviewComponent,
+      ),
+  },
+  {
     path: 'contact',
     loadComponent: () =>
       import('./pages/contact/contact.component').then(
