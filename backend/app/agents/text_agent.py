@@ -17,6 +17,7 @@ class TextAgent(BaseAgent):
         tone: str | None = "professional",
         target_audience: str | None = None,
         context: str | dict[str, Any] | None = None,
+        rag_context: str | None = None,
     ) -> dict[str, Any]:
         self.trace(
             trace,
@@ -25,7 +26,7 @@ class TextAgent(BaseAgent):
             observation=f"Platform={platform or 'unspecified'}, tone={tone or 'unspecified'}.",
         )
 
-        prompt = self._build_prompt(task, platform, tone, target_audience, context)
+        prompt = self._build_prompt(task, platform, tone, target_audience, context, rag_context)
         generated_text = self.hf.generate(
             system_prompt=(
                 "You are a practical marketing copywriter. Write concise, useful copy. "
@@ -55,8 +56,10 @@ class TextAgent(BaseAgent):
         tone: str | None,
         target_audience: str | None,
         context: str | dict[str, Any] | None,
+        rag_context: str | None = None,
     ) -> str:
         context_text = self._context_to_text(context)
+        memory_section = f"\n- Memory context: {rag_context}" if rag_context else ""
         return f"""
 Create marketing text for this task:
 {task}
@@ -65,7 +68,7 @@ Details:
 - Platform: {platform or "unspecified"}
 - Tone: {tone or "professional"}
 - Target audience: {target_audience or "unspecified"}
-- Context: {context_text}
+- Context: {context_text}{memory_section}
 
 Include a clear CTA when useful.
 Include 3 to 6 relevant hashtags if the platform supports hashtags.

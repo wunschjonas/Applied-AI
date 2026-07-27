@@ -7,3 +7,18 @@ export interface ChatMessage {
   sender: ChatSender;
   text: string;
 }
+
+export interface AgentChatHistoryMessage {
+  role: string;
+  content: string;
+  timestamp: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface AgentChatHistory {
+  id: string;
+  agent: string;
+  created_at: string;
+  updated_at: string;
+  messages: AgentChatHistoryMessage[];
+}

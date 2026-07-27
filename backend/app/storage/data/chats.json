@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "id": "68464548-d29e-4154-9474-df2320c53b46::image_agent",
+    "agent": "image_agent",
+    "messages": [
+      {
+        "role": "USER",
+        "content": "Hallo Image Agent"
+      }
+    ]
+  },
+  {
+    "id": "68464548-d29e-4154-9474-df2320c53b46::text_agent",
+    "agent": "text_agent",
+    "messages": [
+      {
+        "role": "USER",
+        "content": "Hallo Text Agent"
+      }
+    ]
+  }
+]

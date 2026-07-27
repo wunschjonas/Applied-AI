@@ -4,6 +4,12 @@ export interface HealthResponse {
   version: string;
 }
 
+export interface InitPostResponse {
+  post_id: string;
+  title: string;
+  created_at: string;
+}
+
 export interface CreatePostRequest {
   title: string;
   topic: string;

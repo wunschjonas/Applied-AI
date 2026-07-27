@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "id": "db945399-f355-4214-b351-3c6b20f78a04",
+    "run_id": "353ed8cd-f511-40f5-95e0-cbeeae5d09c0",
+    "agent": "image_agent",
+    "timestamp": "2026-06-12T19:18:47.522407",
+    "step": "image_chat",
+    "tool_called": "huggingface_generate",
+    "decision": null,
+    "action": "image_chat",
+    "input_summary": "Hallo Image Agent",
+    "output_summary": "ValueError: HF_TOKEN is missing. Configure it in backend/.env before calling an agent.",
+    "status": "error",
+    "duration_ms": 8
+  },
+  {
+    "id": "f09525b3-63db-4fd7-89a9-3982bf6f9a21",
+    "run_id": "478067cb-e42d-4239-bd7e-699e76bd68ac",
+    "agent": "text_agent",
+    "timestamp": "2026-06-12T19:18:54.800052",
+    "step": "text_chat",
+    "tool_called": "huggingface_generate",
+    "decision": null,
+    "action": "text_chat",
+    "input_summary": "Hallo Text Agent",
+    "output_summary": "ValueError: HF_TOKEN is missing. Configure it in backend/.env before calling an agent.",
+    "status": "error",
+    "duration_ms": 8
+  }
+]

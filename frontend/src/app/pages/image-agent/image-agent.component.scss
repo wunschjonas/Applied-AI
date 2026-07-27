@@ -15,6 +15,32 @@ h1 {
   font-size: 2rem;
 }
 
+.preview-box {
+  margin: 1.5rem 0;
+  width: 100%;
+  min-height: 280px;
+  border: 2px dashed #c8d8e8;
+  border-radius: 12px;
+  background: #f5f8fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  img {
+    max-width: 100%;
+    max-height: 480px;
+    object-fit: contain;
+    border-radius: 10px;
+  }
+}
+
+.preview-placeholder {
+  color: #8fa8be;
+  font-size: 1rem;
+  font-style: italic;
+}
+
 @media (max-width: 900px) {
   .page-shell {
     flex-direction: column;

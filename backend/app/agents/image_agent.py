@@ -15,6 +15,7 @@ class ImageAgent(BaseAgent):
         platform: str | None = None,
         visual_style: str | None = None,
         context: str | dict[str, Any] | None = None,
+        rag_context: str | None = None,
     ) -> dict[str, Any]:
         self.trace(
             trace,
@@ -28,7 +29,7 @@ class ImageAgent(BaseAgent):
                 "You write production-ready image generation prompts for marketing visuals. "
                 "Return a strong prompt, a short negative prompt, and a suggested style."
             ),
-            user_prompt=self._build_prompt(task, platform, visual_style, context),
+            user_prompt=self._build_prompt(task, platform, visual_style, context, rag_context),
             max_tokens=500,
         )
 
@@ -53,8 +54,10 @@ class ImageAgent(BaseAgent):
         platform: str | None,
         visual_style: str | None,
         context: str | dict[str, Any] | None,
+        rag_context: str | None = None,
     ) -> str:
         context_text = self._context_to_text(context)
+        memory_section = f"\n- Memory context: {rag_context}" if rag_context else ""
         return f"""
 Create an image generation prompt for this marketing task:
 {task}
@@ -62,7 +65,7 @@ Create an image generation prompt for this marketing task:
 Details:
 - Platform: {platform or "unspecified"}
 - Visual style: {visual_style or "choose an appropriate style"}
-- Context: {context_text}
+- Context: {context_text}{memory_section}
 
 The prompt should describe subject, composition, lighting, colors, mood, and any platform-specific framing.
 Do not request readable text inside the image unless explicitly required.

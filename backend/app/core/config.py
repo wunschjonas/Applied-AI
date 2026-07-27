@@ -10,10 +10,13 @@ class Settings(BaseSettings):
     hf_token: SecretStr | None = Field(default=None, alias="HF_TOKEN")
     hf_model_id: str = Field(default="Qwen/Qwen2.5-7B-Instruct", alias="HF_MODEL_ID")
 
+    mcp_memory_url: str = Field(default="http://localhost:8765/mcp", alias="MCP_MEMORY_URL")
+
     data_dir: Path = Path(__file__).resolve().parent.parent / "storage" / "data"
     posts_file: Path = data_dir / "posts.json"
     chats_file: Path = data_dir / "chats.json"
     traces_file: Path = data_dir / "traces.json"
+    agent_logs_file: Path = data_dir / "agent_logs.json"
 
     class Config:
         env_file = Path(__file__).resolve().parent.parent.parent / ".env"

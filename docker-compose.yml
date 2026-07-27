@@ -1,10 +1,29 @@
 version: '3.9'
 services:
+  memory:
+    image: doobidoo/mcp-memory-service:latest
+    ports:
+      - '8765:8765'
+    volumes:
+      - memory_data:/app/sqlite_db
+    environment:
+      - MCP_MODE=streamable-http
+      - MCP_SSE_HOST=0.0.0.0
+      - MCP_SSE_PORT=8765
+      - MCP_ALLOW_ANONYMOUS_ACCESS=true
+      - MCP_MEMORY_STORAGE_BACKEND=sqlite_vec
+      - MCP_MEMORY_SQLITE_PATH=/app/sqlite_db/memory.db
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
     ports:
       - '8080:8080'
+    depends_on:
+      - memory
+    environment:
+      - MCP_MEMORY_URL=http://memory:8765/mcp
     restart: unless-stopped
 
   frontend:
@@ -15,3 +34,6 @@ services:
     restart: unless-stopped
     environment:
       - BACKEND_URL=http://localhost:8080
+
+volumes:
+  memory_data:

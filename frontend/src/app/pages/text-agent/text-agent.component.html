@@ -4,6 +4,13 @@
   <section class="page-content">
     <div class="agent-stage">
       <h1>Text Agent</h1>
+      <div class="preview-box">
+        @if (generatedText()) {
+          <p class="preview-text">{{ generatedText() }}</p>
+        } @else {
+          <span class="preview-placeholder">Noch kein Text generiert</span>
+        }
+      </div>
       <app-chat-panel
         [messages]="chatFacade.textAgentChat()"
         (userSend)="onUserSend($event)"

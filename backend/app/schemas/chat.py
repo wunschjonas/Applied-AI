@@ -1,19 +1,16 @@
-from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, constr
 
 
 class ChatMessage(BaseModel):
-    role: str
+    role: Literal["USER", "AGENT"]
     content: str
-    timestamp: datetime
-    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ManagerChatRequest(BaseModel):
     message: constr(min_length=1, max_length=4000)
-    chat_id: str | None = None
+    post_id: str
     context: str | dict[str, Any] | None = None
 
 
@@ -25,8 +22,27 @@ class ManagerChatResponse(BaseModel):
     trace_id: str
 
 
-class ChatHistoryResponse(BaseModel):
+class TextAgentChatRequest(BaseModel):
+    message: constr(min_length=1, max_length=4000)
+    post_id: str
+
+
+class TextAgentChatResponse(BaseModel):
     chat_id: str
-    created_at: datetime
-    updated_at: datetime
+    assistant_message: str
+
+
+class ImageAgentChatRequest(BaseModel):
+    message: constr(min_length=1, max_length=4000)
+    post_id: str
+
+
+class ImageAgentChatResponse(BaseModel):
+    chat_id: str
+    assistant_message: str
+
+
+class ChatHistoryResponse(BaseModel):
+    id: str
+    agent: str
     messages: list[ChatMessage] = Field(default_factory=list)

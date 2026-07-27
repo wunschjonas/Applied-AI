@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
+from uuid import uuid4
 
 from fastapi import HTTPException, status
 
@@ -10,6 +12,7 @@ from app.core.config import settings
 from app.graphs.manager_chat_graph import ManagerChatGraph
 from app.services.chat_service import ChatService
 from app.services.huggingface_service import HuggingFaceService
+from app.services.log_service import LogService
 from app.services.rag_service import RAGService
 from app.services.trace_service import TraceService
 
@@ -18,12 +21,13 @@ class AgentService:
     def __init__(self):
         self.chat_service = ChatService()
         self.trace_service = TraceService()
-        self.rag_service = RAGService()
+        self.rag_service = RAGService(memory_url=settings.mcp_memory_url)
+        self.log_service = LogService()
 
     def manager_chat(
         self,
         message: str,
-        chat_id: str | None = None,
+        post_id: str,
         context: str | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         try:
@@ -33,7 +37,7 @@ class AgentService:
                 rag_service=self.rag_service,
                 hf_factory=self._hf,
             )
-            return graph.run(message=message, chat_id=chat_id, context=context)
+            return graph.run(message=message, post_id=post_id, context=context)
         except Exception as exc:
             raise self._to_http_error(exc) from exc
 
@@ -109,3 +113,72 @@ class AgentService:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Agent execution failed: {type(exc).__name__}: {exc}",
         )
+
+    def text_agent_chat(self, message: str, post_id: str) -> dict[str, Any]:
+        run_id = str(uuid4())
+        t0 = datetime.utcnow()
+        chat = self.chat_service.get_or_create_chat(post_id, agent="text_agent")
+        self.chat_service.add_message(chat, role="USER", content=message)
+        try:
+            hf = self._hf()
+            reply = hf.generate(
+                system_prompt=(
+                    "You are a marketing copywriter assistant. "
+                    "Help the user with text, posts, slogans and copy for any platform. "
+                    "Be concise and practical."
+                ),
+                user_prompt=message,
+                max_tokens=600,
+            )
+        except Exception as exc:
+            self.log_service.add_log(
+                agent="text_agent", action="text_chat", input_summary=message,
+                status="error", duration_ms=self._ms(t0), run_id=run_id,
+                step="text_chat", tool_called="huggingface_generate",
+                output_summary=f"{type(exc).__name__}: {exc}",
+            )
+            raise self._to_http_error(exc) from exc
+        self.chat_service.add_message(chat, role="AGENT", content=reply)
+        self.log_service.add_log(
+            agent="text_agent", action="text_chat", input_summary=message,
+            status="success", duration_ms=self._ms(t0), run_id=run_id,
+            step="text_chat", tool_called="huggingface_generate",
+            output_summary=f"{len(reply)} chars generated",
+        )
+        return {"chat_id": chat["id"], "assistant_message": reply}
+
+    def image_agent_chat(self, message: str, post_id: str) -> dict[str, Any]:
+        run_id = str(uuid4())
+        t0 = datetime.utcnow()
+        chat = self.chat_service.get_or_create_chat(post_id, agent="image_agent")
+        self.chat_service.add_message(chat, role="USER", content=message)
+        try:
+            hf = self._hf()
+            reply = hf.generate(
+                system_prompt=(
+                    "You are an image prompt specialist for marketing visuals. "
+                    "Help the user craft image generation prompts, describe visual styles, "
+                    "and suggest composition ideas. Be specific and visual."
+                ),
+                user_prompt=message,
+                max_tokens=600,
+            )
+        except Exception as exc:
+            self.log_service.add_log(
+                agent="image_agent", action="image_chat", input_summary=message,
+                status="error", duration_ms=self._ms(t0), run_id=run_id,
+                step="image_chat", tool_called="huggingface_generate",
+                output_summary=f"{type(exc).__name__}: {exc}",
+            )
+            raise self._to_http_error(exc) from exc
+        self.chat_service.add_message(chat, role="AGENT", content=reply)
+        self.log_service.add_log(
+            agent="image_agent", action="image_chat", input_summary=message,
+            status="success", duration_ms=self._ms(t0), run_id=run_id,
+            step="image_chat", tool_called="huggingface_generate",
+            output_summary=f"{len(reply)} chars generated",
+        )
+        return {"chat_id": chat["id"], "assistant_message": reply}
+
+    def _ms(self, start: datetime) -> int:
+        return int((datetime.utcnow() - start).total_seconds() * 1000)
