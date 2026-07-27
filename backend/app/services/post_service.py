@@ -8,12 +8,14 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from app.schemas.post import PostCreate, PostInit, PostInitResponse, PostResponse, PostStatus, PostUpdate
 from app.services.agent_service import AgentService
+from app.services.chat_service import ChatService
 from app.storage.json_store import JSONStore
 
 
 class PostService:
     def __init__(self):
         self.store = JSONStore(settings.posts_file)
+        self.chat_service = ChatService()
 
     def init_post(self, post_init: PostInit) -> PostInitResponse:
         post_id = str(uuid4())
@@ -29,6 +31,7 @@ class PostService:
             "preview": None,
         }
         self.store.save(post)
+        self.chat_service.ensure_chats_for_post(post_id)
         return PostInitResponse(post_id=post_id, title=post_init.title)
 
     def create_post(self, post_create: PostCreate) -> PostResponse:
@@ -39,6 +42,7 @@ class PostService:
             **post_create.model_dump(),
         }
         self.store.save(post)
+        self.chat_service.ensure_chats_for_post(post["id"])
         return self._to_response(post)
 
     def list_posts(self) -> list[PostResponse]:
@@ -61,6 +65,7 @@ class PostService:
     def delete_post(self, post_id: str) -> None:
         if not self.store.delete(post_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+        self.chat_service.delete_chats_for_post(post_id)
 
     def generate_preview(self, post_id: str) -> PostResponse:
         post = self.store.get(post_id)

@@ -1,0 +1,86 @@
+[
+  {
+    "id": "3a6d77bd-af03-4a4e-b8ce-9d6c4fdb2a25",
+    "trace_id": "3a6d77bd-af03-4a4e-b8ce-9d6c4fdb2a25",
+    "chat_id": "81623e49-6ce5-40cd-8fa5-df1c1e21886b::manager_agent",
+    "created_at": "2026-07-27T14:22:36.470939",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "Chat 81623e49-6ce5-40cd-8fa5-df1c1e21886b::manager_agent and trace 3a6d77bd-af03-4a4e-b8ce-9d6c4fdb2a25 are ready.",
+        "status": "success",
+        "timestamp": "2026-07-27T14:22:36.472774"
+      },
+      {
+        "index": 2,
+        "agent": "classify_intent_node",
+        "decision": "No clear text or image intent detected.",
+        "action": "classify_intent",
+        "observation": "Clarification is required before selecting an agent.",
+        "status": "needs_input",
+        "timestamp": "2026-07-27T14:22:36.483577"
+      },
+      {
+        "index": 3,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG not needed for this request.",
+        "status": "skipped",
+        "timestamp": "2026-07-27T14:22:36.493293"
+      },
+      {
+        "index": 4,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=clarification.",
+        "action": "route_by_intent",
+        "observation": "Unknown intent.",
+        "status": "success",
+        "timestamp": "2026-07-27T14:22:36.508796"
+      },
+      {
+        "index": 5,
+        "agent": "clarification_node",
+        "decision": "The request is unclear.",
+        "action": "ask_clarification",
+        "observation": "No HuggingFace call was made.",
+        "status": "needs_input",
+        "timestamp": "2026-07-27T14:22:36.517486"
+      },
+      {
+        "index": 6,
+        "agent": "validation_node",
+        "decision": "Required outputs are present.",
+        "action": "validate_outputs",
+        "observation": "Validation passed for intent=clarification.",
+        "status": "needs_input",
+        "timestamp": "2026-07-27T14:22:36.533854"
+      },
+      {
+        "index": 7,
+        "agent": "assemble_response_node",
+        "decision": "Final chat response assembled from graph state.",
+        "action": "assemble_response",
+        "observation": "Combined text and image prompt response assembled.",
+        "status": "needs_input",
+        "timestamp": "2026-07-27T14:22:36.542124"
+      },
+      {
+        "index": 8,
+        "agent": "save_trace_node",
+        "decision": "Chat messages and trace are saved.",
+        "action": "save_chat_and_trace",
+        "observation": "Saved chat 81623e49-6ce5-40cd-8fa5-df1c1e21886b::manager_agent with trace 3a6d77bd-af03-4a4e-b8ce-9d6c4fdb2a25.",
+        "status": "needs_input",
+        "timestamp": "2026-07-27T14:22:36.559153"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph"
+    }
+  }
+]

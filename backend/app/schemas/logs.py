@@ -15,7 +15,7 @@ class AgentLogEntry(BaseModel):
     action: str
     input_summary: str = Field(max_length=300)
     output_summary: str | None = Field(default=None, max_length=300)
-    status: Literal["success", "error", "skipped"]
+    status: Literal["success", "error", "skipped", "needs_input"]
     duration_ms: int
 
 

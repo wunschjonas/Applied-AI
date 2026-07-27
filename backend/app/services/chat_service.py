@@ -9,6 +9,8 @@ from app.storage.json_store import JSONStore
 
 
 class ChatService:
+    AGENT_CHAT_TYPES = ("manager_agent", "text_agent", "image_agent")
+
     def __init__(self):
         self.store = JSONStore(settings.chats_file)
 
@@ -25,6 +27,17 @@ class ChatService:
         }
         self.store.save(chat)
         return chat
+
+    def ensure_chats_for_post(self, post_id: str) -> None:
+        for agent in self.AGENT_CHAT_TYPES:
+            self.get_or_create_chat(post_id, agent)
+
+    def delete_chats_for_post(self, post_id: str) -> None:
+        prefix = f"{post_id}::"
+        for chat in list(self.store.list()):
+            chat_id = chat.get("id", "")
+            if isinstance(chat_id, str) and chat_id.startswith(prefix):
+                self.store.delete(chat_id)
 
     def add_message(
         self,

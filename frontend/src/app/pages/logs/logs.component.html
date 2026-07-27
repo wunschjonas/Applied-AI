@@ -35,7 +35,7 @@
           <div class="log-header-left">
             <span class="log-step">{{ log.step }}</span>
             @if (log.tool_called) {
-              <span class="tool-badge" [class.hf]="log.tool_called === 'huggingface_generate'" [class.mcp]="log.tool_called?.startsWith('mcp_')">
+              <span class="tool-badge" [class.hf]="log.tool_called === 'huggingface_generate'" [class.mcp]="log.tool_called.startsWith('mcp_')">
                 &#9874; {{ log.tool_called }}
               </span>
             }
