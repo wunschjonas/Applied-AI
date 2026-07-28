@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes_image_agent import router as image_router
 from app.api.routes_manager_agent import router as manager_router
@@ -27,6 +28,13 @@ app.include_router(manager_router)
 app.include_router(text_router)
 app.include_router(image_router)
 app.include_router(memory_router)
+
+settings.generated_images_dir.mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/generated-images",
+    StaticFiles(directory=settings.generated_images_dir),
+    name="generated-images",
+)
 
 
 @app.get("/health")

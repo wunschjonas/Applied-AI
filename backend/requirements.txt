@@ -7,3 +7,4 @@ huggingface-hub
 langgraph
 mcp
 httpx
+Pillow

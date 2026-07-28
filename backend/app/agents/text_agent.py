@@ -18,6 +18,7 @@ class TextAgent(BaseAgent):
         target_audience: str | None = None,
         context: str | dict[str, Any] | None = None,
         rag_context: str | None = None,
+        validation_feedback: str | None = None,
     ) -> dict[str, Any]:
         self.trace(
             trace,
@@ -26,7 +27,13 @@ class TextAgent(BaseAgent):
             observation=f"Platform={platform or 'unspecified'}, tone={tone or 'unspecified'}.",
         )
 
-        prompt = self._build_prompt(task, platform, tone, target_audience, context, rag_context)
+        prompt = self._build_prompt(task, platform, tone, target_audience, context, rag_context, validation_feedback)
+        self.trace(
+            trace,
+            decision="Text prompt is ready for model inference.",
+            action="call_text_model",
+            observation=f"Calling HuggingFace text model {getattr(self.hf, 'hf_model_id', 'unknown')}.",
+        )
         generated_text = self.hf.generate(
             system_prompt=(
                 "You are a practical marketing copywriter. Write concise, useful copy. "
@@ -34,6 +41,12 @@ class TextAgent(BaseAgent):
             ),
             user_prompt=prompt,
             max_tokens=700,
+        )
+        self.trace(
+            trace,
+            decision="HuggingFace returned text content.",
+            action="parse_text_response",
+            observation=f"Received {len(generated_text)} characters.",
         )
         hashtags = self._extract_hashtags(generated_text, task)
 
@@ -57,9 +70,11 @@ class TextAgent(BaseAgent):
         target_audience: str | None,
         context: str | dict[str, Any] | None,
         rag_context: str | None = None,
+        validation_feedback: str | None = None,
     ) -> str:
         context_text = self._context_to_text(context)
         memory_section = f"\n- Memory context: {rag_context}" if rag_context else ""
+        feedback_section = f"\n- Validation feedback to fix: {validation_feedback}" if validation_feedback else ""
         return f"""
 Create marketing text for this task:
 {task}
@@ -68,7 +83,7 @@ Details:
 - Platform: {platform or "unspecified"}
 - Tone: {tone or "professional"}
 - Target audience: {target_audience or "unspecified"}
-- Context: {context_text}{memory_section}
+- Context: {context_text}{memory_section}{feedback_section}
 
 Include a clear CTA when useful.
 Include 3 to 6 relevant hashtags if the platform supports hashtags.

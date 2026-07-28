@@ -29,3 +29,10 @@ class ImagePromptResponse(BaseModel):
     negative_prompt_optional: str | None = None
     suggested_style: str | None = None
     trace_id: str
+
+
+class ImageGenerateResponse(ImagePromptResponse):
+    image_url: str | None = None
+    image_filename: str | None = None
+    image_content_type: str | None = None
+    image_error: str | None = None
