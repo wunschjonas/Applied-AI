@@ -1,7 +1,29 @@
 [
   {
-    "id": "68464548-d29e-4154-9474-df2320c53b46",
-    "title": "Hallo Welt",
+    "id": "4ccf3a7e-eeb8-4753-bc78-ce3532f0df4e",
+    "title": "Test 1",
+    "status": "draft",
+    "topic": null,
+    "platform": null,
+    "target_audience": null,
+    "tone_of_voice": null,
+    "additional_context": null,
+    "preview": null
+  },
+  {
+    "id": "81623e49-6ce5-40cd-8fa5-df1c1e21886b",
+    "title": "Test 2",
+    "status": "draft",
+    "topic": null,
+    "platform": null,
+    "target_audience": null,
+    "tone_of_voice": null,
+    "additional_context": null,
+    "preview": null
+  },
+  {
+    "id": "e6100757-8b86-4983-8d72-8cf6a96f551b",
+    "title": "Test 3",
     "status": "draft",
     "topic": null,
     "platform": null,
