@@ -50,6 +50,8 @@ class ChatService:
             "role": role,
             "content": content,
         }
+        if metadata:
+            message["metadata"] = metadata
         chat["messages"].append(message)
         self.store.save(chat)
         return message

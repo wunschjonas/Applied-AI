@@ -1,258 +1,248 @@
 # Backend Agent Architecture
 
-This backend keeps FastAPI as the API layer and uses LangGraph as the central orchestration layer for the Manager Agent workflow.
+This backend keeps FastAPI as the API layer and uses LangGraph as the only orchestration mechanism for the Manager Agent workflow.
 
-The goal is a clear Applied AI multi-agent backend:
+## Stable Route Groups
 
-- Manager chat endpoint powered by a LangGraph `StateGraph`
-- Situation-dependent routing to TextAgent, ImageAgent, both, or clarification
-- Visible structured execution trace
-- HuggingFace generation through one service
-- RAG prepared as a placeholder for later extension
-
-## Why LangGraph Is Used
-
-LangGraph makes the Manager workflow explicit. Instead of hiding orchestration inside one method, the backend models the workflow as named graph nodes with conditional edges.
-
-That helps the project show:
-
-- multi-step TAO-style execution
-- real decisions
-- different paths for different inputs
-- readable error handling
-- visible trace/log output for the frontend and project review
-
-## ManagerChatGraph
-
-The central graph lives in:
+Manager:
 
 ```text
-app/graphs/manager_chat_graph.py
+POST /api/agents/manager/chat
+GET /api/agents/manager/chats/{chat_id}
+GET /api/agents/manager/traces/{trace_id}
+GET /api/agents/manager/logs
 ```
 
-`POST /api/agents/manager/chat` calls this graph through `AgentService.manager_chat(...)`.
-
-The graph state contains:
-
-- `chat_id`
-- `trace_id`
-- `user_message`
-- `context`
-- `intent`
-- `rag_needed`
-- `rag_context`
-- `used_agents`
-- `generated_artifacts`
-- `assistant_message`
-- `trace_steps`
-- `errors`
-- `status`
-
-## Graph Nodes
-
-`init_state_node`
-
-Creates or loads the chat, creates a trace, normalizes the message/context and initializes graph state.
-
-`classify_intent_node`
-
-Classifies the message as:
-
-- `text_only`
-- `image_only`
-- `text_and_image`
-- `clarification_needed`
-
-Explicit overrides are handled first. For example, `Nur das Bild!` routes to `image_only` even if the message also says `Instagram Post`.
-
-`rag_decision_node`
-
-Checks whether the message mentions documents, PDFs, brand guidelines, knowledge base, sources or context. Sets `rag_needed`.
-
-`rag_retrieval_node`
-
-Placeholder only. If RAG is requested, it records:
+Text:
 
 ```text
-RAG requested, but retrieval is not implemented yet in this version.
+POST /api/agents/text/generate
+POST /api/agents/text/chat
+GET /api/agents/text/chats/{chat_id}
+GET /api/agents/text/logs
 ```
 
-`route_by_intent`
+Image:
 
-Chooses the graph path based on intent.
+```text
+POST /api/agents/image/generate-prompt
+POST /api/agents/image/generate
+POST /api/agents/image/chat
+GET /api/agents/image/chats/{chat_id}
+GET /api/agents/image/logs
+```
 
-`text_agent_node`
+Posts, health and memory routes remain unchanged.
 
-Calls `TextAgent` only for `text_only` or `text_and_image`. Stores `generated_text` and `hashtags`.
+## Manager Workflow
 
-`image_agent_node`
+The productive Manager endpoint calls:
 
-Calls `ImageAgent` only for `image_only` or `text_and_image`. Stores `image_prompt`, `negative_prompt_optional` and `suggested_style`.
-
-Important: this node generates only an image prompt. It does not create an actual image file.
-
-`clarification_node`
-
-Asks whether the user wants marketing text, an image prompt or both. No HuggingFace call is made.
-
-`validation_node`
-
-Checks that the required artifacts exist for the selected intent.
-
-`assemble_response_node`
-
-Creates the final assistant message. Image responses clearly say that an image prompt was generated and no real image file is generated in this version.
-
-`save_trace_node`
-
-Saves chat messages and adds the final trace step.
-
-## Conditional Routing
+```text
+routes_manager_agent.py
+-> AgentService.manager_chat()
+-> ManagerChatGraph.run()
+```
 
 Graph flow:
 
 ```text
 START
- -> init_state_node
- -> classify_intent_node
- -> rag_decision_node
- -> maybe RAG
- -> route_by_intent
- -> text_agent_node and/or image_agent_node, or clarification_node
- -> validation_node
- -> assemble_response_node
- -> save_trace_node
- -> END
+-> init_state_node
+-> classify_intent_node
+-> create_plan_node
+-> rag_decision_node
+-> optional rag_retrieval_node
+-> route_by_intent
+-> text_agent_node and/or image_agent_node, or clarification_node
+-> validation_node
+-> optional one-time retry
+-> assemble_response_node
+-> save_trace_node
+-> END
 ```
 
-For `text_and_image`, the graph runs:
+The graph state tracks `chat_id`, `trace_id`, `post_id`, `user_message`, `context`, `intent`, `execution_plan`, `rag_needed`, `rag_context`, `generated_artifacts`, `used_agents`, `errors`, `warnings`, `status`, `validation_feedback`, `validation_result`, `text_retry_count` and `image_retry_count`.
+
+## Intent Classification
+
+`backend/app/agents/manager_agent.py` now contains only the isolated `AgentIntent` data class and `ManagerIntentClassifier`.
+
+It classifies:
 
 ```text
-text_agent_node -> image_agent_node -> validation_node
+text_only
+image_only
+text_and_image
+clarification_needed
 ```
 
-For `image_only`, the graph runs:
+Explicit overrides such as `Nur das Bild!`, `nur text`, `only image` and `text only` are handled before keyword routing.
 
-```text
-image_agent_node -> validation_node
-```
+## Planning
 
-No `TextAgent` step appears in an image-only trace.
-
-## Agents
-
-`TextAgent`
-
-Generates marketing text such as posts, captions, descriptions, hashtags and CTAs through HuggingFace.
-
-`ImageAgent`
-
-Generates a production-ready image prompt through HuggingFace. Actual image generation is future work.
-
-`BaseAgent`
-
-Contains shared trace-writing behavior for direct agent calls and graph node calls.
-
-`ManagerAgent`
-
-Keeps the deterministic intent classification logic used by the LangGraph node. It is no longer the central orchestrator for `/api/agents/manager/chat`; LangGraph is.
-
-## API Endpoints
-
-`POST /api/agents/manager/chat`
-
-Powered by LangGraph.
-
-Input:
+`create_plan_node` stores high-level, non-private planning metadata:
 
 ```json
 {
-  "message": "Create an Instagram caption and image prompt for a new AI course.",
-  "chat_id": null,
-  "context": {
-    "tone": "friendly",
-    "target_audience": "students"
-  }
+  "required_agents": ["TextAgent", "ImageAgent"],
+  "needs_rag_check": true,
+  "expected_artifacts": ["text", "image"],
+  "validation_requirements": [
+    "text_not_empty",
+    "hashtags_present",
+    "image_file_exists",
+    "image_url_present"
+  ]
 }
 ```
 
-Output:
+This plan is written to the structured trace.
+
+## RAG / MCP Memory
+
+`rag_decision_node` uses `RAGService.is_needed()`.
+
+`rag_retrieval_node` uses the existing MCP Memory integration:
+
+```text
+RAGService.retrieve()
+-> streamablehttp_client(MCP_MEMORY_URL)
+-> ClientSession.call_tool("memory_search", ...)
+```
+
+If retrieval returns no content or fails, the workflow continues with a warning and no hardcoded fake retrieval result.
+
+## TextAgent
+
+`TextAgent.generate()` uses `HuggingFaceService.generate_text()` through the existing compatibility alias `generate()`.
+
+Trace stages include:
+
+```text
+build_text_prompt
+call_text_model
+parse_text_response
+return_text_artifact
+```
+
+The text artifact remains:
 
 ```json
 {
-  "chat_id": "uuid",
-  "assistant_message": "string",
-  "used_agents": ["TextAgent", "ImageAgent"],
-  "generated_artifacts": {},
-  "trace_id": "uuid"
+  "generated_text": "...",
+  "hashtags": ["#Example"]
 }
 ```
 
-Other endpoints:
+## ImageAgent
 
-- `GET /api/agents/chats/{chat_id}`
-- `GET /api/agents/traces/{trace_id}`
-- `POST /api/agents/text/generate`
-- `POST /api/agents/image/generate-prompt`
-- `GET /health`
+`POST /api/agents/image/generate-prompt` remains prompt-only for backward compatibility.
 
-Direct TextAgent and ImageAgent endpoints stay outside LangGraph.
+`POST /api/agents/image/generate` and the Manager graph use `ImageAgent.generate_image()`, which runs two stages:
 
-## Trace Concept
+1. Generate a structured image prompt using the text model.
+2. Generate an actual image via `huggingface_hub.InferenceClient.text_to_image()`.
 
-The visible trace is not private chain-of-thought. It is a structured execution trace for the frontend and project review.
+Successful image artifacts contain:
 
-Each trace step contains:
-
-- `index`
-- `agent`
-- `decision`
-- `action`
-- `observation`
-- `status`
-- `timestamp`
-
-The trace is generated from real graph execution. It differs for:
-
-- text-only request
-- image-only request
-- text and image request
-- RAG-requested request
-- clarification request
-- HuggingFace error
-
-## HuggingFace
-
-The backend reads:
-
-- `HF_TOKEN`
-- `HF_MODEL_ID`
-
-Default model:
-
-```text
-Qwen/Qwen2.5-7B-Instruct
+```json
+{
+  "image_prompt": "...",
+  "negative_prompt_optional": "...",
+  "suggested_style": "...",
+  "image_url": "/generated-images/{filename}",
+  "image_filename": "{uuid}.png",
+  "image_content_type": "image/png"
+}
 ```
 
-HuggingFace is only initialized inside agent nodes that need model generation. Clarification requests do not call HuggingFace.
+Partial success keeps the prompt and style, but sets image URL and filename to `null` and includes `image_error`.
 
-## RAG Placeholder
+Trace stages include:
 
-RAG is represented by `RAGService` and graph nodes:
+```text
+generate_image_prompt
+call_text_to_image_model
+store_generated_image
+return_image_artifact
+```
 
-- `rag_decision_node`
-- `rag_retrieval_node`
+## HuggingFace Configuration
 
-Full retrieval is not implemented yet. The placeholder keeps the graph ready for later document retrieval without adding database or vector-store complexity now.
+Text model:
 
-## Applied AI Requirements
+```env
+HF_MODEL_ID=Qwen/Qwen2.5-7B-Instruct
+```
 
-This architecture supports grading requirements by providing:
+Image model:
 
-- LangGraph-based multi-step agent workflow
-- TAO-style visible trace
-- deterministic but real situation-dependent routing
-- TextAgent and ImageAgent delegation
-- HuggingFace integration
-- readable error handling
-- RAG placeholder for future extension
+```env
+HF_IMAGE_MODEL_ID=black-forest-labs/FLUX.1-schnell
+```
+
+The same `HF_TOKEN` is used for text and image inference. The token must have the required Hugging Face Inference Providers permissions. Image generation may consume paid credits and can be subject to provider availability, rate limits and model-specific permissions.
+
+The default image model is configurable and can be changed without editing `ImageAgent`.
+
+## Image Storage
+
+Generated images are stored locally under:
+
+```text
+backend/app/storage/generated_images/
+```
+
+FastAPI mounts this directory at:
+
+```text
+/generated-images
+```
+
+Returned image URLs are relative backend URLs:
+
+```text
+/generated-images/{uuid}.png
+```
+
+Filenames are UUID-based and never derived from user input. Raw image bytes and tokens are not logged.
+
+Current limitation: generated image files and JSON runtime data may be lost when containers are recreated because no Docker volume is configured for backend storage.
+
+## Validation And Retry
+
+`validation_node` returns one of:
+
+```text
+valid
+retry_text
+retry_image
+partial_success
+failed
+```
+
+Text validation checks non-empty text, minimum length, `hashtags` field and platform-sensitive hashtags.
+
+Image validation checks prompt, style, content type, image filename, existing local file and image URL.
+
+The graph allows at most one retry per specialist:
+
+```text
+text_retry_count <= 1
+image_retry_count <= 1
+```
+
+Image retry is only used for retryable/transient image errors. Missing token, permission errors and unsupported model errors do not retry.
+
+## Observability
+
+Observability remains agent-specific:
+
+```text
+manager_agent -> manager chat, manager logs, LangGraph trace
+text_agent    -> text chat, text logs, direct text trace
+image_agent   -> image chat, image logs, direct image trace
+```
+
+Trace steps are structured execution records, not private chain-of-thought. They include node/agent name, decision, action, observation, status and timestamp.

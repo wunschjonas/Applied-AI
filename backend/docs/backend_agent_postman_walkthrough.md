@@ -1,79 +1,36 @@
 # Backend Agent Postman Walkthrough
 
-This walkthrough explains how to test the agent backend manually with Postman.
+Base URL:
 
-## Start Assumptions
+```text
+http://localhost:8080
+```
 
-- Backend runs on `http://localhost:8080`
-- You use Postman for the HTTP requests
-- Backend is started with Docker Compose
-- `HF_TOKEN` and `HF_MODEL_ID` are configured in `backend/.env`
-- Default model: `Qwen/Qwen2.5-7B-Instruct`
-
-Start the backend:
+Start with Docker Compose:
 
 ```bash
 docker compose up --build
 ```
 
-In a second terminal, watch backend logs:
+Required local configuration in `backend/.env`:
 
-```bash
-docker compose logs -f backend
+```env
+HF_TOKEN=hf_...
+HF_MODEL_ID=Qwen/Qwen2.5-7B-Instruct
+HF_IMAGE_MODEL_ID=black-forest-labs/FLUX.1-schnell
 ```
 
-Then execute the Postman requests one by one. While testing, watch the logs for route calls, validation errors, HuggingFace errors and agent activity.
+Image generation uses Hugging Face Inference Providers through `huggingface_hub.InferenceClient.text_to_image()`. Your token must have the required provider permission and image generation can consume credits, incur provider costs, hit rate limits or fail when the selected model/provider is unavailable.
 
-## Recommended Live Testing Flow
+## Quick Smoke Tests
 
-1. Start Docker Compose.
-2. Open live logs with `docker compose logs -f backend`.
-3. Run the health check.
-4. Run the three Manager Agent chat tests:
-   - text only
-   - image only
-   - text and image
-5. Run the Manager clarification test.
-6. Run the Manager RAG placeholder test.
-7. Copy the returned `chat_id` and call the chat history endpoint.
-8. Copy the returned `trace_id` and call the trace endpoint.
-9. Run direct TextAgent and ImageAgent tests.
-
-For every Manager Agent request, first inspect `trace_id` in the response, then call:
+### Health
 
 ```text
-GET http://localhost:8080/api/agents/traces/{trace_id}
+GET http://localhost:8080/health
 ```
 
-The response trace is the primary way to inspect the workflow.
-
-## A. Health Check
-
-Method:
-
-```text
-GET
-```
-
-URL:
-
-```text
-http://localhost:8080/health
-```
-
-Body:
-
-```text
-No body
-```
-
-Expected status:
-
-```text
-200 OK
-```
-
-Expected response shape:
+Expected:
 
 ```json
 {
@@ -83,708 +40,240 @@ Expected response shape:
 }
 ```
 
-What to look for in the response:
-
-- `status` is `ok`
-- backend is reachable
-
-What to look for in the logs:
-
-- request to `GET /health`
-- no error stack trace
-
-## B. Manager Agent Chat - Text Only
-
-Method:
+### Manager Text Only
 
 ```text
-POST
+POST http://localhost:8080/api/agents/manager/chat
 ```
-
-URL:
-
-```text
-http://localhost:8080/api/agents/manager/chat
-```
-
-Headers:
-
-```text
-Content-Type: application/json
-```
-
-Body:
 
 ```json
 {
-  "message": "Erstelle einen LinkedIn Post über KI-Agenten im Marketing für Gründer. Der Ton soll professionell und motivierend sein."
+  "post_id": "test-text-post-001",
+  "message": "Schreibe einen LinkedIn Post ueber KI-Agenten im Marketing.",
+  "context": {
+    "platform": "linkedin",
+    "tone": "professionell"
+  }
 }
 ```
 
-Expected status:
+Expected:
 
 ```text
-200 OK
+used_agents contains only TextAgent
+generated_artifacts.text exists
+generated_artifacts.image does not exist
+trace_id exists
 ```
 
-Expected response shape:
+### Manager Image Only
+
+```text
+POST http://localhost:8080/api/agents/manager/chat
+```
 
 ```json
 {
-  "chat_id": "uuid",
-  "assistant_message": "string",
-  "used_agents": ["TextAgent"],
-  "generated_artifacts": {
-    "text": {
-      "generated_text": "string",
-      "hashtags": ["#Example"]
-    }
-  },
-  "trace_id": "uuid"
+  "post_id": "test-image-post-001",
+  "message": "Erstelle ein futuristisches Instagram-Bild ueber einen AI Marketing-Agenten. Nur das Bild!",
+  "context": {
+    "platform": "instagram",
+    "visual_style": "modern, clean, futuristic"
+  }
 }
 ```
 
-What to look for in the response:
-
-- `chat_id` exists
-- `assistant_message` is not empty
-- `used_agents` contains `TextAgent`
-- `generated_artifacts.text.generated_text` exists
-- `trace_id` exists
-
-What to look for in the logs:
-
-- request to `POST /api/agents/manager/chat`
-- no HuggingFace error
-- no validation error
-
-## C. Manager Agent Chat - Image Only
-
-Method:
+Expected on full success:
 
 ```text
-POST
+used_agents contains only ImageAgent
+generated_artifacts.image.image_prompt exists
+generated_artifacts.image.image_url exists
+generated_artifacts.image.image_filename exists
+generated_artifacts.text does not exist
+trace includes generate_image_prompt, call_text_to_image_model, store_generated_image and return_image_artifact
 ```
 
-URL:
+Expected on partial success:
 
 ```text
-http://localhost:8080/api/agents/manager/chat
+image_prompt exists
+image_error is readable
+image_url is null
+assistant_message says image generation failed
 ```
 
-Headers:
+### Manager Combined
 
 ```text
-Content-Type: application/json
+POST http://localhost:8080/api/agents/manager/chat
 ```
-
-Body:
 
 ```json
 {
-  "message": "Erstelle mir einen Bild für einen Instagram Post über einen futuristischen Marketing-Agenten. Nur das Bild!"
+  "post_id": "test-combined-post-001",
+  "message": "Erstelle eine Instagram Caption mit Hashtags und ein passendes Bild fuer unser Applied AI Marketing-Agent Projekt.",
+  "context": {
+    "platform": "instagram",
+    "tone": "professionell und motivierend",
+    "visual_style": "modern, clean, futuristic"
+  }
 }
 ```
 
-Expected status:
+Expected:
 
 ```text
-200 OK
+used_agents contains TextAgent and ImageAgent
+generated_artifacts.text exists
+generated_artifacts.image exists
+trace_id exists
 ```
 
-Expected response shape:
+### Manager Clarification
+
+```text
+POST http://localhost:8080/api/agents/manager/chat
+```
 
 ```json
 {
-  "chat_id": "uuid",
-  "assistant_message": "string",
-  "used_agents": ["ImageAgent"],
-  "generated_artifacts": {
-    "image": {
-      "image_prompt": "string",
-      "negative_prompt_optional": "string",
-      "suggested_style": "string"
-    }
-  },
-  "trace_id": "uuid"
+  "post_id": "test-clarification-post-001",
+  "message": "Hilf mir bitte mit unserem Projekt.",
+  "context": null
 }
 ```
 
-What to look for in the response:
-
-- `used_agents` contains `ImageAgent`
-- `used_agents` does not contain `TextAgent`
-- `generated_artifacts.image.image_prompt` exists
-- `generated_artifacts.text` does not exist
-- `trace_id` exists
-- `assistant_message` says an image prompt was generated
-- `assistant_message` does not claim that an actual image file was created
-
-What to look for in the logs:
-
-- request to `POST /api/agents/manager/chat`
-- no HuggingFace model error
-- no empty response error
-
-After this request, call the trace endpoint with the returned `trace_id`. The trace should show LangGraph manager nodes and `ImageAgent` steps only. No `TextAgent` step should appear.
-
-## D. Manager Agent Chat - Text And Image
-
-Method:
+Expected:
 
 ```text
-POST
+used_agents is []
+generated_artifacts is {}
+assistant_message asks for text, image or both
 ```
 
-URL:
+### Manager RAG / MCP Memory Path
 
 ```text
-http://localhost:8080/api/agents/manager/chat
+POST http://localhost:8080/api/agents/manager/chat
 ```
-
-Headers:
-
-```text
-Content-Type: application/json
-```
-
-Body:
 
 ```json
 {
-  "message": "Erstelle einen Instagram Post inklusive Caption, Hashtags und Bildidee für unser Applied AI Marketing-Agent Projekt."
+  "post_id": "test-rag-post-001",
+  "message": "Schreibe einen LinkedIn Post basierend auf unserem PDF und den Brand Guidelines.",
+  "context": {
+    "platform": "linkedin"
+  }
 }
 ```
 
-Expected status:
+Expected:
 
 ```text
-200 OK
+rag_decision_node and rag_retrieval_node appear in the trace
+workflow continues even when no memory context is returned
 ```
 
-Expected response shape:
+### Direct Image Prompt
+
+```text
+POST http://localhost:8080/api/agents/image/generate-prompt
+```
 
 ```json
 {
-  "chat_id": "uuid",
-  "assistant_message": "string",
-  "used_agents": ["TextAgent", "ImageAgent"],
-  "generated_artifacts": {
-    "text": {
-      "generated_text": "string",
-      "hashtags": ["#Example"]
-    },
-    "image": {
-      "image_prompt": "string",
-      "negative_prompt_optional": "string",
-      "suggested_style": "string"
-    }
-  },
-  "trace_id": "uuid"
-}
-```
-
-What to look for in the response:
-
-- `used_agents` contains `TextAgent`
-- `used_agents` contains `ImageAgent`
-- `generated_artifacts.text.generated_text` exists
-- `generated_artifacts.image.image_prompt` exists
-- `trace_id` exists
-- `assistant_message` does not claim that an actual image file was created
-
-What to look for in the logs:
-
-- one Manager Agent request
-- HuggingFace activity for text generation
-- HuggingFace activity for image prompt generation
-- no error stack trace
-
-## E. Manager Agent Chat - Clarification
-
-Method:
-
-```text
-POST
-```
-
-URL:
-
-```text
-http://localhost:8080/api/agents/manager/chat
-```
-
-Headers:
-
-```text
-Content-Type: application/json
-```
-
-Body:
-
-```json
-{
-  "message": "Hilf mir bitte mit unserem Applied AI Projekt."
-}
-```
-
-Expected status:
-
-```text
-200 OK
-```
-
-Expected response shape:
-
-```json
-{
-  "chat_id": "uuid",
-  "assistant_message": "string",
-  "used_agents": [],
-  "generated_artifacts": {},
-  "trace_id": "uuid"
-}
-```
-
-What to look for in the response:
-
-- `used_agents` is empty
-- `generated_artifacts` is empty
-- `assistant_message` asks whether the user wants text, image prompt, or both
-- `trace_id` exists
-
-What to look for in the trace:
-
-- `clarification_node` appears
-- no `TextAgent` step appears
-- no `ImageAgent` step appears
-- no HuggingFace call is required
-
-## F. Manager Agent Chat - RAG Placeholder
-
-Method:
-
-```text
-POST
-```
-
-URL:
-
-```text
-http://localhost:8080/api/agents/manager/chat
-```
-
-Headers:
-
-```text
-Content-Type: application/json
-```
-
-Body:
-
-```json
-{
-  "message": "Schreibe einen LinkedIn Post basierend auf unserem PDF und den Brand Guidelines."
-}
-```
-
-Expected status:
-
-```text
-200 OK
-```
-
-Expected response shape:
-
-```json
-{
-  "chat_id": "uuid",
-  "assistant_message": "string",
-  "used_agents": ["TextAgent"],
-  "generated_artifacts": {
-    "text": {
-      "generated_text": "string",
-      "hashtags": ["#Example"]
-    }
-  },
-  "trace_id": "uuid"
-}
-```
-
-What to look for in the response:
-
-- `TextAgent` is used because the request asks for a LinkedIn post
-- `trace_id` exists
-
-What to look for in the trace:
-
-- `rag_decision_node` appears
-- `rag_retrieval_node` appears
-- observation says `RAG requested, but retrieval is not implemented yet in this version.`
-- graph continues instead of failing
-
-## G. Get Chat History
-
-Use the `chat_id` from a Manager Agent response.
-
-Method:
-
-```text
-GET
-```
-
-URL:
-
-```text
-http://localhost:8080/api/agents/chats/{chat_id}
-```
-
-Example:
-
-```text
-http://localhost:8080/api/agents/chats/PASTE_CHAT_ID_HERE
-```
-
-Body:
-
-```text
-No body
-```
-
-Expected status:
-
-```text
-200 OK
-```
-
-Expected response shape:
-
-```json
-{
-  "chat_id": "uuid",
-  "created_at": "timestamp",
-  "updated_at": "timestamp",
-  "messages": [
-    {
-      "role": "user",
-      "content": "string",
-      "timestamp": "timestamp",
-      "metadata": {}
-    },
-    {
-      "role": "assistant",
-      "content": "string",
-      "timestamp": "timestamp",
-      "metadata": {
-        "trace_id": "uuid",
-        "used_agents": ["TextAgent"],
-        "generated_artifacts": {}
-      }
-    }
-  ]
-}
-```
-
-What to look for in the response:
-
-- `chat_id` matches the one from the Manager Agent response
-- `messages` is a list
-- list contains user and assistant messages
-- assistant message metadata contains `trace_id`
-
-What to look for in the logs:
-
-- request to `GET /api/agents/chats/{chat_id}`
-- no `404 Chat not found`
-
-## H. Get Trace
-
-Use the `trace_id` from an agent response.
-
-Method:
-
-```text
-GET
-```
-
-URL:
-
-```text
-http://localhost:8080/api/agents/traces/{trace_id}
-```
-
-Example:
-
-```text
-http://localhost:8080/api/agents/traces/PASTE_TRACE_ID_HERE
-```
-
-Body:
-
-```text
-No body
-```
-
-Expected status:
-
-```text
-200 OK
-```
-
-Expected response shape:
-
-```json
-{
-  "trace_id": "uuid",
-  "chat_id": "uuid-or-null",
-  "created_at": "timestamp",
-  "steps": [
-    {
-      "index": 1,
-      "agent": "init_state_node",
-      "decision": "Initialized Manager chat graph state.",
-      "action": "init_state",
-      "observation": "Chat and trace are ready.",
-      "status": "success",
-      "timestamp": "timestamp"
-    }
-  ],
-  "metadata": {}
-}
-```
-
-What to look for in the response:
-
-- `trace_id` matches the latest response
-- `steps` is a list
-- every step contains:
-  - `index`
-  - `agent`
-  - `decision`
-  - `action`
-  - `observation`
-  - `status`
-  - `timestamp`
-- Manager requests should show routing decisions
-- LangGraph node names should appear, for example `init_state_node`, `classify_intent_node`, `rag_decision_node`, `route_by_intent`, `validation_node`, `assemble_response_node`, `save_trace_node`
-- text requests should show `TextAgent`
-- image requests should show `ImageAgent`
-- clarification requests should show `clarification_node`
-- RAG placeholder requests should show `rag_retrieval_node`
-
-This is the visible execution trace. It is not private chain-of-thought. It can be used for the TAO-style project requirement because it shows the executed workflow, selected agents, actions, observations and statuses.
-
-What to look for in the logs:
-
-- request to `GET /api/agents/traces/{trace_id}`
-- no `404 Trace not found`
-
-## I. Direct TextAgent Test
-
-Method:
-
-```text
-POST
-```
-
-URL:
-
-```text
-http://localhost:8080/api/agents/text/generate
-```
-
-Headers:
-
-```text
-Content-Type: application/json
-```
-
-Body:
-
-```json
-{
-  "task": "Schreibe einen LinkedIn Post über die Vorteile von AI Agents im Marketing.",
-  "platform": "linkedin",
-  "tone": "professionell und klar",
-  "target_audience": "Gründer und Marketing Manager",
-  "context": "Applied AI Semesterprojekt an der HTWG Konstanz"
-}
-```
-
-Expected status:
-
-```text
-200 OK
-```
-
-Expected response shape:
-
-```json
-{
-  "generated_text": "string",
-  "hashtags": ["#Example"],
-  "trace_id": "uuid"
-}
-```
-
-What to look for in the response:
-
-- `generated_text` is not empty
-- `hashtags` is a list
-- `trace_id` exists
-
-What to look for in the logs:
-
-- request to `POST /api/agents/text/generate`
-- HuggingFace call succeeds
-- no empty response parsing error
-
-## J. Direct ImageAgent Test
-
-Method:
-
-```text
-POST
-```
-
-URL:
-
-```text
-http://localhost:8080/api/agents/image/generate-prompt
-```
-
-Headers:
-
-```text
-Content-Type: application/json
-```
-
-Body:
-
-```json
-{
-  "task": "Erstelle einen Bildprompt für einen Social Media Post über AI Agents im Marketing.",
+  "task": "Create an Instagram image prompt about an AI marketing agent.",
   "platform": "instagram",
   "visual_style": "modern, clean, futuristic",
-  "context": "Das Bild soll professionell wirken und für ein Hochschulprojekt nutzbar sein."
+  "context": "Professional university project visual."
 }
 ```
 
-Expected status:
+Expected:
 
 ```text
-200 OK
+prompt-only response with image_prompt, negative_prompt_optional, suggested_style and trace_id
+no image_url field required by this route
 ```
 
-Expected response shape:
+### Direct Real Image Generation
+
+```text
+POST http://localhost:8080/api/agents/image/generate
+```
 
 ```json
 {
-  "image_prompt": "string",
-  "negative_prompt_optional": "string",
-  "suggested_style": "modern, clean, futuristic",
-  "trace_id": "uuid"
+  "task": "Create an Instagram image about an AI marketing agent.",
+  "platform": "instagram",
+  "visual_style": "modern, clean, futuristic",
+  "context": "Professional university project visual."
 }
 ```
 
-What to look for in the response:
+Expected:
 
-- `image_prompt` is not empty
-- `negative_prompt_optional` exists
-- `suggested_style` exists
-- `trace_id` exists
-- string `context` is accepted and does not cause `422 Unprocessable Entity`
-
-What to look for in the logs:
-
-- request to `POST /api/agents/image/generate-prompt`
-- HuggingFace call succeeds
-- no model or token error
-
-## Live Beobachten
-
-Open logs while testing:
-
-```bash
-docker compose logs -f backend
+```text
+image_prompt
+negative_prompt_optional
+suggested_style
+image_url
+image_filename
+image_content_type
+trace_id
 ```
 
-Use the logs to inspect:
+Open the generated image:
 
-- incoming route calls
-- FastAPI validation errors
-- HuggingFace token or model errors
-- unexpected stack traces
-
-Optional improvement during development:
-
-```python
-logger.info("TextAgent started")
-logger.info("ManagerAgent selected TextAgent and ImageAgent")
-logger.info("HuggingFace response received")
+```text
+http://localhost:8080/generated-images/{filename}
 ```
 
-The response trace is still the primary way to inspect the workflow. For each Manager request:
+## Inspect Trace, Chats And Logs
 
-1. Send `POST /api/agents/manager/chat`
-2. Copy `trace_id`
-3. Send `GET /api/agents/traces/{trace_id}`
-4. Inspect the structured steps
+Manager trace:
 
-## Debugging
+```text
+GET http://localhost:8080/api/agents/manager/traces/{trace_id}
+```
 
-If you get `404 Not Found`:
+Manager chat:
 
-- Check the route path in Postman.
-- Check that `app.include_router(agents_router)` is present in `app/main.py`.
-- Check that the backend container was rebuilt after code changes.
+```text
+GET http://localhost:8080/api/agents/manager/chats/{post_id}::manager_agent
+```
 
-If you get `500` with `HF_TOKEN` missing:
+Text chat:
 
-- Check `backend/.env`.
-- Confirm `HF_TOKEN` is set.
-- Confirm Docker Compose loads the backend environment.
-- Restart the backend container after changing `.env`.
+```text
+GET http://localhost:8080/api/agents/text/chats/{post_id}::text_agent
+```
 
-If you get `500` with a model error:
+Image chat:
 
-- Check `HF_MODEL_ID`.
-- Use the default model first: `Qwen/Qwen2.5-7B-Instruct`.
-- Confirm the HuggingFace token has access to the model.
+```text
+GET http://localhost:8080/api/agents/image/chats/{post_id}::image_agent
+```
 
-If you get an empty response:
+Logs:
 
-- Check HuggingFace response parsing in `services/huggingface_service.py`.
-- Check logs for `HuggingFace returned an empty response`.
-- Retry with a shorter prompt to rule out model-side issues.
+```text
+GET http://localhost:8080/api/agents/manager/logs
+GET http://localhost:8080/api/agents/text/logs
+GET http://localhost:8080/api/agents/image/logs
+```
 
-If trace retrieval returns `404 Trace not found`:
+## Compatibility Notes
 
-- Use the `trace_id` from the latest agent response.
-- Do not use `chat_id` in the trace endpoint.
+The Manager response fields remain unchanged:
 
-If chat retrieval returns `404 Chat not found`:
+```text
+chat_id
+assistant_message
+used_agents
+generated_artifacts
+trace_id
+```
 
-- Use the `chat_id` from a Manager Agent response.
-- Direct TextAgent and ImageAgent calls do not create chat history.
-
-If direct ImageAgent returns `422 Unprocessable Entity` for `context`:
-
-- Confirm the schema allows `context` as `string`, `object`, or `null`.
-- The direct image test above intentionally sends `context` as a string.
-- Rebuild the backend container after schema changes.
-
-## Minimal Acceptance Criteria
-
-The backend is considered working if:
-
-- `/health` returns `200 OK`
-- Manager text-only request uses `TextAgent`
-- Manager image-only request uses `ImageAgent`
-- Manager image-only request with `Nur das Bild!` does not use `TextAgent`
-- Manager combined request uses `TextAgent` and `ImageAgent`
-- Manager clarification request does not call `TextAgent`, `ImageAgent`, or HuggingFace
-- Manager RAG placeholder request returns a trace with `rag_retrieval_node`
-- every agent run returns a `trace_id`
-- trace endpoint returns multiple structured steps
-- HuggingFace errors are readable and not empty detail messages
+The image prompt route remains backward compatible. Real image generation is available through the new `/api/agents/image/generate` route and through the Manager graph image path.

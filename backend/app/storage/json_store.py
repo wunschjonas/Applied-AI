@@ -25,6 +25,7 @@ class JSONStore:
                     data = json.load(file)
                     return data if isinstance(data, list) else []
             except json.JSONDecodeError:
+                self._write([])
                 return []
 
     def _write(self, data: list[dict[str, Any]]) -> None:
