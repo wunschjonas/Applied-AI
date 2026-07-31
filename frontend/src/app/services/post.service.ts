@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+import { API_BASE_URL } from '../core/api.config';
 import {
   AgentTraceStep,
   CreatePostRequest,
@@ -16,7 +17,7 @@ import {
 })
 export class PostService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:8080';
+  private readonly baseUrl = API_BASE_URL;
 
   /** POST /api/posts/init */
   initPost(
@@ -54,9 +55,9 @@ export class PostService {
     return this.http.put<Post>(`${this.baseUrl}/api/posts/${postId}`, body);
   }
 
-  /** POST /api/posts/:postId/generate-preview */
-  generatePreview(postId: string): Observable<PostPreview> {
-    return this.http.post<PostPreview>(
+  /** POST /api/posts/:postId/generate-preview - returns the whole post, preview included */
+  generatePreview(postId: string): Observable<Post> {
+    return this.http.post<Post>(
       `${this.baseUrl}/api/posts/${postId}/generate-preview`,
       {},
     );

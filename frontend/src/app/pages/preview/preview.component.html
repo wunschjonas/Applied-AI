@@ -5,19 +5,43 @@
     <div class="preview-stage">
       <h1>Preview</h1>
 
+      @if (postFacade.currentPost()) {
+        <p class="preview-subline">{{ postFacade.currentPost()!.title }}</p>
+      } @else {
+        <p class="preview-subline">
+          Wähle auf der Home-Seite einen Post aus, um die Vorschau zu sehen.
+        </p>
+      }
+
       <div class="preview-grid">
         <div class="preview-card">
           <h2>Generiertes Bild</h2>
           <div class="preview-box preview-box--image">
-            <span class="preview-placeholder">Noch kein Bild generiert</span>
+            @if (artifactFacade.imageUrl()) {
+              <img [src]="artifactFacade.imageUrl()" alt="Generiertes Bild" />
+            } @else {
+              <span class="preview-placeholder">Noch kein Bild generiert</span>
+            }
           </div>
+          @if (artifactFacade.imagePrompt()) {
+            <p class="preview-meta">{{ artifactFacade.imagePrompt() }}</p>
+          }
         </div>
 
         <div class="preview-card">
           <h2>Generierter Text</h2>
           <div class="preview-box preview-box--text">
-            <span class="preview-placeholder">Noch kein Text generiert</span>
+            @if (artifactFacade.generatedText()) {
+              <p class="preview-text">{{ artifactFacade.generatedText() }}</p>
+            } @else {
+              <span class="preview-placeholder">Noch kein Text generiert</span>
+            }
           </div>
+          @if (artifactFacade.hashtags().length) {
+            <p class="preview-hashtags">
+              {{ artifactFacade.hashtags().join(" ") }}
+            </p>
+          }
         </div>
       </div>
     </div>

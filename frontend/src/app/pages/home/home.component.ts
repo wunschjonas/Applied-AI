@@ -3,12 +3,22 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
+import { ArtifactFacade } from '../../facades/artifact.facade';
 import { ChatFacade } from '../../facades/chat.facade';
 import { PostFacade } from '../../facades/post.facade';
+import { ArtifactSyncService } from '../../services/artifact-sync.service';
 import { PostService } from '../../services/post.service';
 import { ManagerAgentService } from '../../services/manager-agent.service';
 import { ChatSender } from '../../models/chat.model';
 import { Post } from '../../models/post.model';
+
+const FIELD_LABELS: Record<string, string> = {
+  topic: 'Thema',
+  platform: 'Plattform',
+  target_audience: 'Zielgruppe',
+  tone_of_voice: 'Tonalität',
+  additional_context: 'Zusatzkontext',
+};
 
 @Component({
   selector: 'app-home',
@@ -20,8 +30,10 @@ import { Post } from '../../models/post.model';
 export class HomeComponent implements OnInit {
   public chatFacade = inject(ChatFacade);
   public postFacade = inject(PostFacade);
+  public artifactFacade = inject(ArtifactFacade);
   private readonly postService = inject(PostService);
   private readonly managerAgentService = inject(ManagerAgentService);
+  private readonly artifactSync = inject(ArtifactSyncService);
 
   public postTitle = signal('');
   public isCreating = signal(false);
@@ -30,6 +42,11 @@ export class HomeComponent implements OnInit {
 
   public ngOnInit(): void {
     this.loadPosts();
+    const postId = this.postFacade.currentPostId();
+    if (postId) {
+      this.loadManagerChatHistory(postId);
+      this.artifactSync.loadForPost(postId);
+    }
   }
 
   public loadPosts(): void {
@@ -47,6 +64,8 @@ export class HomeComponent implements OnInit {
       title: post.title,
       created_at: '',
     });
+    this.loadManagerChatHistory(post.id);
+    this.artifactFacade.applyPreview(post.preview);
   }
 
   public createPost(): void {
@@ -58,6 +77,8 @@ export class HomeComponent implements OnInit {
       next: (response) => {
         console.log('[Home] Response:', response);
         this.postFacade.updateCurrentPost(response);
+        this.chatFacade.updateMainAgentChat([]);
+        this.artifactFacade.reset();
         this.postTitle.set('');
         this.loadPosts();
       },
@@ -82,8 +103,13 @@ export class HomeComponent implements OnInit {
       next: (response) => {
         this.chatFacade.updateMainAgentChat([
           ...this.chatFacade.mainAgentChat(),
-          { sender: ChatSender.Agent, text: response.message },
+          { sender: ChatSender.Agent, text: response.assistant_message },
         ]);
+        this.artifactFacade.applyArtifacts(response.generated_artifacts);
+        this.artifactFacade.updateMissingFields(response.missing_fields);
+        if (response.post_updates && Object.keys(response.post_updates).length) {
+          this.loadPosts();
+        }
       },
       complete: () => this.chatFacade.updateIsMainAgentWorking(false),
       error: () => this.chatFacade.updateIsMainAgentWorking(false),
@@ -95,5 +121,23 @@ export class HomeComponent implements OnInit {
       ...this.chatFacade.mainAgentChat(),
       { sender: ChatSender.Agent, text },
     ]);
+  }
+
+  public fieldLabel(field: string): string {
+    return FIELD_LABELS[field] ?? field;
+  }
+
+  private loadManagerChatHistory(postId: string): void {
+    this.managerAgentService.getChatHistory(postId).subscribe({
+      next: (history) => {
+        const messages = history.messages.map((m) => ({
+          sender: m.role === 'USER' ? ChatSender.User : ChatSender.Agent,
+          text: m.content,
+        }));
+        this.chatFacade.updateMainAgentChat(messages);
+      },
+      error: (err) =>
+        console.error('[Home] Failed to load manager chat history:', err),
+    });
   }
 }

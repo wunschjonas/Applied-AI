@@ -82,6 +82,37 @@
         </div>
       }
 
+      @if (postFacade.currentPost() && artifactFacade.missingFields().length) {
+        <div class="brief-status">
+          <strong>Noch offen im Brief:</strong>
+          @for (field of artifactFacade.missingFields(); track field) {
+            <span class="brief-chip">{{ fieldLabel(field) }}</span>
+          }
+        </div>
+      }
+
+      @if (artifactFacade.hasText() || artifactFacade.hasImage()) {
+        <div class="artifact-grid">
+          @if (artifactFacade.hasImage()) {
+            <div class="artifact-card">
+              <h2>Generiertes Bild</h2>
+              <img [src]="artifactFacade.imageUrl()" alt="Generiertes Bild" />
+            </div>
+          }
+          @if (artifactFacade.hasText()) {
+            <div class="artifact-card">
+              <h2>Generierter Text</h2>
+              <p class="artifact-text">{{ artifactFacade.generatedText() }}</p>
+              @if (artifactFacade.hashtags().length) {
+                <p class="artifact-hashtags">
+                  {{ artifactFacade.hashtags().join(" ") }}
+                </p>
+              }
+            </div>
+          }
+        </div>
+      }
+
       <app-chat-panel
         [messages]="chatFacade.mainAgentChat()"
         (userSend)="onUserSend($event)"

@@ -27,12 +27,13 @@ def generate_image_prompt(request: ImagePromptRequest):
 
 @router.post("/generate", response_model=ImageGenerateResponse)
 def generate_image(request: ImagePromptRequest):
-    print("[ImageAgent] POST /generate aufgerufen")
+    print(f"[ImageAgent] POST /generate aufgerufen | post_id={request.post_id}")
     return agent_service.generate_image(
         task=request.task,
         platform=request.platform,
         visual_style=request.visual_style,
         context=request.context,
+        post_id=request.post_id,
     )
 
 

@@ -14,11 +14,11 @@ class ImageStorageService:
         self.storage_dir = storage_dir or settings.generated_images_dir
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
-    def save_png(self, image_bytes: bytes) -> dict[str, str]:
+    def save_png(self, image_bytes: bytes, filename_stem: str | None = None) -> dict[str, str]:
         if not image_bytes:
             raise ValueError("Cannot store an empty generated image.")
 
-        filename = f"{uuid4()}.png"
+        filename = f"{filename_stem}.png" if filename_stem else f"{uuid4()}.png"
         if not self.is_safe_filename(filename):
             raise ValueError("Generated image filename is not safe.")
 

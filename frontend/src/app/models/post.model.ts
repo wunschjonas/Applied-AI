@@ -16,7 +16,6 @@ export interface CreatePostRequest {
   platform: string;
   target_audience: string;
   tone_of_voice: string;
-  goal: string;
   additional_context?: string;
 }
 
@@ -26,27 +25,30 @@ export interface UpdatePostRequest {
   platform?: string;
   target_audience?: string;
   tone_of_voice?: string;
-  goal?: string;
   additional_context?: string;
+}
+
+export type PostStatus = 'draft' | 'processing' | 'preview_ready' | 'error';
+
+export interface PostPreview {
+  generated_text: string;
+  post_structure: Record<string, unknown>;
+  hashtags: string[];
+  image_prompt_optional?: string | null;
+  image_url?: string | null;
+  image_filename?: string | null;
 }
 
 export interface Post {
   id: string;
   title: string;
-  topic: string;
-  platform: string;
-  target_audience: string;
-  tone_of_voice: string;
-  goal: string;
-  additional_context?: string;
-}
-
-export interface PostPreview {
-  post_id: string;
-  generated_post: string;
-  post_structure?: string;
-  hashtags?: string[];
-  agent_trace?: AgentTraceStep[];
+  status: PostStatus;
+  topic?: string | null;
+  platform?: string | null;
+  target_audience?: string | null;
+  tone_of_voice?: string | null;
+  additional_context?: string | null;
+  preview?: PostPreview | null;
 }
 
 export interface AgentTraceStep {

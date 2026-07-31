@@ -20,6 +20,8 @@ class ManagerChatResponse(BaseModel):
     used_agents: list[str] = Field(default_factory=list)
     generated_artifacts: dict[str, Any] = Field(default_factory=dict)
     trace_id: str
+    post_updates: dict[str, Any] = Field(default_factory=dict)
+    missing_fields: list[str] = Field(default_factory=list)
 
 
 class TextAgentChatRequest(BaseModel):
@@ -30,6 +32,8 @@ class TextAgentChatRequest(BaseModel):
 class TextAgentChatResponse(BaseModel):
     chat_id: str
     assistant_message: str
+    generated_artifacts: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str | None = None
 
 
 class ImageAgentChatRequest(BaseModel):
@@ -40,6 +44,8 @@ class ImageAgentChatRequest(BaseModel):
 class ImageAgentChatResponse(BaseModel):
     chat_id: str
     assistant_message: str
+    generated_artifacts: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str | None = None
 
 
 class ChatHistoryResponse(BaseModel):

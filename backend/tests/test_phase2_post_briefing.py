@@ -1,0 +1,213 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from app.graphs.support import post_fields
+from app.graphs.support.messages import BRIEF_FOLLOWUP_PREFIX
+from app.services.agent_service import AgentService
+from tests.test_phase1_agent_refactor import FakeHF, build_graph, seed_post
+
+POST_A = "aaaa1111-2222-3333-4444-555555555555"
+POST_B = "bbbb1111-2222-3333-4444-555555555555"
+
+
+def stored_post(graph, post_id: str) -> dict:
+    return graph.post_repository.get(post_id) or {}
+
+
+def test_extract_platform_ignores_substrings():
+    assert post_fields.extract_platform("Schreibe einen Text") is None
+    assert post_fields.extract_platform("Post fuer LinkedIn") == "linkedin"
+    assert post_fields.extract_platform("Mach einen Tweet daraus") == "x"
+    assert post_fields.extract_platform("Bitte auf Insta posten") == "instagram"
+
+
+def test_extract_fields_reads_topic_tone_and_platform():
+    post = {"topic": None, "platform": None, "tone_of_voice": None, "target_audience": None}
+    updates = post_fields.extract_fields(
+        "Ein locker geschriebener LinkedIn Post ueber nachhaltiges Bauen.", post
+    )
+
+    assert updates["platform"] == "linkedin"
+    assert updates["tone_of_voice"] == "locker"
+    assert updates["topic"].startswith("nachhaltiges Bauen")
+
+
+def test_extract_fields_answers_the_awaited_free_text_field():
+    post = {"topic": None, "platform": "linkedin", post_fields.AWAITING_FIELD_KEY: "topic"}
+    updates = post_fields.extract_fields("Unser neues Recycling-Verfahren", post)
+
+    assert updates == {"topic": "Unser neues Recycling-Verfahren"}
+
+
+def test_extract_fields_keeps_awaited_field_empty_on_unrelated_answer():
+    post = {"topic": None, "platform": None, post_fields.AWAITING_FIELD_KEY: "topic"}
+    updates = post_fields.extract_fields("Instagram", post)
+
+    assert updates == {"platform": "instagram"}
+
+
+def test_manager_asks_for_topic_before_calling_any_specialist(tmp_path: Path):
+    graph = build_graph(tmp_path)
+    seed_post(graph, POST_A)
+    result = graph.run("Hilf mir mal mit dem Post.", POST_A)
+
+    assert result["used_agents"] == []
+    assert result["generated_artifacts"] == {}
+    assert post_fields.FIELD_QUESTIONS["topic"] in result["assistant_message"]
+    assert stored_post(graph, POST_A)[post_fields.AWAITING_FIELD_KEY] == "topic"
+
+
+def test_manager_stores_answer_and_asks_for_the_next_field(tmp_path: Path):
+    graph = build_graph(tmp_path)
+    seed_post(graph, POST_A, **{post_fields.AWAITING_FIELD_KEY: "topic"})
+    result = graph.run("Nachhaltiges Bauen im Mittelstand", POST_A)
+
+    post = stored_post(graph, POST_A)
+    assert post["topic"] == "Nachhaltiges Bauen im Mittelstand"
+    assert result["used_agents"] == []
+    assert post_fields.FIELD_QUESTIONS["platform"] in result["assistant_message"]
+    assert post[post_fields.AWAITING_FIELD_KEY] == "platform"
+
+
+def test_manager_saves_platform_answer(tmp_path: Path):
+    graph = build_graph(tmp_path)
+    seed_post(graph, POST_A, topic="Nachhaltiges Bauen", **{post_fields.AWAITING_FIELD_KEY: "platform"})
+    graph.run("LinkedIn bitte", POST_A)
+
+    assert stored_post(graph, POST_A)["platform"] == "linkedin"
+
+
+def test_manager_generates_once_topic_and_platform_are_known(tmp_path: Path):
+    graph = build_graph(tmp_path)
+    seed_post(graph, POST_A, topic="KI-Agenten im Marketing", platform="linkedin")
+    result = graph.run("Schreibe jetzt den Post.", POST_A)
+
+    assert result["used_agents"] == ["TextAgent"]
+    preview = stored_post(graph, POST_A)["preview"]
+    assert preview["generated_text"] == result["generated_artifacts"]["text"]["generated_text"]
+    assert stored_post(graph, POST_A)["status"] == "preview_ready"
+
+
+def test_generation_appends_followup_question_for_an_open_field(tmp_path: Path):
+    graph = build_graph(tmp_path)
+    seed_post(graph, POST_A, topic="KI-Agenten im Marketing", platform="linkedin")
+    result = graph.run("Schreibe jetzt den Post.", POST_A)
+
+    assert BRIEF_FOLLOWUP_PREFIX in result["assistant_message"]
+    assert post_fields.FIELD_QUESTIONS["target_audience"] in result["assistant_message"]
+    assert stored_post(graph, POST_A)[post_fields.AWAITING_FIELD_KEY] == "target_audience"
+
+
+def test_explicit_order_generates_despite_missing_fields(tmp_path: Path):
+    graph = build_graph(tmp_path)
+    seed_post(graph, POST_B)
+    result = graph.run("Erstelle ein Bild ueber blaue Baeume auf dem Mond. Nur das Bild!", POST_B)
+
+    assert result["used_agents"] == ["ImageAgent"]
+    post = stored_post(graph, POST_B)
+    assert post["topic"].startswith("blaue Baeume")
+    assert post["preview"]["image_url"] == f"/generated-images/{POST_B}.png"
+    assert post["preview"]["image_filename"] == f"{POST_B}.png"
+
+
+def test_preview_merges_text_and_image_across_turns(tmp_path: Path):
+    graph = build_graph(tmp_path)
+    seed_post(graph, POST_A, topic="KI-Agenten im Marketing", platform="linkedin")
+    graph.run("Schreibe jetzt den Post.", POST_A)
+    graph.run("Erstelle jetzt noch das Bild dazu. Nur das Bild!", POST_A)
+
+    preview = stored_post(graph, POST_A)["preview"]
+    assert preview["generated_text"]
+    assert preview["image_url"] == f"/generated-images/{POST_A}.png"
+
+
+def test_stored_post_fields_reach_the_specialist_brief(tmp_path: Path):
+    hf = FakeHF()
+    graph = build_graph(tmp_path, hf_factory=lambda: hf)
+    seed_post(
+        graph,
+        POST_A,
+        topic="Nachhaltiges Bauen",
+        platform="linkedin",
+        target_audience="Bauleiter im Mittelstand",
+        tone_of_voice="sachlich",
+    )
+    graph.run("Schreibe jetzt den Post.", POST_A)
+
+    text_brief = next(prompt for prompt in hf.user_prompts if "Erstelle den Marketing-Text" in prompt)
+    assert "Nachhaltiges Bauen" in text_brief
+    assert "Bauleiter im Mittelstand" in text_brief
+
+
+def build_agent_service(tmp_path: Path, hf: FakeHF) -> AgentService:
+    from app.core import config as config_module
+
+    config_module.settings.chats_file = tmp_path / "chats.json"
+    config_module.settings.traces_file = tmp_path / "traces.json"
+    config_module.settings.agent_logs_file = tmp_path / "agent_logs.json"
+    config_module.settings.posts_file = tmp_path / "posts.json"
+    config_module.settings.generated_images_dir = tmp_path / "generated_images"
+
+    service = AgentService()
+    service._hf = lambda: hf
+    return service
+
+
+def test_text_agent_chat_refines_and_stores_the_preview(tmp_path: Path):
+    hf = FakeHF()
+    service = build_agent_service(tmp_path, hf)
+    service.post_repository.save(
+        {
+            "id": POST_A,
+            "title": "Testpost",
+            "status": "preview_ready",
+            "topic": "KI-Agenten",
+            "platform": "linkedin",
+            "tone_of_voice": "sachlich",
+            "target_audience": "CMOs",
+            "additional_context": None,
+            "preview": {"generated_text": "Alter Text ueber KI-Agenten.", "hashtags": ["#alt"]},
+        }
+    )
+
+    result = service.text_agent_chat("Mach den Einstieg kuerzer.", POST_A)
+
+    refine_brief = next(prompt for prompt in hf.user_prompts if "Verfeinerungsauftrag" in prompt)
+    assert "Alter Text ueber KI-Agenten." in refine_brief
+    assert "Mach den Einstieg kuerzer." in refine_brief
+
+    preview = service.post_repository.get(POST_A)["preview"]
+    assert preview["generated_text"] == result["generated_artifacts"]["text"]["generated_text"]
+    assert preview["generated_text"] != "Alter Text ueber KI-Agenten."
+
+
+def test_image_agent_chat_regenerates_the_post_image(tmp_path: Path):
+    hf = FakeHF()
+    service = build_agent_service(tmp_path, hf)
+    service.post_repository.save(
+        {
+            "id": POST_B,
+            "title": "Testpost",
+            "status": "preview_ready",
+            "topic": "KI-Agenten",
+            "platform": "instagram",
+            "additional_context": None,
+            "preview": {
+                "generated_text": "Marketing-Text zum Bild.",
+                "image_prompt_optional": "Ein alter Bildprompt mit blauem Hintergrund.",
+            },
+        }
+    )
+
+    result = service.image_agent_chat("Mach den Hintergrund gruen.", POST_B)
+
+    refine_brief = next(prompt for prompt in hf.user_prompts if "Verfeinerungsauftrag" in prompt)
+    assert "Ein alter Bildprompt mit blauem Hintergrund." in refine_brief
+    assert "Marketing-Text zum Bild." in refine_brief
+
+    preview = service.post_repository.get(POST_B)["preview"]
+    assert preview["image_url"] == f"/generated-images/{POST_B}.png"
+    assert preview["generated_text"] == "Marketing-Text zum Bild."
+    assert (tmp_path / "generated_images" / f"{POST_B}.png").exists()
+    assert result["generated_artifacts"]["image"]["image_filename"] == f"{POST_B}.png"

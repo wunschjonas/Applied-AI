@@ -22,6 +22,7 @@ class ImagePromptRequest(BaseModel):
     platform: str | None = None
     visual_style: str | None = None
     context: str | dict[str, Any] | None = None
+    post_id: str | None = None
 
 
 class ImagePromptResponse(BaseModel):

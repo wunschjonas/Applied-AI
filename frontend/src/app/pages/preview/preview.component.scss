@@ -10,9 +10,37 @@
 }
 
 h1 {
-  margin: 0 0 1.75rem 0;
+  margin: 0 0 0.5rem 0;
   color: #17324d;
   font-size: 2rem;
+}
+
+.preview-subline {
+  margin: 0 0 1.75rem;
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+
+.preview-text {
+  margin: 0;
+  color: #17324d;
+  font-size: 0.975rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.preview-meta {
+  margin: 0.6rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #6b7280;
+}
+
+.preview-hashtags {
+  margin: 0.6rem 0 0;
+  font-size: 0.9rem;
+  color: #4338ca;
 }
 
 h2 {

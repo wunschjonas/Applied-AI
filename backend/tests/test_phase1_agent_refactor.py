@@ -22,8 +22,10 @@ class FakeHF:
     def __init__(self, image_failures: int = 0, short_text_failures: int = 0):
         self.image_failures = image_failures
         self.short_text_failures = short_text_failures
+        self.user_prompts: list[str] = []
 
     def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = 700) -> str:
+        self.user_prompts.append(user_prompt)
         if "production-ready image generation prompts" in system_prompt:
             return "A detailed modern marketing image prompt with clear subject, composition, lighting and colors."
         if self.short_text_failures > 0:
@@ -57,6 +59,7 @@ def build_graph(tmp_path: Path, hf_factory=None, rag_service=None) -> ManagerCha
     config_module.settings.chats_file = tmp_path / "chats.json"
     config_module.settings.traces_file = tmp_path / "traces.json"
     config_module.settings.agent_logs_file = tmp_path / "agent_logs.json"
+    config_module.settings.posts_file = tmp_path / "posts.json"
 
     storage = ImageStorageService(tmp_path / "generated_images")
     return ManagerChatGraph(
@@ -67,6 +70,22 @@ def build_graph(tmp_path: Path, hf_factory=None, rag_service=None) -> ManagerCha
         log_service=LogService(),
         image_storage=storage,
     )
+
+
+def seed_post(graph: ManagerChatGraph, post_id: str, **fields) -> dict:
+    post = {
+        "id": post_id,
+        "title": "Testpost",
+        "status": "draft",
+        "topic": None,
+        "platform": None,
+        "target_audience": None,
+        "tone_of_voice": None,
+        "additional_context": None,
+        "preview": None,
+    }
+    post.update(fields)
+    return graph.post_repository.save(post)
 
 
 def test_intent_classification_cases():
@@ -89,23 +108,63 @@ def test_graph_text_only_uses_only_text_agent(tmp_path):
 
 
 def test_graph_image_only_returns_image_artifact(tmp_path):
+    post_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
     graph = build_graph(tmp_path)
-    result = graph.run("Erstelle ein Instagram Bild ueber AI Marketing. Nur das Bild!", "post-image")
+    result = graph.run("Erstelle ein Instagram Bild ueber AI Marketing. Nur das Bild!", post_id)
 
     image = result["generated_artifacts"]["image"]
     assert result["used_agents"] == ["ImageAgent"]
-    assert image["image_url"].startswith("/generated-images/")
-    assert image["image_filename"].endswith(".png")
+    assert image["image_filename"] == f"{post_id}.png"
+    assert image["image_url"] == f"/generated-images/{post_id}.png"
     assert (tmp_path / "generated_images" / image["image_filename"]).exists()
 
 
 def test_graph_combined_uses_both_agents(tmp_path):
+    post_id = "11111111-2222-3333-4444-555555555555"
     graph = build_graph(tmp_path)
-    result = graph.run("Erstelle eine Instagram Caption mit Hashtags und Bildidee.", "post-combined")
+    result = graph.run("Erstelle eine Instagram Caption mit Hashtags und Bildidee.", post_id)
 
     assert result["used_agents"] == ["TextAgent", "ImageAgent"]
     assert "text" in result["generated_artifacts"]
     assert "image" in result["generated_artifacts"]
+    assert result["generated_artifacts"]["image"]["image_filename"] == f"{post_id}.png"
+
+
+def test_manager_delegates_separate_briefs_to_both_specialists(tmp_path):
+    post_id = "22222222-3333-4444-5555-666666666666"
+    hf = FakeHF()
+    graph = build_graph(tmp_path, hf_factory=lambda: hf)
+    result = graph.run("Erstelle eine Instagram Caption mit Hashtags und Bildidee.", post_id)
+
+    trace = graph.trace_service.get_trace(result["trace_id"])
+    plan_step = next(step for step in trace["steps"] if step["action"] == "create_plan")
+    assert "Erstelle den Marketing-Text" in plan_step["observation"]
+    assert "Erstelle das Bildmotiv" in plan_step["observation"]
+
+    text_brief = next(prompt for prompt in hf.user_prompts if "Erstelle den Marketing-Text" in prompt)
+    assert "Erstelle das Bildmotiv" not in text_brief
+
+
+def test_image_brief_includes_generated_marketing_text(tmp_path):
+    post_id = "33333333-4444-5555-6666-777777777777"
+    hf = FakeHF()
+    graph = build_graph(tmp_path, hf_factory=lambda: hf)
+    result = graph.run("Erstelle eine Instagram Caption mit Hashtags und Bildidee.", post_id)
+
+    marketing_text = result["generated_artifacts"]["text"]["generated_text"]
+    image_brief = next(prompt for prompt in hf.user_prompts if "Erstelle das Bildmotiv" in prompt)
+    assert "Bereits erstellter Marketing-Text" in image_brief
+    assert marketing_text[:60] in image_brief
+
+
+def test_image_only_brief_has_no_marketing_text_section(tmp_path):
+    post_id = "44444444-5555-6666-7777-888888888888"
+    hf = FakeHF()
+    graph = build_graph(tmp_path, hf_factory=lambda: hf)
+    graph.run("Erstelle ein Instagram Bild ueber AI Marketing. Nur das Bild!", post_id)
+
+    image_brief = next(prompt for prompt in hf.user_prompts if "Erstelle das Bildmotiv" in prompt)
+    assert "Bereits erstellter Marketing-Text" not in image_brief
 
 
 def test_graph_clarification_uses_no_specialist(tmp_path):
@@ -138,11 +197,12 @@ def test_text_validation_retries_once(tmp_path):
 
 
 def test_image_generation_transient_failure_retries_once(tmp_path):
+    post_id = "abcdef01-2345-6789-abcd-ef0123456789"
     hf = FakeHF(image_failures=1)
     graph = build_graph(tmp_path, hf_factory=lambda: hf)
-    result = graph.run("Erstelle ein Bild fuer Instagram. Nur das Bild!", "post-image-retry")
+    result = graph.run("Erstelle ein Bild fuer Instagram. Nur das Bild!", post_id)
 
-    assert result["generated_artifacts"]["image"]["image_url"]
+    assert result["generated_artifacts"]["image"]["image_url"] == f"/generated-images/{post_id}.png"
     trace = graph.trace_service.get_trace(result["trace_id"])
     assert sum(1 for step in trace["steps"] if step["action"] == "retry_image") == 1
 
@@ -184,6 +244,11 @@ def test_safe_filename_and_static_route_serves_test_image(tmp_path):
     stored = storage.save_png(b"fake-png-bytes")
     assert storage.is_safe_filename(stored["image_filename"])
     assert storage.exists(stored["image_filename"])
+
+    post_id = "99999999-aaaa-bbbb-cccc-dddddddddddd"
+    named = storage.save_png(b"named-by-post", filename_stem=post_id)
+    assert named["image_filename"] == f"{post_id}.png"
+    assert storage.exists(named["image_filename"])
 
     static_storage = ImageStorageService(settings.generated_images_dir)
     static_stored = static_storage.save_png(b"static-test-bytes")

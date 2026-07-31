@@ -1,9 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
+import { ArtifactFacade } from '../../facades/artifact.facade';
 import { ChatFacade } from '../../facades/chat.facade';
 import { PostFacade } from '../../facades/post.facade';
 import { ChatSender } from '../../models/chat.model';
+import { ArtifactSyncService } from '../../services/artifact-sync.service';
 import { TextAgentService } from '../../services/text-agent.service';
 
 @Component({
@@ -16,13 +18,15 @@ import { TextAgentService } from '../../services/text-agent.service';
 export class TextAgentComponent implements OnInit {
   public chatFacade = inject(ChatFacade);
   public postFacade = inject(PostFacade);
+  public artifactFacade = inject(ArtifactFacade);
   private readonly textAgentService = inject(TextAgentService);
-
-  public generatedText = signal<string | null>(null);
+  private readonly artifactSync = inject(ArtifactSyncService);
 
   public ngOnInit(): void {
     const postId = this.postFacade.currentPostId();
     if (!postId) return;
+
+    this.artifactSync.loadForPost(postId);
     this.textAgentService.getChatHistory(postId).subscribe({
       next: (history) => {
         const messages = history.messages.map((m) => ({
@@ -48,9 +52,9 @@ export class TextAgentComponent implements OnInit {
       next: (response) => {
         this.chatFacade.updateTextAgentChat([
           ...this.chatFacade.textAgentChat(),
-          { sender: ChatSender.Agent, text: response.message },
+          { sender: ChatSender.Agent, text: response.assistant_message },
         ]);
-        this.generatedText.set(response.message);
+        this.artifactFacade.applyArtifacts(response.generated_artifacts);
       },
       complete: () => this.chatFacade.updateIsTextAgentWorking(false),
       error: () => this.chatFacade.updateIsTextAgentWorking(false),

@@ -5,16 +5,15 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 
-from app.core.config import settings
 from app.schemas.post import PostCreate, PostInit, PostInitResponse, PostResponse, PostStatus, PostUpdate
 from app.services.agent_service import AgentService
 from app.services.chat_service import ChatService
-from app.storage.json_store import JSONStore
+from app.services.post_repository import PostRepository
 
 
 class PostService:
     def __init__(self):
-        self.store = JSONStore(settings.posts_file)
+        self.store = PostRepository()
         self.chat_service = ChatService()
 
     def init_post(self, post_init: PostInit) -> PostInitResponse:
@@ -92,18 +91,18 @@ class PostService:
                     "target_audience": post.get("target_audience"),
                 },
             )
-            text_artifact = result["generated_artifacts"].get("text", {})
-            image_artifact = result["generated_artifacts"].get("image", {})
 
-            post["preview"] = {
-                "generated_text": text_artifact.get("generated_text", result["assistant_message"]),
-                "post_structure": {
-                    "manager_response": result["assistant_message"],
-                    "used_agents": result["used_agents"],
-                },
-                "hashtags": text_artifact.get("hashtags", []),
-                "image_prompt_optional": image_artifact.get("image_prompt"),
-            }
+            # The graph writes artifacts into post.preview itself; only reload here.
+            post = self.store.get(post_id) or post
+            if not post.get("preview"):
+                post["preview"] = {
+                    "generated_text": result["assistant_message"],
+                    "post_structure": {
+                        "manager_response": result["assistant_message"],
+                        "used_agents": result["used_agents"],
+                    },
+                    "hashtags": [],
+                }
             post["status"] = PostStatus.preview_ready.value
             self.store.save(post)
             return self._to_response(post)

@@ -9,6 +9,8 @@ class Platform(str, Enum):
     instagram = "instagram"
     x = "x"
     blog = "blog"
+    tiktok = "tiktok"
+    facebook = "facebook"
 
 
 class PostStatus(str, Enum):
@@ -46,10 +48,12 @@ class PostUpdate(BaseModel):
 
 
 class PostPreview(BaseModel):
-    generated_text: str
-    post_structure: dict[str, Any]
-    hashtags: list[str]
+    generated_text: str = ""
+    post_structure: dict[str, Any] = Field(default_factory=dict)
+    hashtags: list[str] = Field(default_factory=list)
     image_prompt_optional: str | None = None
+    image_url: str | None = None
+    image_filename: str | None = None
 
 
 class PostResponse(BaseModel):

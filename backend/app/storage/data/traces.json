@@ -1,18 +1,18 @@
 [
   {
-    "id": "3a6d77bd-af03-4a4e-b8ce-9d6c4fdb2a25",
-    "trace_id": "3a6d77bd-af03-4a4e-b8ce-9d6c4fdb2a25",
-    "chat_id": "81623e49-6ce5-40cd-8fa5-df1c1e21886b::manager_agent",
-    "created_at": "2026-07-27T14:22:36.470939",
+    "id": "2a0d402a-0b6f-4c92-827d-c3db40398885",
+    "trace_id": "2a0d402a-0b6f-4c92-827d-c3db40398885",
+    "chat_id": "4e001871-dc6e-475f-98ea-3a5a66f05bcd::manager_agent",
+    "created_at": "2026-07-30T14:44:06.991159",
     "steps": [
       {
         "index": 1,
         "agent": "init_state_node",
         "decision": "Initialized Manager chat graph state.",
         "action": "init_state",
-        "observation": "Chat 81623e49-6ce5-40cd-8fa5-df1c1e21886b::manager_agent and trace 3a6d77bd-af03-4a4e-b8ce-9d6c4fdb2a25 are ready.",
+        "observation": "chat_id=4e001871-dc6e-475f-98ea-3a5a66f05bcd::manager_agent; trace_id=2a0d402a-0b6f-4c92-827d-c3db40398885; platform=unspecified.",
         "status": "success",
-        "timestamp": "2026-07-27T14:22:36.472774"
+        "timestamp": "2026-07-30T14:44:06.994632"
       },
       {
         "index": 2,
@@ -21,66 +21,1472 @@
         "action": "classify_intent",
         "observation": "Clarification is required before selecting an agent.",
         "status": "needs_input",
-        "timestamp": "2026-07-27T14:22:36.483577"
+        "timestamp": "2026-07-30T14:44:07.004438"
       },
       {
         "index": 3,
-        "agent": "rag_decision_node",
-        "decision": "Checked whether retrieval context is needed.",
-        "action": "decide_rag",
-        "observation": "RAG not needed for this request.",
-        "status": "skipped",
-        "timestamp": "2026-07-27T14:22:36.493293"
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': [], 'needs_rag_check': True, 'expected_artifacts': ['clarification_message'], 'validation_requirements': ['assistant_message_present'], 'assignments': {}}",
+        "status": "success",
+        "timestamp": "2026-07-30T14:44:07.016449"
       },
       {
         "index": 4,
-        "agent": "route_by_intent",
-        "decision": "Routing selected for intent=clarification.",
-        "action": "route_by_intent",
-        "observation": "Unknown intent.",
-        "status": "success",
-        "timestamp": "2026-07-27T14:22:36.508796"
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-30T14:44:07.025128"
       },
       {
         "index": 5,
-        "agent": "clarification_node",
-        "decision": "The request is unclear.",
-        "action": "ask_clarification",
-        "observation": "No HuggingFace call was made.",
-        "status": "needs_input",
-        "timestamp": "2026-07-27T14:22:36.517486"
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=clarification_needed.",
+        "action": "route_by_intent",
+        "observation": "Route to clarification response.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:44:07.042103"
       },
       {
         "index": 6,
-        "agent": "validation_node",
-        "decision": "Required outputs are present.",
-        "action": "validate_outputs",
-        "observation": "Validation passed for intent=clarification.",
+        "agent": "clarification_node",
+        "decision": "The request is unclear.",
+        "action": "ask_clarification",
+        "observation": "No specialist agent or HuggingFace call was made.",
         "status": "needs_input",
-        "timestamp": "2026-07-27T14:22:36.533854"
+        "timestamp": "2026-07-30T14:44:07.050840"
       },
       {
         "index": 7,
-        "agent": "assemble_response_node",
-        "decision": "Final chat response assembled from graph state.",
-        "action": "assemble_response",
-        "observation": "Combined text and image prompt response assembled.",
-        "status": "needs_input",
-        "timestamp": "2026-07-27T14:22:36.542124"
+        "agent": "validation_node",
+        "decision": "Validation result: valid.",
+        "action": "validate_results",
+        "observation": "{'feedback': {}, 'text_retry_count': 0, 'image_retry_count': 0}",
+        "status": "success",
+        "timestamp": "2026-07-30T14:44:07.067385"
       },
       {
         "index": 8,
+        "agent": "assemble_response_node",
+        "decision": "Final chat response assembled from actual graph artifacts.",
+        "action": "assemble_response",
+        "observation": "Clarification response kept.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:44:07.077176"
+      },
+      {
+        "index": 9,
         "agent": "save_trace_node",
-        "decision": "Chat messages and trace are saved.",
-        "action": "save_chat_and_trace",
-        "observation": "Saved chat 81623e49-6ce5-40cd-8fa5-df1c1e21886b::manager_agent with trace 3a6d77bd-af03-4a4e-b8ce-9d6c4fdb2a25.",
-        "status": "needs_input",
-        "timestamp": "2026-07-27T14:22:36.559153"
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 4e001871-dc6e-475f-98ea-3a5a66f05bcd::manager_agent with trace 2a0d402a-0b6f-4c92-827d-c3db40398885.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:44:07.103850"
       }
     ],
     "metadata": {
       "entrypoint": "manager_chat_langgraph",
-      "graph": "ManagerChatGraph"
+      "graph": "ManagerChatGraph",
+      "post_id": "4e001871-dc6e-475f-98ea-3a5a66f05bcd",
+      "trace_id": "2a0d402a-0b6f-4c92-827d-c3db40398885",
+      "used_agents": [],
+      "graph_node": "save_trace_node",
+      "artifact_types": [],
+      "status": "success",
+      "image_filename": null,
+      "image_url": null,
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
+    }
+  },
+  {
+    "id": "34d27fbb-1fbb-432d-9f5b-fa8e2b078ab0",
+    "trace_id": "34d27fbb-1fbb-432d-9f5b-fa8e2b078ab0",
+    "chat_id": "4e001871-dc6e-475f-98ea-3a5a66f05bcd::manager_agent",
+    "created_at": "2026-07-30T14:45:03.501303",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "chat_id=4e001871-dc6e-475f-98ea-3a5a66f05bcd::manager_agent; trace_id=34d27fbb-1fbb-432d-9f5b-fa8e2b078ab0; platform=x.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:03.503787"
+      },
+      {
+        "index": 2,
+        "agent": "classify_intent_node",
+        "decision": "Detected both text and image intent.",
+        "action": "classify_intent",
+        "observation": "TextAgent and ImageAgent selected.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:03.513561"
+      },
+      {
+        "index": 3,
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': ['TextAgent', 'ImageAgent'], 'needs_rag_check': True, 'expected_artifacts': ['text', 'image'], 'validation_requirements': ['text_not_empty', 'hashtags_present', 'platform_considered', 'image_prompt_not_empty', 'suggested_style_present', 'image_file_exists', 'image_url_present'], 'assignments': {'text': {'task': \"Teilauftrag des ManagerAgent: Erstelle den Marketing-Text.\\nNutzeranfrage: Ja ich möchte mir ein Bild erstellen und auch einen Text. Das Bild soll einen Blauen Baum auf dem Mond zeigen und im Text soll es um 'Hanniball' gehen, der in dem Baum wohnt. Das reicht an beschreibung leg los\", 'platform': 'x', 'tone': 'professional', 'target_audience': None}, 'image': {'task': \"Teilauftrag des ManagerAgent: Erstelle das Bildmotiv.\\nNutzeranfrage: Ja ich möchte mir ein Bild erstellen und auch einen Text. Das Bild soll einen Blauen Baum auf dem Mond zeigen und im Text soll es um 'Hanniball' gehen, der in dem Baum wohnt. Das reicht an beschreibung leg los\", 'platform': 'x', 'visual_style': None}}}",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:03.524223"
+      },
+      {
+        "index": 4,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-30T14:45:03.533604"
+      },
+      {
+        "index": 5,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=text_and_image.",
+        "action": "route_by_intent",
+        "observation": "Route to TextAgent first, then ImageAgent.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:03.550924"
+      },
+      {
+        "index": 6,
+        "agent": "TextAgent",
+        "decision": "Text generation requested.",
+        "action": "build_text_prompt",
+        "observation": "Platform=x, tone=professional.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:03.559952"
+      },
+      {
+        "index": 7,
+        "agent": "TextAgent",
+        "decision": "Text prompt is ready for model inference.",
+        "action": "call_text_model",
+        "observation": "Calling HuggingFace text model Qwen/Qwen2.5-7B-Instruct.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:03.568565"
+      },
+      {
+        "index": 8,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned text content.",
+        "action": "parse_text_response",
+        "observation": "Received 527 characters.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:05.158268"
+      },
+      {
+        "index": 9,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned marketing text.",
+        "action": "return_text_artifact",
+        "observation": "Generated 527 characters and 6 hashtags.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:05.160743"
+      },
+      {
+        "index": 10,
+        "agent": "text_agent_node",
+        "decision": "TextAgent completed successfully.",
+        "action": "call_text_agent",
+        "observation": "Text artifact stored in graph state.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:05.181866"
+      },
+      {
+        "index": 11,
+        "agent": "ImageAgent",
+        "decision": "Image prompt generation requested.",
+        "action": "generate_image_prompt",
+        "observation": "Platform=x, style=model choice.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:05.193498"
+      },
+      {
+        "index": 12,
+        "agent": "ImageAgent",
+        "decision": "HuggingFace returned an image prompt draft.",
+        "action": "return_image_prompt_artifact",
+        "observation": "Generated prompt with 1071 characters.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:07.181658"
+      },
+      {
+        "index": 13,
+        "agent": "ImageAgent",
+        "decision": "Image prompt is ready for text-to-image inference.",
+        "action": "call_text_to_image_model",
+        "observation": "Calling HuggingFace text-to-image model black-forest-labs/FLUX.1-schnell.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:07.183749"
+      },
+      {
+        "index": 14,
+        "agent": "ImageAgent",
+        "decision": "HuggingFace returned image bytes.",
+        "action": "store_generated_image",
+        "observation": "Storing generated image bytes as a local PNG file.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:11.976109"
+      },
+      {
+        "index": 15,
+        "agent": "ImageAgent",
+        "decision": "Generated image file is available.",
+        "action": "return_image_artifact",
+        "observation": "Stored 4e001871-dc6e-475f-98ea-3a5a66f05bcd.png at /generated-images/4e001871-dc6e-475f-98ea-3a5a66f05bcd.png.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:11.978985"
+      },
+      {
+        "index": 16,
+        "agent": "image_agent_node",
+        "decision": "ImageAgent completed with image artifact.",
+        "action": "call_image_agent",
+        "observation": "Image prompt and file ready: 4e001871-dc6e-475f-98ea-3a5a66f05bcd.png -> /generated-images/4e001871-dc6e-475f-98ea-3a5a66f05bcd.png",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:11.996932"
+      },
+      {
+        "index": 17,
+        "agent": "validation_node",
+        "decision": "Validation result: valid.",
+        "action": "validate_results",
+        "observation": "{'feedback': {}, 'text_retry_count': 0, 'image_retry_count': 0}",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:12.008260"
+      },
+      {
+        "index": 18,
+        "agent": "assemble_response_node",
+        "decision": "Final chat response assembled from actual graph artifacts.",
+        "action": "assemble_response",
+        "observation": "Combined success response assembled.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:12.016777"
+      },
+      {
+        "index": 19,
+        "agent": "save_trace_node",
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 4e001871-dc6e-475f-98ea-3a5a66f05bcd::manager_agent with trace 34d27fbb-1fbb-432d-9f5b-fa8e2b078ab0.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:45:12.047358"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph",
+      "post_id": "4e001871-dc6e-475f-98ea-3a5a66f05bcd",
+      "trace_id": "34d27fbb-1fbb-432d-9f5b-fa8e2b078ab0",
+      "used_agents": [
+        "TextAgent",
+        "ImageAgent"
+      ],
+      "graph_node": "save_trace_node",
+      "artifact_types": [
+        "text",
+        "image"
+      ],
+      "status": "success",
+      "image_filename": "4e001871-dc6e-475f-98ea-3a5a66f05bcd.png",
+      "image_url": "/generated-images/4e001871-dc6e-475f-98ea-3a5a66f05bcd.png",
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
+    }
+  },
+  {
+    "id": "faf494cb-1121-46cd-8fbf-c5315be747c4",
+    "trace_id": "faf494cb-1121-46cd-8fbf-c5315be747c4",
+    "chat_id": "4e001871-dc6e-475f-98ea-3a5a66f05bcd::manager_agent",
+    "created_at": "2026-07-30T14:46:02.136869",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "chat_id=4e001871-dc6e-475f-98ea-3a5a66f05bcd::manager_agent; trace_id=faf494cb-1121-46cd-8fbf-c5315be747c4; platform=x.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:02.138948"
+      },
+      {
+        "index": 2,
+        "agent": "classify_intent_node",
+        "decision": "Detected text generation intent.",
+        "action": "classify_intent",
+        "observation": "TextAgent selected.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:02.150263"
+      },
+      {
+        "index": 3,
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': ['TextAgent'], 'needs_rag_check': True, 'expected_artifacts': ['text'], 'validation_requirements': ['text_not_empty', 'hashtags_present', 'platform_considered'], 'assignments': {'text': {'task': 'Teilauftrag des ManagerAgent: Erstelle den Marketing-Text.\\nNutzeranfrage: Schick mir hier den Text, den der TextAgent produziert hat', 'platform': 'x', 'tone': 'professional', 'target_audience': None}}}",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:02.161111"
+      },
+      {
+        "index": 4,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-30T14:46:02.171023"
+      },
+      {
+        "index": 5,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=text_only.",
+        "action": "route_by_intent",
+        "observation": "Route to TextAgent.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:02.188905"
+      },
+      {
+        "index": 6,
+        "agent": "TextAgent",
+        "decision": "Text generation requested.",
+        "action": "build_text_prompt",
+        "observation": "Platform=x, tone=professional.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:02.198919"
+      },
+      {
+        "index": 7,
+        "agent": "TextAgent",
+        "decision": "Text prompt is ready for model inference.",
+        "action": "call_text_model",
+        "observation": "Calling HuggingFace text model Qwen/Qwen2.5-7B-Instruct.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:02.207649"
+      },
+      {
+        "index": 8,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned text content.",
+        "action": "parse_text_response",
+        "observation": "Received 515 characters.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:03.244405"
+      },
+      {
+        "index": 9,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned marketing text.",
+        "action": "return_text_artifact",
+        "observation": "Generated 515 characters and 6 hashtags.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:03.246869"
+      },
+      {
+        "index": 10,
+        "agent": "text_agent_node",
+        "decision": "TextAgent completed successfully.",
+        "action": "call_text_agent",
+        "observation": "Text artifact stored in graph state.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:03.267209"
+      },
+      {
+        "index": 11,
+        "agent": "validation_node",
+        "decision": "Validation result: valid.",
+        "action": "validate_results",
+        "observation": "{'feedback': {}, 'text_retry_count': 0, 'image_retry_count': 0}",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:03.278262"
+      },
+      {
+        "index": 12,
+        "agent": "assemble_response_node",
+        "decision": "Final chat response assembled from actual graph artifacts.",
+        "action": "assemble_response",
+        "observation": "Text-only success response assembled.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:03.288148"
+      },
+      {
+        "index": 13,
+        "agent": "save_trace_node",
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 4e001871-dc6e-475f-98ea-3a5a66f05bcd::manager_agent with trace faf494cb-1121-46cd-8fbf-c5315be747c4.",
+        "status": "success",
+        "timestamp": "2026-07-30T14:46:03.324061"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph",
+      "post_id": "4e001871-dc6e-475f-98ea-3a5a66f05bcd",
+      "trace_id": "faf494cb-1121-46cd-8fbf-c5315be747c4",
+      "used_agents": [
+        "TextAgent"
+      ],
+      "graph_node": "save_trace_node",
+      "artifact_types": [
+        "text"
+      ],
+      "status": "success",
+      "image_filename": null,
+      "image_url": null,
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
+    }
+  },
+  {
+    "id": "7d1ac11c-0026-4ab8-8a3f-dafb30c4beb9",
+    "trace_id": "7d1ac11c-0026-4ab8-8a3f-dafb30c4beb9",
+    "chat_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent",
+    "created_at": "2026-07-31T08:18:08.112810",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "chat_id=6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent; trace_id=7d1ac11c-0026-4ab8-8a3f-dafb30c4beb9; platform=unspecified.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:18:08.115677"
+      },
+      {
+        "index": 2,
+        "agent": "collect_brief_node",
+        "decision": "Collected post brief fields from the chat message.",
+        "action": "collect_post_brief",
+        "observation": "Updated nothing. Brief now: topic=offen; platform=offen; target_audience=offen; tone_of_voice=offen",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:18:08.129240"
+      },
+      {
+        "index": 3,
+        "agent": "classify_intent_node",
+        "decision": "No clear text or image intent detected.",
+        "action": "classify_intent",
+        "observation": "Clarification is required before selecting an agent.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:18:08.142061"
+      },
+      {
+        "index": 4,
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': [], 'needs_rag_check': True, 'expected_artifacts': ['clarification_message'], 'validation_requirements': ['assistant_message_present'], 'assignments': {}}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:18:08.162578"
+      },
+      {
+        "index": 5,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:18:08.173443"
+      },
+      {
+        "index": 6,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=clarification_needed.",
+        "action": "route_by_intent",
+        "observation": "Route to clarification response.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:18:08.192935"
+      },
+      {
+        "index": 7,
+        "agent": "context_question_node",
+        "decision": "Asking for the missing post field 'topic' before delegating.",
+        "action": "ask_post_context",
+        "observation": "Still missing: ['topic', 'platform', 'target_audience', 'tone_of_voice']. No specialist agent was called.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:18:08.206799"
+      },
+      {
+        "index": 8,
+        "agent": "save_trace_node",
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent with trace 7d1ac11c-0026-4ab8-8a3f-dafb30c4beb9.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:18:08.247614"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph",
+      "post_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5",
+      "trace_id": "7d1ac11c-0026-4ab8-8a3f-dafb30c4beb9",
+      "used_agents": [],
+      "graph_node": "save_trace_node",
+      "artifact_types": [],
+      "status": "needs_input",
+      "image_filename": null,
+      "image_url": null,
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
+    }
+  },
+  {
+    "id": "d817bba5-f84b-4aa9-b4ca-518cd35bac80",
+    "trace_id": "d817bba5-f84b-4aa9-b4ca-518cd35bac80",
+    "chat_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent",
+    "created_at": "2026-07-31T08:18:36.952771",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "chat_id=6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent; trace_id=d817bba5-f84b-4aa9-b4ca-518cd35bac80; platform=unspecified.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:18:36.955741"
+      },
+      {
+        "index": 2,
+        "agent": "collect_brief_node",
+        "decision": "Collected post brief fields from the chat message.",
+        "action": "collect_post_brief",
+        "observation": "Updated {'topic': 'um das Bäume pflanzen in Deutschland gehen'}. Brief now: topic=um das Bäume pflanzen in Deutschland gehen; platform=offen; target_audience=offen; tone_of_voice=offen",
+        "status": "success",
+        "timestamp": "2026-07-31T08:18:36.968762"
+      },
+      {
+        "index": 3,
+        "agent": "classify_intent_node",
+        "decision": "No clear text or image intent detected.",
+        "action": "classify_intent",
+        "observation": "Clarification is required before selecting an agent.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:18:36.980966"
+      },
+      {
+        "index": 4,
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': [], 'needs_rag_check': True, 'expected_artifacts': ['clarification_message'], 'validation_requirements': ['assistant_message_present'], 'assignments': {}}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:18:37.000689"
+      },
+      {
+        "index": 5,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:18:37.010668"
+      },
+      {
+        "index": 6,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=clarification_needed.",
+        "action": "route_by_intent",
+        "observation": "Route to clarification response.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:18:37.029513"
+      },
+      {
+        "index": 7,
+        "agent": "context_question_node",
+        "decision": "Asking for the missing post field 'platform' before delegating.",
+        "action": "ask_post_context",
+        "observation": "Still missing: ['platform', 'target_audience', 'tone_of_voice']. No specialist agent was called.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:18:37.048752"
+      },
+      {
+        "index": 8,
+        "agent": "save_trace_node",
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent with trace d817bba5-f84b-4aa9-b4ca-518cd35bac80.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:18:37.087665"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph",
+      "post_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5",
+      "trace_id": "d817bba5-f84b-4aa9-b4ca-518cd35bac80",
+      "used_agents": [],
+      "graph_node": "save_trace_node",
+      "artifact_types": [],
+      "status": "needs_input",
+      "image_filename": null,
+      "image_url": null,
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
+    }
+  },
+  {
+    "id": "663f012d-963c-4070-ba38-fd958248c9eb",
+    "trace_id": "663f012d-963c-4070-ba38-fd958248c9eb",
+    "chat_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent",
+    "created_at": "2026-07-31T08:19:00.441058",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "chat_id=6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent; trace_id=663f012d-963c-4070-ba38-fd958248c9eb; platform=instagram.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:19:00.443930"
+      },
+      {
+        "index": 2,
+        "agent": "collect_brief_node",
+        "decision": "Collected post brief fields from the chat message.",
+        "action": "collect_post_brief",
+        "observation": "Updated {'platform': 'instagram'}. Brief now: topic=um das Bäume pflanzen in Deutschland gehen; platform=instagram; target_audience=offen; tone_of_voice=offen",
+        "status": "success",
+        "timestamp": "2026-07-31T08:19:00.456553"
+      },
+      {
+        "index": 3,
+        "agent": "classify_intent_node",
+        "decision": "No clear text or image intent detected.",
+        "action": "classify_intent",
+        "observation": "Clarification is required before selecting an agent.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:19:00.469195"
+      },
+      {
+        "index": 4,
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': [], 'needs_rag_check': True, 'expected_artifacts': ['clarification_message'], 'validation_requirements': ['assistant_message_present'], 'assignments': {}}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:19:00.488764"
+      },
+      {
+        "index": 5,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:19:00.499581"
+      },
+      {
+        "index": 6,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=clarification_needed.",
+        "action": "route_by_intent",
+        "observation": "Route to clarification response.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:19:00.520444"
+      },
+      {
+        "index": 7,
+        "agent": "clarification_node",
+        "decision": "The request is unclear.",
+        "action": "ask_clarification",
+        "observation": "No specialist agent or HuggingFace call was made.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:19:00.532023"
+      },
+      {
+        "index": 8,
+        "agent": "validation_node",
+        "decision": "Validation result: valid.",
+        "action": "validate_results",
+        "observation": "{'feedback': {}, 'text_retry_count': 0, 'image_retry_count': 0}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:19:00.552521"
+      },
+      {
+        "index": 9,
+        "agent": "assemble_response_node",
+        "decision": "Final chat response assembled from actual graph artifacts.",
+        "action": "assemble_response",
+        "observation": "Clarification response kept.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:19:00.562655"
+      },
+      {
+        "index": 10,
+        "agent": "persist_post_node",
+        "decision": "Appended a follow-up question for the open post field 'target_audience'.",
+        "action": "ask_post_followup",
+        "observation": "Still missing: ['target_audience', 'tone_of_voice'].",
+        "status": "success",
+        "timestamp": "2026-07-31T08:19:00.580701"
+      },
+      {
+        "index": 11,
+        "agent": "save_trace_node",
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent with trace 663f012d-963c-4070-ba38-fd958248c9eb.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:19:00.611431"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph",
+      "post_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5",
+      "trace_id": "663f012d-963c-4070-ba38-fd958248c9eb",
+      "used_agents": [],
+      "graph_node": "save_trace_node",
+      "artifact_types": [],
+      "status": "success",
+      "image_filename": null,
+      "image_url": null,
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
+    }
+  },
+  {
+    "id": "d1afe2ef-e35c-4131-b279-784f5928870f",
+    "trace_id": "d1afe2ef-e35c-4131-b279-784f5928870f",
+    "chat_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent",
+    "created_at": "2026-07-31T08:20:04.344113",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "chat_id=6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent; trace_id=d1afe2ef-e35c-4131-b279-784f5928870f; platform=unspecified.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:20:04.347216"
+      },
+      {
+        "index": 2,
+        "agent": "collect_brief_node",
+        "decision": "Collected post brief fields from the chat message.",
+        "action": "collect_post_brief",
+        "observation": "Updated {'target_audience': 'Jugendliche'}. Brief now: topic=um das Bäume pflanzen in Deutschland gehen; platform=instagram; target_audience=Jugendliche; tone_of_voice=offen",
+        "status": "success",
+        "timestamp": "2026-07-31T08:20:04.361035"
+      },
+      {
+        "index": 3,
+        "agent": "classify_intent_node",
+        "decision": "No clear text or image intent detected.",
+        "action": "classify_intent",
+        "observation": "Clarification is required before selecting an agent.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:20:04.374616"
+      },
+      {
+        "index": 4,
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': [], 'needs_rag_check': True, 'expected_artifacts': ['clarification_message'], 'validation_requirements': ['assistant_message_present'], 'assignments': {}}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:20:04.400475"
+      },
+      {
+        "index": 5,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:20:04.411138"
+      },
+      {
+        "index": 6,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=clarification_needed.",
+        "action": "route_by_intent",
+        "observation": "Route to clarification response.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:20:04.431946"
+      },
+      {
+        "index": 7,
+        "agent": "clarification_node",
+        "decision": "The request is unclear.",
+        "action": "ask_clarification",
+        "observation": "No specialist agent or HuggingFace call was made.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:20:04.442898"
+      },
+      {
+        "index": 8,
+        "agent": "validation_node",
+        "decision": "Validation result: valid.",
+        "action": "validate_results",
+        "observation": "{'feedback': {}, 'text_retry_count': 0, 'image_retry_count': 0}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:20:04.463111"
+      },
+      {
+        "index": 9,
+        "agent": "assemble_response_node",
+        "decision": "Final chat response assembled from actual graph artifacts.",
+        "action": "assemble_response",
+        "observation": "Clarification response kept.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:20:04.473119"
+      },
+      {
+        "index": 10,
+        "agent": "persist_post_node",
+        "decision": "Appended a follow-up question for the open post field 'tone_of_voice'.",
+        "action": "ask_post_followup",
+        "observation": "Still missing: ['tone_of_voice'].",
+        "status": "success",
+        "timestamp": "2026-07-31T08:20:04.490132"
+      },
+      {
+        "index": 11,
+        "agent": "save_trace_node",
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent with trace d1afe2ef-e35c-4131-b279-784f5928870f.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:20:04.520073"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph",
+      "post_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5",
+      "trace_id": "d1afe2ef-e35c-4131-b279-784f5928870f",
+      "used_agents": [],
+      "graph_node": "save_trace_node",
+      "artifact_types": [],
+      "status": "success",
+      "image_filename": null,
+      "image_url": null,
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
+    }
+  },
+  {
+    "id": "d71ef816-3a05-433e-831e-7177d65c6ac5",
+    "trace_id": "d71ef816-3a05-433e-831e-7177d65c6ac5",
+    "chat_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent",
+    "created_at": "2026-07-31T08:21:11.032417",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "chat_id=6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent; trace_id=d71ef816-3a05-433e-831e-7177d65c6ac5; platform=unspecified.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:11.035553"
+      },
+      {
+        "index": 2,
+        "agent": "collect_brief_node",
+        "decision": "Collected post brief fields from the chat message.",
+        "action": "collect_post_brief",
+        "observation": "Updated {'tone_of_voice': 'professionell'}. Brief now: topic=um das Bäume pflanzen in Deutschland gehen; platform=instagram; target_audience=Jugendliche; tone_of_voice=professionell",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:11.048961"
+      },
+      {
+        "index": 3,
+        "agent": "classify_intent_node",
+        "decision": "No clear text or image intent detected.",
+        "action": "classify_intent",
+        "observation": "Clarification is required before selecting an agent.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:21:11.061697"
+      },
+      {
+        "index": 4,
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': [], 'needs_rag_check': True, 'expected_artifacts': ['clarification_message'], 'validation_requirements': ['assistant_message_present'], 'assignments': {}}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:11.081856"
+      },
+      {
+        "index": 5,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:21:11.091939"
+      },
+      {
+        "index": 6,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=clarification_needed.",
+        "action": "route_by_intent",
+        "observation": "Route to clarification response.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:11.111673"
+      },
+      {
+        "index": 7,
+        "agent": "clarification_node",
+        "decision": "The request is unclear.",
+        "action": "ask_clarification",
+        "observation": "No specialist agent or HuggingFace call was made.",
+        "status": "needs_input",
+        "timestamp": "2026-07-31T08:21:11.123184"
+      },
+      {
+        "index": 8,
+        "agent": "validation_node",
+        "decision": "Validation result: valid.",
+        "action": "validate_results",
+        "observation": "{'feedback': {}, 'text_retry_count': 0, 'image_retry_count': 0}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:11.142753"
+      },
+      {
+        "index": 9,
+        "agent": "assemble_response_node",
+        "decision": "Final chat response assembled from actual graph artifacts.",
+        "action": "assemble_response",
+        "observation": "Clarification response kept.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:11.153106"
+      },
+      {
+        "index": 10,
+        "agent": "save_trace_node",
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent with trace d71ef816-3a05-433e-831e-7177d65c6ac5.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:11.196197"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph",
+      "post_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5",
+      "trace_id": "d71ef816-3a05-433e-831e-7177d65c6ac5",
+      "used_agents": [],
+      "graph_node": "save_trace_node",
+      "artifact_types": [],
+      "status": "success",
+      "image_filename": null,
+      "image_url": null,
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
+    }
+  },
+  {
+    "id": "9298345a-1b59-47fb-b38a-343be15007ba",
+    "trace_id": "9298345a-1b59-47fb-b38a-343be15007ba",
+    "chat_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent",
+    "created_at": "2026-07-31T08:21:25.606378",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "chat_id=6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent; trace_id=9298345a-1b59-47fb-b38a-343be15007ba; platform=unspecified.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:25.609380"
+      },
+      {
+        "index": 2,
+        "agent": "collect_brief_node",
+        "decision": "Collected post brief fields from the chat message.",
+        "action": "collect_post_brief",
+        "observation": "Updated nothing. Brief now: topic=um das Bäume pflanzen in Deutschland gehen; platform=instagram; target_audience=Jugendliche; tone_of_voice=professionell",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:21:25.620507"
+      },
+      {
+        "index": 3,
+        "agent": "classify_intent_node",
+        "decision": "Detected both text and image intent.",
+        "action": "classify_intent",
+        "observation": "TextAgent and ImageAgent selected.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:25.633445"
+      },
+      {
+        "index": 4,
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': ['TextAgent', 'ImageAgent'], 'needs_rag_check': True, 'expected_artifacts': ['text', 'image'], 'validation_requirements': ['text_not_empty', 'hashtags_present', 'platform_considered', 'image_prompt_not_empty', 'suggested_style_present', 'image_file_exists', 'image_url_present'], 'assignments': {'text': {'task': 'Teilauftrag des ManagerAgent: Erstelle den Marketing-Text.\\nNutzeranfrage: Ja erstelle jetz ein Bild mit Text\\nPost-Brief aus dem Manager-Chat:\\n- Thema des Posts: um das Bäume pflanzen in Deutschland gehen', 'platform': 'instagram', 'tone': 'professionell', 'target_audience': 'Jugendliche'}, 'image': {'task': 'Teilauftrag des ManagerAgent: Erstelle das Bildmotiv.\\nNutzeranfrage: Ja erstelle jetz ein Bild mit Text\\nPost-Brief aus dem Manager-Chat:\\n- Thema des Posts: um das Bäume pflanzen in Deutschland gehen', 'platform': 'instagram', 'visual_style': None}}}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:25.653336"
+      },
+      {
+        "index": 5,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:21:25.663928"
+      },
+      {
+        "index": 6,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=text_and_image.",
+        "action": "route_by_intent",
+        "observation": "Route to TextAgent first, then ImageAgent.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:25.684271"
+      },
+      {
+        "index": 7,
+        "agent": "TextAgent",
+        "decision": "Text generation requested.",
+        "action": "build_text_prompt",
+        "observation": "Platform=instagram, tone=professionell.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:25.695694"
+      },
+      {
+        "index": 8,
+        "agent": "TextAgent",
+        "decision": "Text prompt is ready for model inference.",
+        "action": "call_text_model",
+        "observation": "Calling HuggingFace text model Qwen/Qwen2.5-7B-Instruct.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:25.706836"
+      },
+      {
+        "index": 9,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned text content.",
+        "action": "parse_text_response",
+        "observation": "Received 368 characters.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:27.577350"
+      },
+      {
+        "index": 10,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned marketing text.",
+        "action": "return_text_artifact",
+        "observation": "Generated 368 characters and 6 hashtags.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:27.580558"
+      },
+      {
+        "index": 11,
+        "agent": "text_agent_node",
+        "decision": "TextAgent completed successfully.",
+        "action": "call_text_agent",
+        "observation": "Text artifact stored in graph state.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:27.603303"
+      },
+      {
+        "index": 12,
+        "agent": "ImageAgent",
+        "decision": "Image prompt generation requested.",
+        "action": "generate_image_prompt",
+        "observation": "Platform=instagram, style=model choice.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:27.616331"
+      },
+      {
+        "index": 13,
+        "agent": "ImageAgent",
+        "decision": "HuggingFace returned an image prompt draft.",
+        "action": "return_image_prompt_artifact",
+        "observation": "Generated prompt with 1285 characters.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:29.962995"
+      },
+      {
+        "index": 14,
+        "agent": "ImageAgent",
+        "decision": "Image prompt is ready for text-to-image inference.",
+        "action": "call_text_to_image_model",
+        "observation": "Calling HuggingFace text-to-image model black-forest-labs/FLUX.1-schnell.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:29.975113"
+      },
+      {
+        "index": 15,
+        "agent": "ImageAgent",
+        "decision": "HuggingFace returned image bytes.",
+        "action": "store_generated_image",
+        "observation": "Storing generated image bytes as a local PNG file.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:35.371392"
+      },
+      {
+        "index": 16,
+        "agent": "ImageAgent",
+        "decision": "Generated image file is available.",
+        "action": "return_image_artifact",
+        "observation": "Stored 6bfe501a-eaba-40fb-ad3e-785974ff15a5.png at /generated-images/6bfe501a-eaba-40fb-ad3e-785974ff15a5.png.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:35.384772"
+      },
+      {
+        "index": 17,
+        "agent": "image_agent_node",
+        "decision": "ImageAgent completed with image artifact.",
+        "action": "call_image_agent",
+        "observation": "Image prompt and file ready: 6bfe501a-eaba-40fb-ad3e-785974ff15a5.png -> /generated-images/6bfe501a-eaba-40fb-ad3e-785974ff15a5.png",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:35.406138"
+      },
+      {
+        "index": 18,
+        "agent": "validation_node",
+        "decision": "Validation result: valid.",
+        "action": "validate_results",
+        "observation": "{'feedback': {}, 'text_retry_count': 0, 'image_retry_count': 0}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:35.418692"
+      },
+      {
+        "index": 19,
+        "agent": "assemble_response_node",
+        "decision": "Final chat response assembled from actual graph artifacts.",
+        "action": "assemble_response",
+        "observation": "Combined success response assembled.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:35.429823"
+      },
+      {
+        "index": 20,
+        "agent": "persist_post_node",
+        "decision": "Stored generated artifacts in the post preview.",
+        "action": "persist_post_preview",
+        "observation": "Preview fields updated: ['generated_text', 'hashtags', 'image_filename', 'image_prompt_optional', 'image_url', 'post_structure'].",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:35.450185"
+      },
+      {
+        "index": 21,
+        "agent": "save_trace_node",
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent with trace 9298345a-1b59-47fb-b38a-343be15007ba.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:21:35.498820"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph",
+      "post_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5",
+      "trace_id": "9298345a-1b59-47fb-b38a-343be15007ba",
+      "used_agents": [
+        "TextAgent",
+        "ImageAgent"
+      ],
+      "graph_node": "save_trace_node",
+      "artifact_types": [
+        "text",
+        "image"
+      ],
+      "status": "success",
+      "image_filename": "6bfe501a-eaba-40fb-ad3e-785974ff15a5.png",
+      "image_url": "/generated-images/6bfe501a-eaba-40fb-ad3e-785974ff15a5.png",
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
+    }
+  },
+  {
+    "id": "c3395714-fda0-40f4-b038-de859e02735f",
+    "trace_id": "c3395714-fda0-40f4-b038-de859e02735f",
+    "chat_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5::text_agent",
+    "created_at": "2026-07-31T08:22:49.047667",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "TextAgent",
+        "decision": "Text generation requested.",
+        "action": "build_text_prompt",
+        "observation": "Platform=instagram, tone=professionell.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:22:49.059029"
+      },
+      {
+        "index": 2,
+        "agent": "TextAgent",
+        "decision": "Text prompt is ready for model inference.",
+        "action": "call_text_model",
+        "observation": "Calling HuggingFace text model Qwen/Qwen2.5-7B-Instruct.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:22:49.070370"
+      },
+      {
+        "index": 3,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned text content.",
+        "action": "parse_text_response",
+        "observation": "Received 555 characters.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:22:50.482262"
+      },
+      {
+        "index": 4,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned marketing text.",
+        "action": "return_text_artifact",
+        "observation": "Generated 555 characters and 7 hashtags.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:22:50.492925"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "text_agent_chat",
+      "post_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5"
+    }
+  },
+  {
+    "id": "97467347-c26a-47ff-aa43-4815fec28a74",
+    "trace_id": "97467347-c26a-47ff-aa43-4815fec28a74",
+    "chat_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5::text_agent",
+    "created_at": "2026-07-31T08:23:40.794191",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "TextAgent",
+        "decision": "Text generation requested.",
+        "action": "build_text_prompt",
+        "observation": "Platform=instagram, tone=professionell.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:23:40.807035"
+      },
+      {
+        "index": 2,
+        "agent": "TextAgent",
+        "decision": "Text prompt is ready for model inference.",
+        "action": "call_text_model",
+        "observation": "Calling HuggingFace text model Qwen/Qwen2.5-7B-Instruct.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:23:40.817957"
+      },
+      {
+        "index": 3,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned text content.",
+        "action": "parse_text_response",
+        "observation": "Received 138 characters.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:23:41.608110"
+      },
+      {
+        "index": 4,
+        "agent": "TextAgent",
+        "decision": "HuggingFace returned marketing text.",
+        "action": "return_text_artifact",
+        "observation": "Generated 138 characters and 5 hashtags.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:23:41.619920"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "text_agent_chat",
+      "post_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5"
+    }
+  },
+  {
+    "id": "0aab72cb-d6c1-44fc-b088-8eefabac14d0",
+    "trace_id": "0aab72cb-d6c1-44fc-b088-8eefabac14d0",
+    "chat_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent",
+    "created_at": "2026-07-31T08:24:51.680430",
+    "steps": [
+      {
+        "index": 1,
+        "agent": "init_state_node",
+        "decision": "Initialized Manager chat graph state.",
+        "action": "init_state",
+        "observation": "chat_id=6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent; trace_id=0aab72cb-d6c1-44fc-b088-8eefabac14d0; platform=unspecified.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:51.692044"
+      },
+      {
+        "index": 2,
+        "agent": "collect_brief_node",
+        "decision": "Collected post brief fields from the chat message.",
+        "action": "collect_post_brief",
+        "observation": "Updated nothing. Brief now: topic=um das Bäume pflanzen in Deutschland gehen; platform=instagram; target_audience=Jugendliche; tone_of_voice=professionell",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:24:51.703933"
+      },
+      {
+        "index": 3,
+        "agent": "classify_intent_node",
+        "decision": "Detected image generation intent.",
+        "action": "classify_intent",
+        "observation": "ImageAgent selected.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:51.718076"
+      },
+      {
+        "index": 4,
+        "agent": "create_plan_node",
+        "decision": "Created high-level execution plan.",
+        "action": "create_plan",
+        "observation": "{'required_agents': ['ImageAgent'], 'needs_rag_check': True, 'expected_artifacts': ['image'], 'validation_requirements': ['image_prompt_not_empty', 'suggested_style_present', 'image_file_exists', 'image_url_present'], 'assignments': {'image': {'task': 'Teilauftrag des ManagerAgent: Erstelle das Bildmotiv.\\nNutzeranfrage: Ändere bei dem Bild etwas. ich möchte statt der Hochhäuser normale Einfamilienhäuser haben\\nPost-Brief aus dem Manager-Chat:\\n- Thema des Posts: um das Bäume pflanzen in Deutschland gehen', 'platform': 'instagram', 'visual_style': None}}}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:51.739030"
+      },
+      {
+        "index": 5,
+        "agent": "rag_decision_node",
+        "decision": "Checked whether retrieval context is needed.",
+        "action": "decide_rag",
+        "observation": "RAG skipped because no retrieval keywords were detected.",
+        "status": "skipped",
+        "timestamp": "2026-07-31T08:24:51.750540"
+      },
+      {
+        "index": 6,
+        "agent": "route_by_intent",
+        "decision": "Routing selected for intent=image_only.",
+        "action": "route_by_intent",
+        "observation": "Route to ImageAgent.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:51.774175"
+      },
+      {
+        "index": 7,
+        "agent": "ImageAgent",
+        "decision": "Image prompt generation requested.",
+        "action": "generate_image_prompt",
+        "observation": "Platform=instagram, style=model choice.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:51.786011"
+      },
+      {
+        "index": 8,
+        "agent": "ImageAgent",
+        "decision": "HuggingFace returned an image prompt draft.",
+        "action": "return_image_prompt_artifact",
+        "observation": "Generated prompt with 954 characters.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:53.549036"
+      },
+      {
+        "index": 9,
+        "agent": "ImageAgent",
+        "decision": "Image prompt is ready for text-to-image inference.",
+        "action": "call_text_to_image_model",
+        "observation": "Calling HuggingFace text-to-image model black-forest-labs/FLUX.1-schnell.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:53.559384"
+      },
+      {
+        "index": 10,
+        "agent": "ImageAgent",
+        "decision": "HuggingFace returned image bytes.",
+        "action": "store_generated_image",
+        "observation": "Storing generated image bytes as a local PNG file.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:58.281681"
+      },
+      {
+        "index": 11,
+        "agent": "ImageAgent",
+        "decision": "Generated image file is available.",
+        "action": "return_image_artifact",
+        "observation": "Stored 6bfe501a-eaba-40fb-ad3e-785974ff15a5.png at /generated-images/6bfe501a-eaba-40fb-ad3e-785974ff15a5.png.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:58.295029"
+      },
+      {
+        "index": 12,
+        "agent": "image_agent_node",
+        "decision": "ImageAgent completed with image artifact.",
+        "action": "call_image_agent",
+        "observation": "Image prompt and file ready: 6bfe501a-eaba-40fb-ad3e-785974ff15a5.png -> /generated-images/6bfe501a-eaba-40fb-ad3e-785974ff15a5.png",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:58.317193"
+      },
+      {
+        "index": 13,
+        "agent": "validation_node",
+        "decision": "Validation result: valid.",
+        "action": "validate_results",
+        "observation": "{'feedback': {}, 'text_retry_count': 0, 'image_retry_count': 0}",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:58.331257"
+      },
+      {
+        "index": 14,
+        "agent": "assemble_response_node",
+        "decision": "Final chat response assembled from actual graph artifacts.",
+        "action": "assemble_response",
+        "observation": "Image-only success response assembled.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:58.342455"
+      },
+      {
+        "index": 15,
+        "agent": "persist_post_node",
+        "decision": "Stored generated artifacts in the post preview.",
+        "action": "persist_post_preview",
+        "observation": "Preview fields updated: ['image_filename', 'image_prompt_optional', 'image_url', 'post_structure'].",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:58.364872"
+      },
+      {
+        "index": 16,
+        "agent": "save_trace_node",
+        "decision": "Chat messages, trace metadata and specialist logs are saved.",
+        "action": "persist_chat_trace_and_logs",
+        "observation": "Saved chat 6bfe501a-eaba-40fb-ad3e-785974ff15a5::manager_agent with trace 0aab72cb-d6c1-44fc-b088-8eefabac14d0.",
+        "status": "success",
+        "timestamp": "2026-07-31T08:24:58.410564"
+      }
+    ],
+    "metadata": {
+      "entrypoint": "manager_chat_langgraph",
+      "graph": "ManagerChatGraph",
+      "post_id": "6bfe501a-eaba-40fb-ad3e-785974ff15a5",
+      "trace_id": "0aab72cb-d6c1-44fc-b088-8eefabac14d0",
+      "used_agents": [
+        "ImageAgent"
+      ],
+      "graph_node": "save_trace_node",
+      "artifact_types": [
+        "image"
+      ],
+      "status": "success",
+      "image_filename": "6bfe501a-eaba-40fb-ad3e-785974ff15a5.png",
+      "image_url": "/generated-images/6bfe501a-eaba-40fb-ad3e-785974ff15a5.png",
+      "retry_count": {
+        "text": 0,
+        "image": 0
+      }
     }
   }
 ]

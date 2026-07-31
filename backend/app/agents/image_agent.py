@@ -62,6 +62,7 @@ class ImageAgent(BaseAgent):
         context: str | dict[str, Any] | None = None,
         rag_context: str | None = None,
         validation_feedback: str | None = None,
+        post_id: str | None = None,
     ) -> dict[str, Any]:
         prompt_task = task
         if validation_feedback:
@@ -95,7 +96,7 @@ class ImageAgent(BaseAgent):
                 action="store_generated_image",
                 observation="Storing generated image bytes as a local PNG file.",
             )
-            stored = self.image_storage.save_png(image_bytes)
+            stored = self.image_storage.save_png(image_bytes, filename_stem=post_id)
             artifact.update(stored)
 
             self.trace(
