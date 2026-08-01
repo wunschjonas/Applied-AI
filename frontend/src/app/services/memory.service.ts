@@ -15,6 +15,13 @@ export interface MemoryListResponse {
   entries: string[];
 }
 
+export interface MemoryUploadResponse {
+  stored_chunks: number;
+  filename: string;
+  kind: string;
+  preview: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -37,5 +44,11 @@ export class MemoryService {
 
   list(): Observable<MemoryListResponse> {
     return this.http.get<MemoryListResponse>(`${this.baseUrl}/api/memory/list`);
+  }
+
+  upload(file: File): Observable<MemoryUploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<MemoryUploadResponse>(`${this.baseUrl}/api/memory/upload`, formData);
   }
 }

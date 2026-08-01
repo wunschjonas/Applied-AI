@@ -23,6 +23,8 @@ class FakeHF:
         self.image_failures = image_failures
         self.short_text_failures = short_text_failures
         self.user_prompts: list[str] = []
+        self.tool_rounds: list[dict] = []
+        self._rag_tool_used = False
 
     def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = 700) -> str:
         self.user_prompts.append(user_prompt)
@@ -47,6 +49,35 @@ class FakeHF:
             "#AI #Marketing #Agents #Automation"
         )
 
+    def chat_with_tools(self, messages, tools, max_tokens: int = 400, temperature: float = 0.2) -> dict:
+        self.tool_rounds.append({"messages": messages, "tools": tools})
+        # Only inspect user turns — the system prompt itself mentions PDFs/memory.
+        combined = " ".join(
+            str(item.get("content") or "")
+            for item in messages
+            if item.get("role") == "user"
+        ).lower()
+        should_search = (
+            not self._rag_tool_used
+            and ("pdf" in combined or "brand guidelines" in combined or "gedächtnis" in combined)
+        )
+        if should_search:
+            self._rag_tool_used = True
+            return {
+                "content": "I should check project memory for the uploaded PDF.",
+                "tool_calls": [
+                    {
+                        "id": "call_memory_1",
+                        "name": "memory_search",
+                        "arguments": {"query": "brand guidelines pdf", "n_results": 3},
+                    }
+                ],
+            }
+        return {"content": "No memory search needed.", "tool_calls": []}
+
+    def describe_image(self, image_bytes: bytes) -> str:
+        return "a marketing product photo on a clean desk"
+
     def generate_image(self, prompt: str, negative_prompt: str | None = None) -> bytes:
         if self.image_failures > 0:
             self.image_failures -= 1
@@ -57,14 +88,26 @@ class FakeHF:
 class FakeRAG:
     def __init__(self, result: str = "stored memory context"):
         self.retrieve_called = False
+        self.search_queries: list[str] = []
+        self.stored: list[tuple[str, list[str]]] = []
         self.result = result
 
     def is_needed(self, message: str) -> bool:
         return "pdf" in message.lower() or "brand guidelines" in message.lower()
 
-    def retrieve(self, query: str, context=None) -> str:
+    def search(self, query: str, n_results: int = 3) -> str:
         self.retrieve_called = True
+        self.search_queries.append(query)
         return self.result
+
+    def retrieve(self, query: str, context=None) -> str:
+        return self.search(query)
+
+    def store(self, content: str, tags: list[str] | None = None) -> None:
+        self.stored.append((content, tags or []))
+
+    def list_all(self) -> list[str]:
+        return [content for content, _ in self.stored]
 
 
 def build_graph(tmp_path: Path, hf_factory=None, rag_service=None) -> ManagerChatGraph:
@@ -108,6 +151,8 @@ def test_intent_classification_cases():
     assert classifier.classify_intent("Erstelle ein Bild fuer Instagram").label == "image_only"
     assert classifier.classify_intent("Erstelle ein Bild. Nur das Bild!").label == "image_only"
     assert classifier.classify_intent("Instagram Caption mit Hashtags und Bildidee").label == "text_and_image"
+    assert classifier.classify_intent("Ist im Gedaechtnis ein Bild?").label == "memory_inquiry"
+    assert classifier.classify_intent("Was steht in deinem Rag / Gedaechtnis?").label == "memory_inquiry"
     assert classifier.classify_intent("Hilf mir bitte").label == "clarification_needed"
 
 

@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from app.graphs.support import brief_llm
 from app.graphs.support.post_fields import AWAITING_FIELD_KEY
-from app.schemas.post import PostCreate, PostInit, PostInitResponse, PostResponse, PostStatus, PostUpdate
+from app.schemas.post import Platform, PostCreate, PostInit, PostInitResponse, PostResponse, PostStatus, PostUpdate
 from app.services.agent_service import AgentService
 from app.services.chat_service import ChatService
 from app.services.huggingface_service import HuggingFaceService
@@ -148,4 +148,12 @@ class PostService:
 
     def _to_response(self, post: dict[str, Any]) -> PostResponse:
         allowed = {"id", "title", "status", "topic", "platform", "target_audience", "tone_of_voice", "additional_context", "preview"}
-        return PostResponse(**{k: v for k, v in post.items() if k in allowed})
+        payload = {k: v for k, v in post.items() if k in allowed}
+        platform = payload.get("platform")
+        if platform is not None:
+            try:
+                Platform(platform)
+            except ValueError:
+                # Corrupt brief values must not break the whole posts API.
+                payload["platform"] = None
+        return PostResponse(**payload)

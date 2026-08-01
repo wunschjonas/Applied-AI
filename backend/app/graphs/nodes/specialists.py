@@ -145,6 +145,81 @@ class SpecialistNodes:
         )
         return state
 
+    def memory_answer_node(self, state: ManagerChatState) -> ManagerChatState:
+        """Answer questions about stored RAG/memory content without generating a post."""
+        started_at = datetime.utcnow()
+        context = (state.get("rag_context") or "").strip()
+        source = "memory_search"
+
+        if not context:
+            entries = self.deps.rag_service.list_all()
+            if entries:
+                preview = "\n".join(f"- {entry[:240]}" for entry in entries[:8])
+                context = preview
+                source = "memory_list"
+            else:
+                context = ""
+
+        if context:
+            fallback = (
+                "Im Gedächtnis habe ich dazu Folgendes gefunden:\n"
+                f"{context}\n\n"
+                "Soll ich daraus Text oder Bild fuer den Post ableiten?"
+            )
+            situation = (
+                "Summarize the retrieved memory/RAG entries for the user in German. "
+                "Be concrete about what is stored. Do not invent missing facts."
+            )
+            status = "success"
+            observation = f"Answered from {source} ({len(context)} chars)."
+        else:
+            fallback = (
+                "Im Gedächtnis habe ich gerade keine passenden Eintraege gefunden. "
+                "Lade bitte auf der Rag-Seite ein PDF/Bild hoch oder speichere einen Fakt, "
+                "dann kann ich danach suchen."
+            )
+            situation = (
+                "Tell the user that memory/RAG is empty for this query and suggest uploading "
+                "or storing a fact on the Rag page."
+            )
+            status = "warning"
+            observation = "No memory context available for the inquiry."
+
+        state["assistant_message"] = brief_llm.compose_manager_reply(
+            hf=brief_llm.try_hf(self.deps.hf_factory),
+            fallback=fallback,
+            situation=situation,
+            user_message=state["user_message"],
+            post=state.get("post"),
+            artifact_summary=f"rag_source={source}; rag_chars={len(context)}",
+        )
+        state["status"] = status
+        state["generated_artifacts"]["memory_answer"] = {
+            "source": source,
+            "context_preview": context[:500],
+        }
+
+        self.recorder.step(
+            state,
+            "memory_answer_node",
+            "Answering a memory/RAG inquiry.",
+            "answer_memory_inquiry",
+            observation,
+            status,
+        )
+        self.recorder.log(
+            state,
+            agent="manager_agent",
+            status="success" if status == "success" else "skipped",
+            step="memory_answer",
+            started_at=started_at,
+            tool_called="mcp_memory_search" if source == "memory_search" else "mcp_memory_list",
+            thought="User asked what is stored in RAG/memory.",
+            observation=observation,
+            output_summary=state["assistant_message"][:300],
+        )
+        return state
+
     def _assignment(self, state: ManagerChatState, artifact_type: str) -> dict[str, Any]:
         assignments = state.get("execution_plan", {}).get("assignments", {})
         return assignments.get(artifact_type) or {}

@@ -94,12 +94,12 @@ class ManagerChatGraph:
         graph.add_node("collect_brief_node", self.post_sync_nodes.collect_brief_node)
         graph.add_node("classify_intent_node", self.planning_nodes.classify_intent_node)
         graph.add_node("create_plan_node", self.planning_nodes.create_plan_node)
-        graph.add_node("rag_decision_node", self.rag_nodes.rag_decision_node)
-        graph.add_node("rag_retrieval_node", self.rag_nodes.rag_retrieval_node)
+        graph.add_node("rag_react_node", self.rag_nodes.rag_react_node)
         graph.add_node("route_by_intent", self.planning_nodes.route_by_intent_node)
         graph.add_node("text_agent_node", self.specialist_nodes.text_agent_node)
         graph.add_node("image_agent_node", self.specialist_nodes.image_agent_node)
         graph.add_node("clarification_node", self.specialist_nodes.clarification_node)
+        graph.add_node("memory_answer_node", self.specialist_nodes.memory_answer_node)
         graph.add_node("context_question_node", self.post_sync_nodes.context_question_node)
         graph.add_node("validation_node", self.response_nodes.validation_node)
         graph.add_node("assemble_response_node", self.response_nodes.assemble_response_node)
@@ -110,13 +110,8 @@ class ManagerChatGraph:
         graph.add_edge("init_state_node", "collect_brief_node")
         graph.add_edge("collect_brief_node", "classify_intent_node")
         graph.add_edge("classify_intent_node", "create_plan_node")
-        graph.add_edge("create_plan_node", "rag_decision_node")
-        graph.add_conditional_edges(
-            "rag_decision_node",
-            self.routers.maybe_rag_router,
-            {"rag_retrieval_node": "rag_retrieval_node", "route_by_intent": "route_by_intent"},
-        )
-        graph.add_edge("rag_retrieval_node", "route_by_intent")
+        graph.add_edge("create_plan_node", "rag_react_node")
+        graph.add_edge("rag_react_node", "route_by_intent")
         graph.add_conditional_edges(
             "route_by_intent",
             self.routers.intent_router,
@@ -124,6 +119,7 @@ class ManagerChatGraph:
                 "text_agent_node": "text_agent_node",
                 "image_agent_node": "image_agent_node",
                 "clarification_node": "clarification_node",
+                "memory_answer_node": "memory_answer_node",
                 "context_question_node": "context_question_node",
             },
         )
@@ -134,6 +130,7 @@ class ManagerChatGraph:
         )
         graph.add_edge("image_agent_node", "validation_node")
         graph.add_edge("clarification_node", "validation_node")
+        graph.add_edge("memory_answer_node", "validation_node")
         graph.add_conditional_edges(
             "validation_node",
             self.routers.retry_router,

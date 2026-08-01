@@ -84,9 +84,39 @@ FIELD_MIN_LENGTH = 3
 AWAITING_FIELD_KEY = "awaiting_field"
 
 
+MEMORY_INQUIRY_MARKERS = (
+    "gedächtnis",
+    "gedachtnis",
+    "gedaechtnis",
+    "memory",
+    " knowledge base",
+    "knowledge base",
+    "im rag",
+    "dein rag",
+    "deinem rag",
+    "unsere daten",
+    "was steht in",
+    "hast du im",
+    "gespeichert",
+    "hochgeladen",
+)
+
+
 def wants_generation(message: str) -> bool:
     normalized = message.lower()
     return any(marker in normalized for marker in GENERATE_MARKERS)
+
+
+def is_memory_inquiry(message: str) -> bool:
+    """True when the user asks what is stored in RAG/memory rather than briefing a post."""
+    normalized = message.lower()
+    return any(marker in normalized for marker in MEMORY_INQUIRY_MARKERS)
+
+
+def is_valid_platform(value: str | None) -> bool:
+    if not value:
+        return False
+    return value.strip().lower() in PLATFORM_ALIASES.values()
 
 
 def extract_platform(message: str) -> str | None:
@@ -129,7 +159,8 @@ def _clean_answer(field: str, message: str) -> str | None:
     if len(value) < FIELD_MIN_LENGTH:
         return None
     if field == "platform":
-        return extract_platform(value) or value[: FIELD_MAX_LENGTH["platform"]]
+        # Never persist free-text questions as platform — only known enum values.
+        return extract_platform(value)
     if field == "tone_of_voice":
         return extract_tone(value) or value[: FIELD_MAX_LENGTH["tone_of_voice"]]
     return value[: FIELD_MAX_LENGTH.get(field, 300)]
@@ -137,6 +168,9 @@ def _clean_answer(field: str, message: str) -> str | None:
 
 def extract_fields(message: str, post: dict[str, Any]) -> dict[str, Any]:
     """Collect post field updates from a chat message (regex/alias path)."""
+    if is_memory_inquiry(message):
+        return {}
+
     updates: dict[str, Any] = {}
     awaiting = post.get(AWAITING_FIELD_KEY)
 

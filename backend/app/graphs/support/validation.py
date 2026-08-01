@@ -47,7 +47,7 @@ class ArtifactValidator:
             if issues:
                 feedback["image"] = "; ".join(issues)
 
-        if intent == "clarification_needed" and not assistant_message:
+        if intent in {"clarification_needed", "memory_inquiry"} and not assistant_message:
             feedback["manager"] = "assistant_message missing"
 
         return feedback

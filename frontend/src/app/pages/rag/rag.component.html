@@ -7,8 +7,45 @@
 
     <div class="memory-layout">
 
-      <!-- LINKE SPALTE: Speichern + Suchen -->
+      <!-- LINKE SPALTE: Upload + Speichern + Suchen -->
       <div class="memory-left">
+
+        <!-- Datei-Upload -->
+        <div class="memory-card">
+          <h2 class="card-title">Datei als Kontext hochladen</h2>
+          <p class="upload-hint">PDF-Text oder Bildbeschreibung landet im Gedächtnis für die Agenten.</p>
+
+          <div
+            class="drop-zone"
+            [class.drop-zone--active]="isDragOver()"
+            [class.drop-zone--busy]="isUploading()"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event)"
+          >
+            <p class="drop-zone-title">
+              {{ isUploading() ? 'Upload läuft...' : 'PDF oder Bild hierher ziehen' }}
+            </p>
+            <p class="drop-zone-sub">PNG, JPEG, WebP oder PDF</p>
+            <label class="file-picker-btn" [class.disabled]="isUploading()">
+              Datei wählen
+              <input
+                type="file"
+                accept=".pdf,application/pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                [disabled]="isUploading()"
+                (change)="onFileSelected($event)"
+                hidden
+              />
+            </label>
+          </div>
+
+          @if (uploadMessage()) {
+            <p class="success-msg">{{ uploadMessage() }}</p>
+          }
+          @if (uploadError()) {
+            <p class="error-msg">{{ uploadError() }}</p>
+          }
+        </div>
 
         <!-- Fakt speichern -->
         <div class="memory-card">

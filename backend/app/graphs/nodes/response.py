@@ -69,6 +69,8 @@ class ResponseNodes:
 
         if intent == "clarification_needed":
             observation = "Clarification response kept."
+        elif intent == "memory_inquiry":
+            observation = "Memory inquiry response kept."
         elif state["status"] == "error":
             if text_ok or image_prompt_only or image_ok:
                 state["status"] = "partial_success"

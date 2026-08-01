@@ -22,6 +22,8 @@ services:
       - '8080:8080'
     depends_on:
       - memory
+    env_file:
+      - ./backend/.env
     environment:
       - MCP_MEMORY_URL=http://memory:8765/mcp
     restart: unless-stopped

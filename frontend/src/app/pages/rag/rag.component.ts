@@ -19,6 +19,12 @@ export class RagComponent implements OnInit {
   public isStoring = signal(false);
   public storeSuccess = signal(false);
 
+  // Upload
+  public isUploading = signal(false);
+  public isDragOver = signal(false);
+  public uploadMessage = signal('');
+  public uploadError = signal('');
+
   // Search
   public searchQuery = signal('');
   public searchResults = signal<string[]>([]);
@@ -54,6 +60,57 @@ export class RagComponent implements OnInit {
       },
       error: (err) => console.error('[Memory] Store error:', err),
       complete: () => this.isStoring.set(false),
+    });
+  }
+
+  public onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOver.set(true);
+  }
+
+  public onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOver.set(false);
+  }
+
+  public onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOver.set(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.uploadFile(file);
+    }
+  }
+
+  public onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) {
+      this.uploadFile(file);
+    }
+    input.value = '';
+  }
+
+  public uploadFile(file: File): void {
+    this.isUploading.set(true);
+    this.uploadMessage.set('');
+    this.uploadError.set('');
+    this.memoryService.upload(file).subscribe({
+      next: (res) => {
+        this.uploadMessage.set(
+          `${res.filename}: ${res.stored_chunks} Chunk(s) als ${res.kind} gespeichert.`
+        );
+        this.loadAll();
+      },
+      error: (err) => {
+        console.error('[Memory] Upload error:', err);
+        const detail = err?.error?.detail;
+        this.uploadError.set(
+          typeof detail === 'string' ? detail : 'Upload fehlgeschlagen.'
+        );
+        this.isUploading.set(false);
+      },
+      complete: () => this.isUploading.set(false),
     });
   }
 

@@ -14,8 +14,10 @@ EXTRACT_SYSTEM = (
     "Return ONLY a JSON object with any of these optional keys: "
     "topic, platform, target_audience, tone_of_voice, additional_context. "
     "Use free-form values when the user states them (e.g. tone_of_voice may be "
-    "'angeberisch'). For platform prefer one of: linkedin, instagram, x, blog, "
-    "tiktok, facebook when clear. Omit keys that are not mentioned. No markdown."
+    "'angeberisch'). For platform ONLY use one of: linkedin, instagram, x, blog, "
+    "tiktok, facebook — never invent platform from unrelated questions. "
+    "If the user asks about memory/RAG/Gedaechtnis content, return {}. "
+    "Omit keys that are not clearly stated as brief facts. No markdown."
 )
 
 COMPOSE_SYSTEM = (
@@ -44,12 +46,12 @@ def _parse_json_object(raw: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def _normalize_platform(value: str) -> str:
+def _normalize_platform(value: str) -> str | None:
     alias = post_fields.extract_platform(value)
     if alias:
         return alias
     lowered = value.strip().lower()
-    return post_fields.PLATFORM_ALIASES.get(lowered, value.strip())
+    return post_fields.PLATFORM_ALIASES.get(lowered)
 
 
 def _clean_llm_updates(data: dict[str, Any], post: dict[str, Any]) -> dict[str, Any]:
@@ -62,6 +64,8 @@ def _clean_llm_updates(data: dict[str, Any], post: dict[str, Any]) -> dict[str, 
             continue
         if key == "platform":
             value = _normalize_platform(value)
+            if not value:
+                continue
         max_len = post_fields.FIELD_MAX_LENGTH.get(key, 300)
         value = value[:max_len]
         current = post.get(key)
@@ -78,6 +82,9 @@ def extract_brief_with_llm(
     hf: HuggingFaceService | None,
 ) -> dict[str, Any]:
     """Prefer LLM extraction; always merge with regex/alias fallback."""
+    if post_fields.is_memory_inquiry(message):
+        return {}
+
     regex_updates = post_fields.extract_fields(message, post)
     if hf is None:
         return regex_updates

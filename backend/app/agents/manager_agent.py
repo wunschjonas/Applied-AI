@@ -73,8 +73,35 @@ class ManagerIntentClassifier:
         "visualisierung",
     }
 
+    memory_inquiry_markers = {
+        "gedächtnis",
+        "gedachtnis",
+        "gedaechtnis",
+        "memory",
+        "im rag",
+        "dein rag",
+        "deinem rag",
+        "knowledge base",
+        "was steht in",
+        "hast du im",
+        "gespeichert",
+        "hochgeladen",
+        "unsere daten",
+    }
+
     def classify_intent(self, message: str) -> AgentIntent:
         normalized = message.lower()
+
+        # Ask-about-memory must win over generic "bild"/"image" keyword matches.
+        if self._contains_any(normalized, self.memory_inquiry_markers):
+            return AgentIntent(
+                use_text=False,
+                use_image=False,
+                needs_clarification=False,
+                label="memory_inquiry",
+                decision="Detected a question about stored RAG/memory content.",
+                observation="Memory inquiry selected. Answer from memory_search / memory_list.",
+            )
 
         if self._contains_any(normalized, self.image_only_phrases):
             return AgentIntent(

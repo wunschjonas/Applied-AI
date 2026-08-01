@@ -29,10 +29,12 @@ class JSONStore:
                 return []
 
     def _write(self, data: list[dict[str, Any]]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = self.path.with_suffix(self.path.suffix + ".tmp")
 
         with tmp_path.open("w", encoding="utf-8") as file:
             json.dump(data, file, indent=2, ensure_ascii=False)
+            file.flush()
 
         tmp_path.replace(self.path)
 

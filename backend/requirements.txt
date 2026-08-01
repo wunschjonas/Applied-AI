@@ -8,3 +8,5 @@ langgraph
 mcp
 httpx
 Pillow
+pypdf
+python-multipart

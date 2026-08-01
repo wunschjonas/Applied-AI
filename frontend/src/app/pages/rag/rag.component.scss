@@ -78,6 +78,82 @@ h1 {
   margin-bottom: 0;
 }
 
+// Upload drop zone
+
+.upload-hint {
+  margin: -0.5rem 0 1rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 140px;
+  padding: 1.25rem;
+  border: 2px dashed #c7d2fe;
+  border-radius: 8px;
+  background: #eef2ff;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.drop-zone--active {
+  border-color: #4f46e5;
+  background: #e0e7ff;
+}
+
+.drop-zone--busy {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.drop-zone-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #17324d;
+}
+
+.drop-zone-sub {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.file-picker-btn {
+  display: inline-block;
+  padding: 0.45rem 1rem;
+  background: #6366f1;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &:hover:not(.disabled) {
+    background: #4f46e5;
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.error-msg {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: #dc2626;
+}
+
+.drop-zone + .success-msg,
+.drop-zone + .error-msg {
+  margin-top: 0.75rem;
+}
+
 // Form fields
 
 .field-label {

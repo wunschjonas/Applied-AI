@@ -61,6 +61,9 @@ def build_execution_plan(
     if intent == "clarification_needed":
         expected_artifacts.append("clarification_message")
         validation_requirements.append("assistant_message_present")
+    if intent == "memory_inquiry":
+        expected_artifacts.append("memory_answer")
+        validation_requirements.append("assistant_message_present")
 
     return {
         "required_agents": required_agents,

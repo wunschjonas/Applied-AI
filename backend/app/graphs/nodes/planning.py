@@ -12,6 +12,7 @@ ROUTE_OBSERVATIONS = {
     "text_only": "Route to TextAgent.",
     "image_only": "Route to ImageAgent.",
     "text_and_image": "Route to TextAgent first, then ImageAgent.",
+    "memory_inquiry": "Route to memory answer from RAG context.",
     "clarification_needed": "Route to clarification response.",
 }
 
