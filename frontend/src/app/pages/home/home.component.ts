@@ -1,8 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
+import { PostContextComponent } from '../../components/post-context/post-context.component';
 import { ArtifactFacade } from '../../facades/artifact.facade';
 import { ChatFacade } from '../../facades/chat.facade';
 import { PostFacade } from '../../facades/post.facade';
@@ -23,7 +24,13 @@ const FIELD_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [SidebarComponent, ChatPanelComponent, FormsModule, DatePipe],
+  imports: [
+    SidebarComponent,
+    ChatPanelComponent,
+    PostContextComponent,
+    FormsModule,
+    RouterLink,
+  ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
 })
@@ -77,7 +84,10 @@ export class HomeComponent implements OnInit {
       next: (response) => {
         console.log('[Home] Response:', response);
         this.postFacade.updateCurrentPost(response);
-        this.chatFacade.updateMainAgentChat([]);
+        const welcome = response.welcome_message?.trim();
+        this.chatFacade.updateMainAgentChat(
+          welcome ? [{ sender: ChatSender.Agent, text: welcome }] : [],
+        );
         this.artifactFacade.reset();
         this.postTitle.set('');
         this.loadPosts();

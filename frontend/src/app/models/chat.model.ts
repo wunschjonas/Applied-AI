@@ -11,8 +11,6 @@ export interface ChatMessage {
 export interface AgentChatHistoryMessage {
   role: string;
   content: string;
-  timestamp: string;
-  metadata: Record<string, unknown>;
 }
 
 export interface AgentChatHistory {

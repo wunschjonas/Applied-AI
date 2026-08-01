@@ -343,7 +343,7 @@ ManagerChatGraph._add_step()
 Alle Trace-Schritte haben:
 
 ```text
-index, agent, decision, action, observation, status, timestamp
+index, agent, thought, action, observation, status, timestamp
 ```
 
 ## 6. Aktueller LangGraph-Workflow
@@ -911,7 +911,7 @@ backend/docs/frontend_backend_alignment_review.md
 ```text
 - erwähnt /api/posts/{post_id}/agent-trace, diese Route existiert nicht.
 - enthält Felder wie goal in PostCreate/Update-Beispielen, die nicht im aktuellen Schema stehen.
-- beschreibt alte TAO-Struktur mit thought/action/observation statt aktueller TraceStep-Struktur decision/action/observation.
+- beschrieb zwischenzeitlich decision/action/observation; die aktuelle TraceStep-Struktur ist wieder thought/action/observation.
 ```
 
 Tests mit Fake-Clients:

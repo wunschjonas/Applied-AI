@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
+import { PostContextComponent } from '../../components/post-context/post-context.component';
 import { ArtifactFacade } from '../../facades/artifact.facade';
 import { ChatFacade } from '../../facades/chat.facade';
 import { PostFacade } from '../../facades/post.facade';
@@ -11,7 +12,7 @@ import { TextAgentService } from '../../services/text-agent.service';
 @Component({
   selector: 'app-text-agent',
   standalone: true,
-  imports: [SidebarComponent, ChatPanelComponent],
+  imports: [SidebarComponent, ChatPanelComponent, PostContextComponent],
   templateUrl: './text-agent.component.html',
   styleUrls: ['./text-agent.component.scss'],
 })

@@ -40,6 +40,28 @@ def test_extract_fields_answers_the_awaited_free_text_field():
     assert updates == {"topic": "Unser neues Recycling-Verfahren"}
 
 
+def test_extract_fields_reads_tonality_label_and_free_tone():
+    post = {"topic": "KI", "platform": "linkedin", "tone_of_voice": None, "target_audience": None}
+    updates = post_fields.extract_fields(
+        "Zielgruppe: Meine Freunde. Tonalitaet: Angeberisch", post
+    )
+
+    assert updates["target_audience"] == "Meine Freunde"
+    assert updates["tone_of_voice"] == "Angeberisch"
+
+
+def test_extract_fields_answers_awaited_custom_tone():
+    post = {
+        "topic": "KI",
+        "platform": "linkedin",
+        "tone_of_voice": None,
+        post_fields.AWAITING_FIELD_KEY: "tone_of_voice",
+    }
+    updates = post_fields.extract_fields("Angeberisch", post)
+
+    assert updates == {"tone_of_voice": "Angeberisch"}
+
+
 def test_extract_fields_keeps_awaited_field_empty_on_unrelated_answer():
     post = {"topic": None, "platform": None, post_fields.AWAITING_FIELD_KEY: "topic"}
     updates = post_fields.extract_fields("Instagram", post)
@@ -180,6 +202,30 @@ def test_text_agent_chat_refines_and_stores_the_preview(tmp_path: Path):
     preview = service.post_repository.get(POST_A)["preview"]
     assert preview["generated_text"] == result["generated_artifacts"]["text"]["generated_text"]
     assert preview["generated_text"] != "Alter Text ueber KI-Agenten."
+
+
+def test_post_init_writes_welcome_message_with_title(tmp_path: Path):
+    from app.core import config as config_module
+    from app.schemas.post import PostInit
+    from app.services.post_service import PostService
+
+    config_module.settings.chats_file = tmp_path / "chats.json"
+    config_module.settings.traces_file = tmp_path / "traces.json"
+    config_module.settings.agent_logs_file = tmp_path / "agent_logs.json"
+    config_module.settings.posts_file = tmp_path / "posts.json"
+    # Force template welcome so the test does not depend on a live HF token.
+    config_module.settings.hf_token = None
+
+    service = PostService()
+    response = service.init_post(PostInit(title="Nachhaltige Mode"))
+
+    assert response.welcome_message
+    assert "Nachhaltige Mode" in response.welcome_message
+    post = service.store.get(response.post_id)
+    assert post[post_fields.AWAITING_FIELD_KEY] == "topic"
+    chat = service.chat_service.get_chat(f"{response.post_id}::manager_agent")
+    assert chat["messages"][0]["role"] == "AGENT"
+    assert chat["messages"][0]["content"] == response.welcome_message
 
 
 def test_image_agent_chat_regenerates_the_post_image(tmp_path: Path):

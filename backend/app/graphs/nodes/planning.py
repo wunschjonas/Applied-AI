@@ -36,7 +36,8 @@ class PlanningNodes:
             status=status,
             step="classify_intent",
             started_at=started_at,
-            decision=f"{intent.label} - {intent.observation}",
+            thought=f"{intent.label} - {intent.observation}",
+            observation=intent.observation,
             output_summary=f"Intent: {intent.label}",
         )
         return state

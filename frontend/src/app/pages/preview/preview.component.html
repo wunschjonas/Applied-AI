@@ -3,20 +3,23 @@
 
   <section class="page-content">
     <div class="preview-stage">
-      <h1>Preview</h1>
+      <header class="preview-header">
+        <div>
+          <h1>Preview</h1>
+          <p class="preview-lead">
+            Fertige Vorschau für den aktuell gewählten Post.
+          </p>
+        </div>
+      </header>
 
-      @if (postFacade.currentPost()) {
-        <p class="preview-subline">{{ postFacade.currentPost()!.title }}</p>
-      } @else {
-        <p class="preview-subline">
-          Wähle auf der Home-Seite einen Post aus, um die Vorschau zu sehen.
-        </p>
-      }
+      <app-post-context />
 
-      <div class="preview-grid">
-        <div class="preview-card">
-          <h2>Generiertes Bild</h2>
-          <div class="preview-box preview-box--image">
+      <div class="preview-layout">
+        <section class="preview-visual">
+          <div class="section-heading">
+            <h2>Bild</h2>
+          </div>
+          <div class="visual-frame">
             @if (artifactFacade.imageUrl()) {
               <img [src]="artifactFacade.imageUrl()" alt="Generiertes Bild" />
             } @else {
@@ -24,13 +27,18 @@
             }
           </div>
           @if (artifactFacade.imagePrompt()) {
-            <p class="preview-meta">{{ artifactFacade.imagePrompt() }}</p>
+            <details class="prompt-details">
+              <summary>Bildprompt anzeigen</summary>
+              <p>{{ artifactFacade.imagePrompt() }}</p>
+            </details>
           }
-        </div>
+        </section>
 
-        <div class="preview-card">
-          <h2>Generierter Text</h2>
-          <div class="preview-box preview-box--text">
+        <section class="preview-copy">
+          <div class="section-heading">
+            <h2>Text</h2>
+          </div>
+          <div class="copy-frame">
             @if (artifactFacade.generatedText()) {
               <p class="preview-text">{{ artifactFacade.generatedText() }}</p>
             } @else {
@@ -38,11 +46,13 @@
             }
           </div>
           @if (artifactFacade.hashtags().length) {
-            <p class="preview-hashtags">
-              {{ artifactFacade.hashtags().join(" ") }}
-            </p>
+            <div class="hashtag-bar">
+              @for (tag of artifactFacade.hashtags(); track tag) {
+                <span class="hashtag-chip">{{ tag }}</span>
+              }
+            </div>
           }
-        </div>
+        </section>
       </div>
     </div>
   </section>

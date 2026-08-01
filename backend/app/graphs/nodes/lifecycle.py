@@ -75,13 +75,8 @@ class LifecycleNodes:
             "retry_count": {"text": state["text_retry_count"], "image": state["image_retry_count"]},
         }
 
-        self.deps.chat_service.add_message(
-            state["chat"],
-            "USER",
-            state["user_message"],
-            {"context": state.get("context") or {}, "trace_id": state["trace_id"]},
-        )
-        self.deps.chat_service.add_message(state["chat"], "AGENT", state["assistant_message"], metadata)
+        self.deps.chat_service.add_message(state["chat"], "USER", state["user_message"])
+        self.deps.chat_service.add_message(state["chat"], "AGENT", state["assistant_message"])
         state["trace"]["metadata"].update(metadata)
         self.deps.trace_service.store.save(state["trace"])
 
@@ -93,4 +88,5 @@ class LifecycleNodes:
             f"Saved chat {state['chat_id']} with trace {state['trace_id']}.",
             state.get("status", "success"),
         )
+        self.deps.trace_service.print_run_footer(state["trace"], state.get("status", "success"))
         return state

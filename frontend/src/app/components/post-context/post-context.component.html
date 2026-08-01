@@ -1,0 +1,20 @@
+@if (postFacade.currentPost(); as post) {
+  <div class="post-context post-context--active" role="status">
+    <span class="post-context__label">Aktueller Post</span>
+    <span class="post-context__title">{{ post.title }}</span>
+    <span class="post-context__meta post-context__id">ID {{ post.post_id }}</span>
+    @if (post.created_at) {
+      <span class="post-context__meta">
+        {{ post.created_at | date: 'dd.MM.yyyy HH:mm' }}
+      </span>
+    }
+  </div>
+} @else {
+  <div class="post-context post-context--empty" role="status">
+    <span>
+      Kein Post gewählt – bitte auf der
+      <a routerLink="/manager_agent">Manager-Agent-Seite</a>
+      einen Post auswählen.
+    </span>
+  </div>
+}

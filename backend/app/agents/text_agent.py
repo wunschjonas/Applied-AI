@@ -22,7 +22,7 @@ class TextAgent(BaseAgent):
     ) -> dict[str, Any]:
         self.trace(
             trace,
-            decision="Text generation requested.",
+            thought="Text generation requested.",
             action="build_text_prompt",
             observation=f"Platform={platform or 'unspecified'}, tone={tone or 'unspecified'}.",
         )
@@ -30,7 +30,7 @@ class TextAgent(BaseAgent):
         prompt = self._build_prompt(task, platform, tone, target_audience, context, rag_context, validation_feedback)
         self.trace(
             trace,
-            decision="Text prompt is ready for model inference.",
+            thought="Text prompt is ready for model inference.",
             action="call_text_model",
             observation=f"Calling HuggingFace text model {getattr(self.hf, 'hf_model_id', 'unknown')}.",
         )
@@ -44,7 +44,7 @@ class TextAgent(BaseAgent):
         )
         self.trace(
             trace,
-            decision="HuggingFace returned text content.",
+            thought="HuggingFace returned text content.",
             action="parse_text_response",
             observation=f"Received {len(generated_text)} characters.",
         )
@@ -52,7 +52,7 @@ class TextAgent(BaseAgent):
 
         self.trace(
             trace,
-            decision="HuggingFace returned marketing text.",
+            thought="HuggingFace returned marketing text.",
             action="return_text_artifact",
             observation=f"Generated {len(generated_text)} characters and {len(hashtags)} hashtags.",
         )

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
-from app.graphs.support import messages, post_fields
+from app.graphs.support import brief_llm, messages, post_fields
 from app.graphs.support.post_fields import AWAITING_FIELD_KEY
 
 
@@ -36,7 +36,8 @@ class PostSyncNodes:
             )
             return state
 
-        updates = post_fields.extract_fields(state["user_message"], post)
+        hf = brief_llm.try_hf(self.deps.hf_factory)
+        updates = brief_llm.extract_brief_with_llm(state["user_message"], post, hf)
         if updates:
             post = self.deps.post_repository.update_fields(state["post_id"], updates) or post
 
@@ -63,7 +64,8 @@ class PostSyncNodes:
             status="success",
             step="collect_post_brief",
             started_at=started_at,
-            decision=f"explicit_generate={state['explicit_generate']}; missing={state['brief_missing']}",
+            thought=f"explicit_generate={state['explicit_generate']}; missing={state['brief_missing']}",
+            observation=observation,
             output_summary=observation,
         )
         return state
@@ -73,7 +75,16 @@ class PostSyncNodes:
         question = post_fields.next_question(state["post"] or {})
         field, question_text = question if question else ("topic", post_fields.FIELD_QUESTIONS["topic"])
 
-        state["assistant_message"] = messages.context_question(state["brief_updates"], question_text)
+        fallback = messages.context_question(state["brief_updates"], question_text)
+        state["assistant_message"] = brief_llm.compose_manager_reply(
+            hf=brief_llm.try_hf(self.deps.hf_factory),
+            fallback=fallback,
+            situation="Ask for the next missing brief field before generating.",
+            user_message=state["user_message"],
+            post=state.get("post"),
+            brief_updates=state.get("brief_updates"),
+            next_question=question_text,
+        )
         state["status"] = "needs_input"
         state["followup_question"] = question_text
         self._set_awaiting_field(state["post_id"], field)
@@ -92,7 +103,8 @@ class PostSyncNodes:
             status="skipped",
             step="ask_post_context",
             started_at=started_at,
-            decision=f"Missing required fields {state['brief_blocking']} - asked for '{field}'",
+            thought=f"Missing required fields {state['brief_blocking']} - asked for '{field}'",
+            observation=f"Still missing: {state['brief_missing']}. No specialist agent was called.",
             output_summary=state["assistant_message"],
         )
         return state
@@ -151,7 +163,22 @@ class PostSyncNodes:
 
         field, question_text = question
         state["followup_question"] = question_text
-        state["assistant_message"] = f"{state['assistant_message']} {messages.followup_question(question_text)}"
+        followup = messages.followup_question(question_text)
+        composed = brief_llm.compose_manager_reply(
+            hf=brief_llm.try_hf(self.deps.hf_factory),
+            fallback=followup,
+            situation="Append one short follow-up question for an optional brief field.",
+            user_message=state["user_message"],
+            post=state.get("post"),
+            brief_updates=state.get("brief_updates"),
+            next_question=question_text,
+            artifact_summary=state.get("assistant_message"),
+        )
+        # Keep the result summary, then ask the follow-up.
+        if composed == followup:
+            state["assistant_message"] = f"{state['assistant_message']} {followup}"
+        else:
+            state["assistant_message"] = f"{state['assistant_message']} {composed}"
         self._set_awaiting_field(state["post_id"], field)
 
         self.recorder.step(

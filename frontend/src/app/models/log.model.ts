@@ -5,8 +5,9 @@ export interface LogEntry {
   timestamp: string;
   step: string;
   tool_called: string | null;
-  decision: string | null;
+  thought: string | null;
   action: string;
+  observation: string | null;
   input_summary: string;
   output_summary: string | null;
   status: 'success' | 'error' | 'skipped';

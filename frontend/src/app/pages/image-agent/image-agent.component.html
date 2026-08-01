@@ -5,9 +5,11 @@
     <div class="agent-stage">
       <h1>Image Agent</h1>
 
+      <app-post-context />
+
       @if (!postFacade.currentPostId()) {
         <p class="agent-hint">
-          Wähle zuerst auf der Home-Seite einen Post aus, damit das Bild
+          Wähle zuerst auf der Manager-Agent-Seite einen Post aus, damit das Bild
           gespeichert werden kann.
         </p>
       } @else {
@@ -17,26 +19,31 @@
         </p>
       }
 
-      <div class="preview-box">
-        @if (artifactFacade.imageUrl()) {
-          <img [src]="artifactFacade.imageUrl()" alt="Generiertes Bild" />
-        } @else {
-          <span class="preview-placeholder">Noch kein Bild generiert</span>
-        }
+      <div class="main-split">
+        <div class="main-split__preview">
+          <div class="preview-box">
+            @if (artifactFacade.imageUrl()) {
+              <img [src]="artifactFacade.imageUrl()" alt="Generiertes Bild" />
+            } @else {
+              <span class="preview-placeholder">Noch kein Bild generiert</span>
+            }
+          </div>
+          @if (artifactFacade.imagePrompt()) {
+            <p class="prompt-row">
+              <strong>Aktueller Bildprompt:</strong>
+              {{ artifactFacade.imagePrompt() }}
+            </p>
+          }
+        </div>
+
+        <div class="main-split__chat">
+          <app-chat-panel
+            [messages]="chatFacade.imageAgentChat()"
+            (userSend)="onUserSend($event)"
+            (agentSend)="onAgentSend($event)"
+          />
+        </div>
       </div>
-
-      @if (artifactFacade.imagePrompt()) {
-        <p class="prompt-row">
-          <strong>Aktueller Bildprompt:</strong>
-          {{ artifactFacade.imagePrompt() }}
-        </p>
-      }
-
-      <app-chat-panel
-        [messages]="chatFacade.imageAgentChat()"
-        (userSend)="onUserSend($event)"
-        (agentSend)="onAgentSend($event)"
-      />
     </div>
   </section>
 </div>

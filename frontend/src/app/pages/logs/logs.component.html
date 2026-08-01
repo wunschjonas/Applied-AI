@@ -45,11 +45,21 @@
           </span>
         </div>
 
-        @if (log.decision) {
-          <div class="log-decision">
-            <span class="decision-label">Entscheidung:</span> {{ log.decision }}
+        <div class="log-tao">
+          @if (log.thought) {
+            <div class="tao-line">
+              <span class="tao-label">Thought:</span> {{ log.thought }}
+            </div>
+          }
+          <div class="tao-line">
+            <span class="tao-label">Action:</span> {{ log.action }}
           </div>
-        }
+          @if (log.observation) {
+            <div class="tao-line">
+              <span class="tao-label">Observation:</span> {{ log.observation }}
+            </div>
+          }
+        </div>
 
         <div class="log-body">
           <span class="log-summary">{{ log.input_summary }}</span>

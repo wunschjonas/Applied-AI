@@ -27,6 +27,7 @@ class PostInit(BaseModel):
 class PostInitResponse(BaseModel):
     post_id: str
     title: str
+    welcome_message: str | None = None
 
 
 class PostCreate(BaseModel):

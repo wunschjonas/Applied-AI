@@ -6,7 +6,7 @@ from typing import Any
 REQUIRED_FIELDS = ("topic", "platform")
 OPTIONAL_FIELDS = ("target_audience", "tone_of_voice")
 BRIEF_FIELDS = REQUIRED_FIELDS + OPTIONAL_FIELDS
-FREE_TEXT_FIELDS = ("topic", "target_audience")
+FREE_TEXT_FIELDS = ("topic", "platform", "target_audience", "tone_of_voice", "additional_context")
 
 FIELD_QUESTIONS = {
     "topic": "Worum soll der Post inhaltlich gehen?",
@@ -54,7 +54,6 @@ GENERATE_MARKERS = (
     "draft",
 )
 
-# Only high-confidence markers, so a phrase like "fuer Instagram" never lands in target_audience.
 TOPIC_PATTERNS = (
     r"zum thema\s+(.{3,200}?)(?:[.!?\n]|$)",
     r"\bthema\s*:\s*(.{3,200}?)(?:[.!?\n]|$)",
@@ -67,11 +66,18 @@ AUDIENCE_PATTERNS = (
     r"richtet sich an\s+(.{3,300}?)(?:[.!?\n]|$)",
     r"target audience\s*(?:is|:)?\s*(.{3,300}?)(?:[.!?\n]|$)",
 )
+TONE_PATTERNS = (
+    r"tonalitaet\s*(?:ist|:)?\s*(.{3,120}?)(?:[.!?\n]|$)",
+    r"tonalität\s*(?:ist|:)?\s*(.{3,120}?)(?:[.!?\n]|$)",
+    r"\btone\s*(?:of voice\s*)?(?:is|:)?\s*(.{3,120}?)(?:[.!?\n]|$)",
+)
 
 FIELD_MAX_LENGTH = {
     "topic": 200,
     "target_audience": 300,
     "tone_of_voice": 120,
+    "platform": 40,
+    "additional_context": 1000,
 }
 FIELD_MIN_LENGTH = 3
 
@@ -92,6 +98,15 @@ def extract_platform(message: str) -> str | None:
 
 
 def extract_tone(message: str) -> str | None:
+    patterned = _first_match(message, TONE_PATTERNS)
+    if patterned:
+        alias = None
+        for key, canonical in TONE_ALIASES.items():
+            if re.search(rf"\b{re.escape(key)}\b", patterned.lower()):
+                alias = canonical
+                break
+        return alias or patterned[: FIELD_MAX_LENGTH["tone_of_voice"]]
+
     normalized = message.lower()
     for alias, canonical in TONE_ALIASES.items():
         if re.search(rf"\b{re.escape(alias)}\b", normalized):
@@ -113,16 +128,15 @@ def _clean_answer(field: str, message: str) -> str | None:
     value = message.strip(" \t\n.,;:!?-")
     if len(value) < FIELD_MIN_LENGTH:
         return None
+    if field == "platform":
+        return extract_platform(value) or value[: FIELD_MAX_LENGTH["platform"]]
+    if field == "tone_of_voice":
+        return extract_tone(value) or value[: FIELD_MAX_LENGTH["tone_of_voice"]]
     return value[: FIELD_MAX_LENGTH.get(field, 300)]
 
 
 def extract_fields(message: str, post: dict[str, Any]) -> dict[str, Any]:
-    """Collect post field updates from a chat message.
-
-    Platform and tone come from explicit keywords and may correct an existing
-    value. Topic and audience are pattern based, so they only fill empty fields.
-    A field the manager just asked for is answered by the whole message.
-    """
+    """Collect post field updates from a chat message (regex/alias path)."""
     updates: dict[str, Any] = {}
     awaiting = post.get(AWAITING_FIELD_KEY)
 
@@ -142,14 +156,17 @@ def extract_fields(message: str, post: dict[str, Any]) -> dict[str, Any]:
     if audience and not post.get("target_audience"):
         updates["target_audience"] = audience[: FIELD_MAX_LENGTH["target_audience"]]
 
-    # Platform and tone are only accepted from the alias lists above, so an
-    # unrecognised answer is re-asked instead of stored verbatim. Free text
-    # fields take the whole reply, but only when nothing else matched, so
-    # answering the wrong question does not fill the awaited field with it.
-    if awaiting in FREE_TEXT_FIELDS and not updates and not wants_generation(message):
+    # Awaited free-text answers fill the field the manager just asked for.
+    if awaiting in FREE_TEXT_FIELDS and awaiting not in updates and not wants_generation(message):
+        # Prefer not to overwrite a just-detected platform/tone with the whole message
+        # unless that field is the awaited one.
         answer = _clean_answer(awaiting, message)
         if answer:
-            updates[awaiting] = answer
+            # If the message only matched another field, keep that and skip whole-message fill.
+            if updates and awaiting not in updates:
+                pass
+            else:
+                updates[awaiting] = answer
 
     return updates
 

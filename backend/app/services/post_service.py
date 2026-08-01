@@ -5,9 +5,13 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 
+from app.core.config import settings
+from app.graphs.support import brief_llm
+from app.graphs.support.post_fields import AWAITING_FIELD_KEY
 from app.schemas.post import PostCreate, PostInit, PostInitResponse, PostResponse, PostStatus, PostUpdate
 from app.services.agent_service import AgentService
 from app.services.chat_service import ChatService
+from app.services.huggingface_service import HuggingFaceService
 from app.services.post_repository import PostRepository
 
 
@@ -28,10 +32,29 @@ class PostService:
             "tone_of_voice": None,
             "additional_context": None,
             "preview": None,
+            AWAITING_FIELD_KEY: "topic",
         }
         self.store.save(post)
         self.chat_service.ensure_chats_for_post(post_id)
-        return PostInitResponse(post_id=post_id, title=post_init.title)
+
+        welcome = brief_llm.welcome_message(post_init.title, self._optional_hf())
+        chat = self.chat_service.get_or_create_chat(post_id, agent="manager_agent")
+        self.chat_service.add_message(chat, "AGENT", welcome)
+
+        return PostInitResponse(post_id=post_id, title=post_init.title, welcome_message=welcome)
+
+    def _optional_hf(self) -> HuggingFaceService | None:
+        token = settings.hf_token.get_secret_value() if settings.hf_token else None
+        if not token:
+            return None
+        try:
+            return HuggingFaceService(
+                hf_token=token,
+                hf_model_id=settings.hf_model_id,
+                hf_image_model_id=settings.hf_image_model_id,
+            )
+        except Exception:
+            return None
 
     def create_post(self, post_create: PostCreate) -> PostResponse:
         post = {

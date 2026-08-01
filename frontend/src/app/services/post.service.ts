@@ -7,6 +7,7 @@ import {
   AgentTraceStep,
   CreatePostRequest,
   HealthResponse,
+  InitPostResponse,
   Post,
   PostPreview,
   UpdatePostRequest,
@@ -20,14 +21,10 @@ export class PostService {
   private readonly baseUrl = API_BASE_URL;
 
   /** POST /api/posts/init */
-  initPost(
-    title: string,
-  ): Observable<{ post_id: string; title: string; created_at: string }> {
-    return this.http.post<{
-      post_id: string;
-      title: string;
-      created_at: string;
-    }>(`${this.baseUrl}/api/posts/init`, { title });
+  initPost(title: string): Observable<InitPostResponse> {
+    return this.http.post<InitPostResponse>(`${this.baseUrl}/api/posts/init`, {
+      title,
+    });
   }
 
   /** GET /health */

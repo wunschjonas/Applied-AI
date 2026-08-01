@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
-from app.graphs.support import messages
+from app.graphs.support import brief_llm, messages
 from app.graphs.support.validation import ArtifactValidator
 
 VALIDATION_STATUS = {
@@ -35,6 +35,11 @@ class ResponseNodes:
         )
         state["validation_feedback"] = feedback
         state["validation_result"] = result
+        # Increment here (not in the router) so LangGraph persists the retry budget.
+        if result == "retry_text":
+            state["text_retry_count"] = state["text_retry_count"] + 1
+        elif result == "retry_image":
+            state["image_retry_count"] = state["image_retry_count"] + 1
         if result in VALIDATION_STATUS:
             state["status"] = VALIDATION_STATUS[result]
 
@@ -67,33 +72,38 @@ class ResponseNodes:
         elif state["status"] == "error":
             if text_ok or image_prompt_only or image_ok:
                 state["status"] = "partial_success"
-                state["assistant_message"] = messages.partial_message(text_ok, image_ok, image_prompt_only)
+                fallback = messages.partial_message(text_ok, image_ok, image_prompt_only)
                 observation = "Partial response assembled after validation failure."
             else:
-                state["assistant_message"] = messages.WORKFLOW_FAILED
+                fallback = messages.WORKFLOW_FAILED
                 observation = "Failure response assembled."
+            state["assistant_message"] = self._compose(state, fallback, observation)
         elif intent == "text_only":
-            state["assistant_message"] = messages.TEXT_SUCCESS
+            fallback = messages.TEXT_SUCCESS
             observation = "Text-only success response assembled."
+            state["assistant_message"] = self._compose(state, fallback, observation)
         elif intent == "image_only":
             if image_ok:
-                state["assistant_message"] = messages.IMAGE_SUCCESS
+                fallback = messages.IMAGE_SUCCESS
                 observation = "Image-only success response assembled."
             else:
                 state["status"] = "partial_success"
-                state["assistant_message"] = messages.IMAGE_PROMPT_ONLY
+                fallback = messages.IMAGE_PROMPT_ONLY
                 observation = "Image prompt-only partial success response assembled."
+            state["assistant_message"] = self._compose(state, fallback, observation)
         elif intent == "text_and_image":
             if text_ok and image_ok:
-                state["assistant_message"] = messages.COMBINED_SUCCESS
+                fallback = messages.COMBINED_SUCCESS
                 observation = "Combined success response assembled."
             else:
                 state["status"] = "partial_success"
-                state["assistant_message"] = messages.partial_message(text_ok, image_ok, image_prompt_only)
+                fallback = messages.partial_message(text_ok, image_ok, image_prompt_only)
                 observation = "Combined partial response assembled."
+            state["assistant_message"] = self._compose(state, fallback, observation)
         else:
-            state["assistant_message"] = messages.WORKFLOW_UNCLEAR
+            fallback = messages.WORKFLOW_UNCLEAR
             observation = "Fallback response assembled."
+            state["assistant_message"] = self._compose(state, fallback, observation)
 
         self.recorder.step(
             state,
@@ -104,3 +114,21 @@ class ResponseNodes:
             state.get("status", "success"),
         )
         return state
+
+    def _compose(self, state: ManagerChatState, fallback: str, situation: str) -> str:
+        artifacts = state.get("generated_artifacts") or {}
+        text_len = len((artifacts.get("text") or {}).get("generated_text") or "")
+        image = artifacts.get("image") or {}
+        artifact_summary = (
+            f"text_chars={text_len}; image_url={image.get('image_url')}; "
+            f"used_agents={state.get('used_agents')}"
+        )
+        return brief_llm.compose_manager_reply(
+            hf=brief_llm.try_hf(self.deps.hf_factory),
+            fallback=fallback,
+            situation=situation,
+            user_message=state["user_message"],
+            post=state.get("post"),
+            brief_updates=state.get("brief_updates"),
+            artifact_summary=artifact_summary,
+        )

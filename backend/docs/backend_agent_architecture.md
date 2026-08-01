@@ -349,7 +349,7 @@ text_agent    -> text chat, text logs, direct text trace
 image_agent   -> image chat, image logs, direct image trace
 ```
 
-Trace steps are structured execution records, not private chain-of-thought. They include node/agent name, decision, action, observation, status and timestamp.
+Trace steps are structured execution records, not private chain-of-thought. They include node/agent name, thought, action, observation, status and timestamp. When `TAO_VERBOSE=true` (default), each step is also printed to the terminal as a Thought/Action/Observation block.
 
 ## Frontend Contract
 

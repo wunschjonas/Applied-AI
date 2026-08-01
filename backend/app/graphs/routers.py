@@ -33,11 +33,9 @@ class GraphRouters:
 
     def retry_router(self, state: ManagerChatState) -> str:
         result = state.get("validation_result")
-        if result == "retry_text" and state["text_retry_count"] == 0:
-            state["text_retry_count"] += 1
+        if result == "retry_text":
             return self._record_retry(state, "text", "TextAgent")
-        if result == "retry_image" and state["image_retry_count"] == 0:
-            state["image_retry_count"] += 1
+        if result == "retry_image":
             return self._record_retry(state, "image", "ImageAgent")
         return "assemble_response_node"
 
@@ -52,6 +50,7 @@ class GraphRouters:
             status="skipped",
             step=action,
             action="manager_chat_retry",
-            decision=feedback,
+            thought=f"Retrying {agent_label} once.",
+            observation=feedback,
         )
         return f"{artifact_type}_agent_node"

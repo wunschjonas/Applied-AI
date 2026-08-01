@@ -7,7 +7,7 @@ from app.agents.image_agent import ImageAgent
 from app.agents.text_agent import TextAgent
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
-from app.graphs.support import messages
+from app.graphs.support import brief_llm, messages
 from app.graphs.support.delegation import context_value, image_task_with_marketing_text
 
 
@@ -52,7 +52,8 @@ class SpecialistNodes:
             step="generate_text",
             started_at=started_at,
             tool_called="huggingface_generate_text",
-            decision=f"graph_node=text_agent_node; retry_count={state['text_retry_count']}",
+            thought=f"graph_node=text_agent_node; retry_count={state['text_retry_count']}",
+            observation="Text artifact stored in graph state.",
             output_summary=f"{len(result.get('generated_text', ''))} chars, {len(result.get('hashtags', []))} hashtags",
         )
         return state
@@ -107,14 +108,22 @@ class SpecialistNodes:
             step="generate_image",
             started_at=started_at,
             tool_called="huggingface_text_to_image",
-            decision=f"graph_node=image_agent_node; retry_count={state['image_retry_count']}",
+            thought=f"graph_node=image_agent_node; retry_count={state['image_retry_count']}",
+            observation=summary,
             output_summary=summary,
         )
         return state
 
     def clarification_node(self, state: ManagerChatState) -> ManagerChatState:
         started_at = datetime.utcnow()
-        state["assistant_message"] = messages.CLARIFICATION_REQUEST
+        state["assistant_message"] = brief_llm.compose_manager_reply(
+            hf=brief_llm.try_hf(self.deps.hf_factory),
+            fallback=messages.CLARIFICATION_REQUEST,
+            situation="Intent is unclear. Ask whether the user wants text, image, or both, and invite brief details.",
+            user_message=state["user_message"],
+            post=state.get("post"),
+            brief_updates=state.get("brief_updates"),
+        )
         state["status"] = "needs_input"
 
         self.recorder.step(
@@ -131,7 +140,8 @@ class SpecialistNodes:
             status="skipped",
             step="ask_clarification",
             started_at=started_at,
-            decision="Intent unclear - asked user for text/image/both + platform/audience/tone",
+            thought="Intent unclear - asked user for text/image/both + platform/audience/tone",
+            observation="No specialist agent or HuggingFace call was made.",
         )
         return state
 
@@ -168,7 +178,8 @@ class SpecialistNodes:
             step=f"generate_{artifact_type}",
             started_at=started_at,
             tool_called="huggingface_generate_text" if is_text else "huggingface_text_to_image",
-            decision=f"graph_node={node}; retry_count={retry_count}",
+            thought=f"graph_node={node}; retry_count={retry_count}",
+            observation=error,
             output_summary=error,
         )
 
@@ -180,13 +191,8 @@ class SpecialistNodes:
         artifact_type: str,
     ) -> None:
         chat = self.deps.chat_service.get_or_create_chat(state["post_id"], agent=agent)
-        metadata = {
-            "trace_id": state["trace_id"],
-            "graph_node": f"{artifact_type}_agent_node",
-            "artifact_type": artifact_type,
-        }
-        self.deps.chat_service.add_message(chat, "USER", state["user_message"], metadata)
-        self.deps.chat_service.add_message(chat, "AGENT", assistant_message, metadata)
+        self.deps.chat_service.add_message(chat, "USER", state["user_message"])
+        self.deps.chat_service.add_message(chat, "AGENT", assistant_message)
 
     def _remember_agent(self, state: ManagerChatState, agent: str) -> None:
         if agent not in state["used_agents"]:

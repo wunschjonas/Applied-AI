@@ -1,13 +1,27 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from app.graphs.support.delegation import IMAGE_INTENTS, TEXT_INTENTS
 from app.services.image_storage_service import ImageStorageService
 
 HASHTAG_PLATFORMS = frozenset({"linkedin", "instagram", "x"})
-MIN_TEXT_LENGTH = 40
-MIN_IMAGE_PROMPT_LENGTH = 30
+MIN_TEXT_LENGTH = 180
+MIN_HASHTAGS = 3
+MIN_IMAGE_PROMPT_LENGTH = 120
+MIN_IMAGE_PROMPT_WORDS = 18
+
+META_PREAMBLE_PATTERNS = (
+    r"^\s*here is\b",
+    r"^\s*here's\b",
+    r"^\s*sure[,!]?\b",
+    r"^\s*als ki\b",
+    r"^\s*as an ai\b",
+    r"^\s*of course[,!]?\b",
+    r"^\s*i'?ll\b",
+    r"```",
+)
 
 
 class ArtifactValidator:
@@ -46,12 +60,18 @@ class ArtifactValidator:
         generated_text = artifact.get("generated_text")
         if not generated_text or not str(generated_text).strip():
             issues.append("generated_text missing")
-        elif len(str(generated_text).strip()) < MIN_TEXT_LENGTH:
-            issues.append("generated_text too short")
+        else:
+            text = str(generated_text).strip()
+            if len(text) < MIN_TEXT_LENGTH:
+                issues.append("generated_text too short")
+            if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in META_PREAMBLE_PATTERNS):
+                issues.append("generated_text contains meta preamble or code fences")
         if "hashtags" not in artifact:
             issues.append("hashtags field missing")
-        if platform and platform.lower() in HASHTAG_PLATFORMS and not artifact.get("hashtags"):
-            issues.append(f"hashtags missing for {platform}")
+        elif platform and platform.lower() in HASHTAG_PLATFORMS:
+            hashtags = artifact.get("hashtags") or []
+            if len(hashtags) < MIN_HASHTAGS:
+                issues.append(f"need at least {MIN_HASHTAGS} hashtags for {platform}")
         return issues
 
     def validate_image(self, artifact: dict[str, Any] | None) -> list[str]:
@@ -62,8 +82,12 @@ class ArtifactValidator:
         prompt = artifact.get("image_prompt")
         if not prompt or not str(prompt).strip():
             issues.append("image_prompt missing")
-        elif len(str(prompt).strip()) < MIN_IMAGE_PROMPT_LENGTH:
-            issues.append("image_prompt too short")
+        else:
+            prompt_text = str(prompt).strip()
+            if len(prompt_text) < MIN_IMAGE_PROMPT_LENGTH:
+                issues.append("image_prompt too short")
+            if len(prompt_text.split()) < MIN_IMAGE_PROMPT_WORDS:
+                issues.append("image_prompt too few words")
         if not artifact.get("suggested_style"):
             issues.append("suggested_style missing")
         if artifact.get("partial_success") or artifact.get("image_error"):

@@ -1,15 +1,20 @@
 .page-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
   background: #f5f7fa;
 }
 
 .page-content {
   flex: 1;
-  padding: 2.5rem;
+  min-height: 0;
+  min-width: 0;
+  padding: 1.25rem 1.75rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
+  overflow: hidden;
 }
 
 .page-header {
@@ -68,10 +73,13 @@
 .log-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .log-item {
@@ -144,17 +152,25 @@
     }
   }
 
-  .log-decision {
+  .log-tao {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
     font-size: 0.85rem;
     color: #4a5568;
-    padding: 0.3rem 0.6rem;
+    padding: 0.4rem 0.6rem;
     background: #f8f9fb;
     border-left: 3px solid #6366f1;
     border-radius: 0 4px 4px 0;
 
-    .decision-label {
+    .tao-line {
+      line-height: 1.35;
+    }
+
+    .tao-label {
       font-weight: 600;
       color: #6366f1;
+      margin-right: 0.25rem;
     }
   }
 
@@ -212,6 +228,6 @@
   }
 
   .page-content {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 }

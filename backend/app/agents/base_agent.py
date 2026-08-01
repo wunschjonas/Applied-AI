@@ -14,7 +14,7 @@ class BaseAgent:
     def trace(
         self,
         trace: dict,
-        decision: str,
+        thought: str,
         action: str,
         observation: str,
         status_value: str = "success",
@@ -22,7 +22,7 @@ class BaseAgent:
         self.trace_service.add_step(
             trace=trace,
             agent=self.name,
-            decision=decision,
+            thought=thought,
             action=action,
             observation=observation,
             status_value=status_value,

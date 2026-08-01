@@ -7,7 +7,8 @@ export interface HealthResponse {
 export interface InitPostResponse {
   post_id: string;
   title: string;
-  created_at: string;
+  created_at?: string;
+  welcome_message?: string;
 }
 
 export interface CreatePostRequest {

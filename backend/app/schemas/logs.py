@@ -11,8 +11,9 @@ class AgentLogEntry(BaseModel):
     timestamp: datetime
     step: str
     tool_called: str | None = None
-    decision: str | None = None
+    thought: str | None = None
     action: str
+    observation: str | None = None
     input_summary: str = Field(max_length=300)
     output_summary: str | None = Field(default=None, max_length=300)
     status: Literal["success", "error", "skipped", "needs_input"]

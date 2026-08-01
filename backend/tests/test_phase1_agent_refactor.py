@@ -26,12 +26,26 @@ class FakeHF:
 
     def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = 700) -> str:
         self.user_prompts.append(user_prompt)
+        # Brief extraction / manager dialogue: force static fallbacks in most tests.
+        if "Return ONLY a JSON object" in system_prompt:
+            return "{}"
+        if "marketing manager agent" in system_prompt.lower():
+            raise RuntimeError("FakeHF skips dynamic manager replies")
         if "production-ready image generation prompts" in system_prompt:
-            return "A detailed modern marketing image prompt with clear subject, composition, lighting and colors."
+            return (
+                "A cinematic wide-angle commercial photograph of a modern marketing team collaborating around "
+                "a glowing holographic AI dashboard, soft daylight from large windows, teal and charcoal color "
+                "palette, shallow depth of field, clean composition, premium brand aesthetic, no readable text."
+            )
         if self.short_text_failures > 0:
             self.short_text_failures -= 1
             return "Too short"
-        return "A useful LinkedIn marketing post about AI agents in marketing with a clear CTA. #AI #Marketing #Agents"
+        return (
+            "AI agents are reshaping how marketing teams plan, create, and measure campaigns. "
+            "Start with one high-impact workflow, measure the lift, then scale what works. "
+            "Ready to put agents to work in your next campaign? Book a strategy session today. "
+            "#AI #Marketing #Agents #Automation"
+        )
 
     def generate_image(self, prompt: str, negative_prompt: str | None = None) -> bytes:
         if self.image_failures > 0:
@@ -190,7 +204,7 @@ def test_text_validation_retries_once(tmp_path):
     graph = build_graph(tmp_path, hf_factory=lambda: hf)
     result = graph.run("Schreibe einen LinkedIn Post ueber KI-Agenten.", "post-text-retry")
 
-    assert result["generated_artifacts"]["text"]["generated_text"].startswith("A useful")
+    assert result["generated_artifacts"]["text"]["generated_text"].startswith("AI agents")
     trace = graph.trace_service.get_trace(result["trace_id"])
     assert any(step["action"] == "retry_text" for step in trace["steps"])
     assert sum(1 for step in trace["steps"] if step["action"] == "retry_text") == 1
@@ -223,7 +237,7 @@ def test_image_prompt_partial_success_no_infinite_retry_for_permission(tmp_path)
     assert "fehlgeschlagen" in result["assistant_message"]
 
 
-def test_chat_metadata_and_trace_file_initialization(tmp_path):
+def test_chat_messages_have_role_and_content_only(tmp_path):
     from app.storage.json_store import JSONStore
 
     trace_file = tmp_path / "traces.json"
@@ -235,8 +249,13 @@ def test_chat_metadata_and_trace_file_initialization(tmp_path):
     graph = build_graph(tmp_path)
     result = graph.run("Schreibe einen LinkedIn Post ueber KI-Agenten.", "post-metadata")
     chat = graph.chat_service.get_chat(result["chat_id"])
-    assert "metadata" in chat["messages"][-1]
-    assert chat["messages"][-1]["metadata"]["trace_id"] == result["trace_id"]
+    last_message = chat["messages"][-1]
+    assert set(last_message.keys()) == {"role", "content"}
+    assert last_message["role"] == "AGENT"
+    assert "metadata" not in last_message
+    trace = graph.trace_service.get_trace(result["trace_id"])
+    assert trace["metadata"]["trace_id"] == result["trace_id"]
+    assert all("thought" in step and "action" in step and "observation" in step for step in trace["steps"])
 
 
 def test_safe_filename_and_static_route_serves_test_image(tmp_path):

@@ -84,6 +84,8 @@ class AgentService:
                 run_id=trace["trace_id"],
                 step="generate_text",
                 tool_called="huggingface_generate_text",
+                thought="Text generation failed.",
+                observation=error,
                 output_summary=error,
             )
             raise self._to_http_error(exc) from exc
@@ -97,6 +99,8 @@ class AgentService:
             run_id=trace["trace_id"],
             step="generate_text",
             tool_called="huggingface_generate_text",
+            thought="Text generation completed.",
+            observation=f"{len(result.get('generated_text', ''))} chars, {len(result.get('hashtags', []))} hashtags",
             output_summary=f"{len(result.get('generated_text', ''))} chars generated",
         )
         return {**result, "trace_id": trace["trace_id"]}
@@ -137,6 +141,8 @@ class AgentService:
                 run_id=trace["trace_id"],
                 step="generate_image_prompt",
                 tool_called="huggingface_generate_text",
+                thought="Image prompt generation failed.",
+                observation=error,
                 output_summary=error,
             )
             raise self._to_http_error(exc) from exc
@@ -150,6 +156,8 @@ class AgentService:
             run_id=trace["trace_id"],
             step="generate_image_prompt",
             tool_called="huggingface_generate_text",
+            thought="Image prompt generation completed.",
+            observation=f"Generated prompt with {len(result.get('image_prompt', ''))} characters.",
             output_summary=f"Image prompt: {len(result.get('image_prompt', ''))} chars",
         )
         return {**result, "trace_id": trace["trace_id"]}
@@ -192,6 +200,8 @@ class AgentService:
                 run_id=trace["trace_id"],
                 step="generate_image",
                 tool_called="huggingface_text_to_image",
+                thought="Image generation failed.",
+                observation=error,
                 output_summary=error,
             )
             raise self._to_http_error(exc) from exc
@@ -205,6 +215,8 @@ class AgentService:
             run_id=trace["trace_id"],
             step="generate_image",
             tool_called="huggingface_text_to_image",
+            thought="Image generation completed." if result.get("image_url") else "Image generation partial.",
+            observation=f"image_url={result.get('image_url')}; error={result.get('image_error')}",
             output_summary=f"image_url={result.get('image_url')}; error={result.get('image_error')}",
         )
         return {**result, "trace_id": trace["trace_id"]}
@@ -250,11 +262,14 @@ class AgentService:
                 context=post.get("additional_context"),
             )
         except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
             self.log_service.add_log(
                 agent="text_agent", action="text_chat", input_summary=message,
                 status="error", duration_ms=self._ms(t0), run_id=trace["trace_id"],
                 step="refine_text", tool_called="huggingface_generate_text",
-                output_summary=f"{type(exc).__name__}: {exc}",
+                thought="Text refinement failed.",
+                observation=error,
+                output_summary=error,
             )
             raise self._to_http_error(exc) from exc
 
@@ -266,16 +281,13 @@ class AgentService:
             )
 
         reply = f"{messages.TEXT_REFINED}\n\n{generated_text}"
-        self.chat_service.add_message(
-            chat,
-            role="AGENT",
-            content=reply,
-            metadata={"trace_id": trace["trace_id"], "artifact_type": "text"},
-        )
+        self.chat_service.add_message(chat, role="AGENT", content=reply)
         self.log_service.add_log(
             agent="text_agent", action="text_chat", input_summary=message,
             status="success", duration_ms=self._ms(t0), run_id=trace["trace_id"],
             step="refine_text", tool_called="huggingface_generate_text",
+            thought="Text refinement completed.",
+            observation=f"{len(generated_text)} chars, {len(result.get('hashtags', []))} hashtags",
             output_summary=f"{len(generated_text)} chars, {len(result.get('hashtags', []))} hashtags",
         )
         return {
@@ -313,11 +325,14 @@ class AgentService:
                 post_id=post_id,
             )
         except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
             self.log_service.add_log(
                 agent="image_agent", action="image_chat", input_summary=message,
                 status="error", duration_ms=self._ms(t0), run_id=trace["trace_id"],
                 step="refine_image", tool_called="huggingface_text_to_image",
-                output_summary=f"{type(exc).__name__}: {exc}",
+                thought="Image refinement failed.",
+                observation=error,
+                output_summary=error,
             )
             raise self._to_http_error(exc) from exc
 
@@ -331,22 +346,15 @@ class AgentService:
 
         headline = messages.IMAGE_REFINED if image_ready else messages.IMAGE_REFINE_PROMPT_ONLY
         reply = f"{headline}\n\n{result.get('image_prompt', '')}"
-        self.chat_service.add_message(
-            chat,
-            role="AGENT",
-            content=reply,
-            metadata={
-                "trace_id": trace["trace_id"],
-                "artifact_type": "image",
-                "image_url": result.get("image_url"),
-                "image_filename": result.get("image_filename"),
-            },
-        )
+        self.chat_service.add_message(chat, role="AGENT", content=reply)
+        summary = f"image_url={result.get('image_url')}; error={result.get('image_error')}"
         self.log_service.add_log(
             agent="image_agent", action="image_chat", input_summary=message,
             status="success" if image_ready else "error", duration_ms=self._ms(t0),
             run_id=trace["trace_id"], step="refine_image", tool_called="huggingface_text_to_image",
-            output_summary=f"image_url={result.get('image_url')}; error={result.get('image_error')}",
+            thought="Image refinement completed." if image_ready else "Image refinement partial.",
+            observation=summary,
+            output_summary=summary,
         )
         return {
             "chat_id": chat["id"],

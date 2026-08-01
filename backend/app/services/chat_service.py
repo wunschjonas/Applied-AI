@@ -44,14 +44,11 @@ class ChatService:
         chat: dict[str, Any],
         role: str,
         content: str,
-        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         message = {
             "role": role,
             "content": content,
         }
-        if metadata:
-            message["metadata"] = metadata
         chat["messages"].append(message)
         self.store.save(chat)
         return message

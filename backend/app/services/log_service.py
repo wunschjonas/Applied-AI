@@ -22,7 +22,8 @@ class LogService:
         run_id: str | None = None,
         step: str | None = None,
         tool_called: str | None = None,
-        decision: str | None = None,
+        thought: str | None = None,
+        observation: str | None = None,
         output_summary: str | None = None,
     ) -> dict[str, Any]:
         entry: dict[str, Any] = {
@@ -32,8 +33,9 @@ class LogService:
             "timestamp": datetime.utcnow().isoformat(),
             "step": step or action,
             "tool_called": tool_called,
-            "decision": decision,
+            "thought": thought,
             "action": action,
+            "observation": observation[:300] if observation else None,
             "input_summary": input_summary[:300],
             "output_summary": output_summary[:300] if output_summary else None,
             "status": status,

@@ -3,84 +3,86 @@
 
   <section class="page-content">
     <div class="agent-stage">
-      <h1>Home</h1>
-
-      <div class="post-select-section">
-        <label class="post-select-label" for="postSelect">
-          Post auswählen
-          <button
-            class="refresh-btn"
-            (click)="loadPosts()"
-            [disabled]="isLoadingPosts()"
-            title="Aktualisieren"
-          >
-            &#x21bb;
-          </button>
-        </label>
-        <select
-          id="postSelect"
-          class="post-select"
-          [disabled]="isLoadingPosts() || allPosts().length === 0"
-          (change)="
-            selectPost(allPosts()[$any($event.target).selectedIndex - 1])
-          "
+      <header class="page-header">
+        <h1>Manager Agent</h1>
+        <a
+          class="preview-btn"
+          routerLink="/preview"
+          [class.preview-btn--disabled]="!postFacade.currentPostId()"
+          [attr.aria-disabled]="!postFacade.currentPostId()"
+          (click)="!postFacade.currentPostId() && $event.preventDefault()"
         >
-          <option value="" disabled [selected]="!postFacade.currentPostId()">
-            {{
-              isLoadingPosts()
-                ? "Lädt..."
-                : allPosts().length === 0
-                  ? "Keine Posts vorhanden"
-                  : "Post wählen..."
-            }}
-          </option>
-          @for (post of allPosts(); track post.id) {
-            <option
-              [value]="post.id"
-              [selected]="postFacade.currentPostId() === post.id"
+          Zur Preview
+        </a>
+      </header>
+
+      <div class="toolbar">
+        <div class="toolbar__select">
+          <label class="toolbar__label" for="postSelect">
+            Post auswählen
+            <button
+              type="button"
+              class="refresh-btn"
+              (click)="loadPosts()"
+              [disabled]="isLoadingPosts()"
+              title="Aktualisieren"
             >
-              {{ post.title }}
-            </option>
-          }
-        </select>
-      </div>
-
-      <div class="post-init">
-        <input
-          type="text"
-          class="post-title-input"
-          placeholder="Post-Titel eingeben..."
-          [(ngModel)]="postTitle"
-          (keydown.enter)="createPost()"
-        />
-        <button
-          class="create-btn"
-          [disabled]="isCreating() || !postTitle().trim()"
-          (click)="createPost()"
-        >
-          {{ isCreating() ? "Erstelle..." : "Create" }}
-        </button>
-      </div>
-
-      @if (postFacade.currentPost()) {
-        <div class="post-info">
-          <span
-            ><strong>Post ID:</strong>
-            {{ postFacade.currentPost()!.post_id }}</span
+              &#x21bb;
+            </button>
+          </label>
+          <select
+            id="postSelect"
+            class="post-select"
+            [disabled]="isLoadingPosts() || allPosts().length === 0"
+            (change)="
+              selectPost(allPosts()[$any($event.target).selectedIndex - 1])
+            "
           >
-          <span
-            ><strong>Titel:</strong> {{ postFacade.currentPost()!.title }}</span
-          >
-          @if (postFacade.currentPost()!.created_at) {
-            <span
-              ><strong>Erstellt am:</strong>
+            <option value="" disabled [selected]="!postFacade.currentPostId()">
               {{
-                postFacade.currentPost()!.created_at | date: "dd.MM.yyyy HH:mm"
-              }}</span
-            >
-          }
+                isLoadingPosts()
+                  ? "Lädt..."
+                  : allPosts().length === 0
+                    ? "Keine Posts vorhanden"
+                    : "Post wählen..."
+              }}
+            </option>
+            @for (post of allPosts(); track post.id) {
+              <option
+                [value]="post.id"
+                [selected]="postFacade.currentPostId() === post.id"
+              >
+                {{ post.title }}
+              </option>
+            }
+          </select>
         </div>
-      }
+
+        <div class="toolbar__create">
+          <label class="toolbar__label" for="postTitleInput">Neuer Post</label>
+          <div class="toolbar__create-row">
+            <input
+              id="postTitleInput"
+              type="text"
+              class="post-title-input"
+              placeholder="Post-Titel eingeben..."
+              [ngModel]="postTitle()"
+              (ngModelChange)="postTitle.set($event)"
+              (keydown.enter)="createPost()"
+            />
+            <button
+              type="button"
+              class="create-btn"
+              [disabled]="isCreating() || !postTitle().trim()"
+              (click)="createPost()"
+            >
+              {{ isCreating() ? "Erstelle..." : "Create" }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <app-post-context />
 
       @if (postFacade.currentPost() && artifactFacade.missingFields().length) {
         <div class="brief-status">
@@ -91,33 +93,42 @@
         </div>
       }
 
-      @if (artifactFacade.hasText() || artifactFacade.hasImage()) {
-        <div class="artifact-grid">
-          @if (artifactFacade.hasImage()) {
-            <div class="artifact-card">
-              <h2>Generiertes Bild</h2>
-              <img [src]="artifactFacade.imageUrl()" alt="Generiertes Bild" />
-            </div>
-          }
-          @if (artifactFacade.hasText()) {
-            <div class="artifact-card">
-              <h2>Generierter Text</h2>
-              <p class="artifact-text">{{ artifactFacade.generatedText() }}</p>
-              @if (artifactFacade.hashtags().length) {
-                <p class="artifact-hashtags">
-                  {{ artifactFacade.hashtags().join(" ") }}
-                </p>
-              }
-            </div>
-          }
+      <div class="main-split">
+        <div class="main-split__chat">
+          <app-chat-panel
+            [messages]="chatFacade.mainAgentChat()"
+            (userSend)="onUserSend($event)"
+            (agentSend)="onAgentSend($event)"
+          />
         </div>
-      }
 
-      <app-chat-panel
-        [messages]="chatFacade.mainAgentChat()"
-        (userSend)="onUserSend($event)"
-        (agentSend)="onAgentSend($event)"
-      />
+        <aside class="main-split__artifacts">
+          @if (artifactFacade.hasText() || artifactFacade.hasImage()) {
+            @if (artifactFacade.hasImage()) {
+              <div class="artifact-card">
+                <h2>Generiertes Bild</h2>
+                <img [src]="artifactFacade.imageUrl()" alt="Generiertes Bild" />
+              </div>
+            }
+            @if (artifactFacade.hasText()) {
+              <div class="artifact-card">
+                <h2>Generierter Text</h2>
+                <p class="artifact-text">{{ artifactFacade.generatedText() }}</p>
+                @if (artifactFacade.hashtags().length) {
+                  <p class="artifact-hashtags">
+                    {{ artifactFacade.hashtags().join(" ") }}
+                  </p>
+                }
+              </div>
+            }
+          } @else {
+            <div class="artifact-empty">
+              Noch keine Artefakte. Chatte mit dem Manager Agent, um Text und
+              Bild zu erzeugen.
+            </div>
+          }
+        </aside>
+      </div>
     </div>
   </section>
 </div>

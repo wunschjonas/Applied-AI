@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 class TraceStep(BaseModel):
     index: int
     agent: str
-    decision: str
+    thought: str
     action: str
     observation: str
     status: str = "success"

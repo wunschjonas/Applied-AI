@@ -24,7 +24,7 @@ class ImageAgent(BaseAgent):
     ) -> dict[str, Any]:
         self.trace(
             trace,
-            decision="Image prompt generation requested.",
+            thought="Image prompt generation requested.",
             action="generate_image_prompt",
             observation=f"Platform={platform or 'unspecified'}, style={visual_style or 'model choice'}.",
         )
@@ -46,7 +46,7 @@ class ImageAgent(BaseAgent):
 
         self.trace(
             trace,
-            decision="HuggingFace returned an image prompt draft.",
+            thought="HuggingFace returned an image prompt draft.",
             action="return_image_prompt_artifact",
             observation=f"Generated prompt with {len(prompt_text)} characters.",
         )
@@ -84,7 +84,7 @@ class ImageAgent(BaseAgent):
         try:
             self.trace(
                 trace,
-                decision="Image prompt is ready for text-to-image inference.",
+                thought="Image prompt is ready for text-to-image inference.",
                 action="call_text_to_image_model",
                 observation=f"Calling HuggingFace text-to-image model {model_id}.",
             )
@@ -92,7 +92,7 @@ class ImageAgent(BaseAgent):
 
             self.trace(
                 trace,
-                decision="HuggingFace returned image bytes.",
+                thought="HuggingFace returned image bytes.",
                 action="store_generated_image",
                 observation="Storing generated image bytes as a local PNG file.",
             )
@@ -101,7 +101,7 @@ class ImageAgent(BaseAgent):
 
             self.trace(
                 trace,
-                decision="Generated image file is available.",
+                thought="Generated image file is available.",
                 action="return_image_artifact",
                 observation=f"Stored {stored['image_filename']} at {stored['image_url']}.",
             )
@@ -120,7 +120,7 @@ class ImageAgent(BaseAgent):
             )
             self.trace(
                 trace,
-                decision="Image prompt exists but image generation failed.",
+                thought="Image prompt exists but image generation failed.",
                 action="return_image_artifact",
                 observation=error,
                 status_value="partial_success",

@@ -36,7 +36,8 @@ class RagNodes:
             status=status,
             step="rag_decision",
             started_at=started_at,
-            decision=observation,
+            thought="Checked whether retrieval context is needed.",
+            observation=observation,
         )
         return state
 
@@ -74,6 +75,8 @@ class RagNodes:
             step="rag_retrieval",
             started_at=started_at,
             tool_called="mcp_memory_search",
+            thought="RAG retrieval path executed.",
+            observation=observation,
             output_summary=observation[:300],
         )
         return state

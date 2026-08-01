@@ -35,12 +35,12 @@ class StepRecorder:
         self,
         state: ManagerChatState,
         agent: str,
-        decision: str,
+        thought: str,
         action: str,
         observation: str,
         status_value: str = "success",
     ) -> None:
-        step = self.deps.trace_service.add_step(state["trace"], agent, decision, action, observation, status_value)
+        step = self.deps.trace_service.add_step(state["trace"], agent, thought, action, observation, status_value)
         state["trace_steps"].append(step)
 
     def log(
@@ -52,7 +52,8 @@ class StepRecorder:
         started_at: datetime | None = None,
         action: str = "manager_chat",
         tool_called: str | None = None,
-        decision: str | None = None,
+        thought: str | None = None,
+        observation: str | None = None,
         output_summary: str | None = None,
     ) -> None:
         self.deps.log_service.add_log(
@@ -64,7 +65,8 @@ class StepRecorder:
             run_id=state.get("trace_id"),
             step=step,
             tool_called=tool_called,
-            decision=decision,
+            thought=thought,
+            observation=observation,
             output_summary=output_summary,
         )
 

@@ -25,13 +25,15 @@ class TraceService:
             "metadata": metadata or {},
         }
         self.store.save(trace)
+        if settings.tao_verbose:
+            print(f"===== TAO RUN START | trace_id={trace_id} | chat_id={chat_id or '-'} =====")
         return trace
 
     def add_step(
         self,
         trace: dict[str, Any],
         agent: str,
-        decision: str,
+        thought: str,
         action: str,
         observation: str,
         status_value: str = "success",
@@ -39,7 +41,7 @@ class TraceService:
         step = {
             "index": len(trace["steps"]) + 1,
             "agent": agent,
-            "decision": decision,
+            "thought": thought,
             "action": action,
             "observation": observation,
             "status": status_value,
@@ -47,7 +49,24 @@ class TraceService:
         }
         trace["steps"].append(step)
         self.store.save(trace)
+        if settings.tao_verbose:
+            print(
+                f"[TAO {step['index']:02d}] agent={agent}  status={status_value}\n"
+                f"  Thought:     {thought}\n"
+                f"  Action:      {action}\n"
+                f"  Observation: {observation}"
+            )
         return step
+
+    def print_run_footer(self, trace: dict[str, Any], status: str = "success") -> None:
+        if not settings.tao_verbose:
+            return
+        metadata = trace.get("metadata") or {}
+        print(
+            f"===== TAO RUN END | steps={len(trace.get('steps', []))} | "
+            f"status={status} | used_agents={metadata.get('used_agents', [])} | "
+            f"retry_count={metadata.get('retry_count', {})} ====="
+        )
 
     def get_trace(self, trace_id: str) -> dict[str, Any]:
         trace = next((item for item in self.store.list() if item.get("trace_id") == trace_id), None)
