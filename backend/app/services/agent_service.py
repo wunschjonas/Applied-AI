@@ -10,6 +10,7 @@ from app.agents.text_agent import TextAgent
 from app.core.config import settings
 from app.graphs.manager_chat_graph import ManagerChatGraph
 from app.graphs.support import messages
+from app.graphs.support.brief_llm import compose_specialist_reply
 from app.graphs.support.delegation import build_image_refine_task, build_text_refine_task
 from app.services.chat_service import ChatService
 from app.services.huggingface_service import HuggingFaceService
@@ -282,7 +283,19 @@ class AgentService:
                 {"generated_text": generated_text, "hashtags": result.get("hashtags", [])},
             )
 
-        reply = f"{messages.TEXT_REFINED}\n\n{generated_text}"
+        hf = self._hf()
+        ack = compose_specialist_reply(
+            role="text",
+            hf=hf,
+            fallback=messages.TEXT_REFINED,
+            situation="The marketing text was regenerated and saved to the post preview.",
+            user_message=message,
+            post=post,
+            artifact_summary=(
+                f"{len(generated_text)} chars, {len(result.get('hashtags', []))} hashtags"
+            ),
+        )
+        reply = f"{ack}\n\n{generated_text}"
         self.chat_service.add_message(chat, role="AGENT", content=reply)
         self.log_service.add_log(
             agent="text_agent", action="text_chat", input_summary=message,
@@ -378,25 +391,61 @@ class AgentService:
             used_ref = bool(result.get("used_reference_image"))
             used_cur = bool(result.get("used_current_image"))
             if used_ref and used_cur:
-                headline = (
+                fallback = (
                     "Ich habe das aktuelle Post-Bild und dein Referenzbild kombiniert "
                     "und daraus ein neues Bild generiert."
                 )
+                situation = (
+                    "Image regenerated successfully using both the current post image "
+                    "and the user reference image."
+                )
             elif used_ref:
-                headline = (
+                fallback = (
                     "Ich habe dein Referenzbild einbezogen und ein neues Bild generiert."
                 )
+                situation = (
+                    "Image regenerated successfully using the user reference image."
+                )
             elif used_cur:
-                headline = (
+                fallback = (
                     "Ich habe das aktuelle Post-Bild weiterentwickelt und ein neues Bild generiert."
                 )
+                situation = (
+                    "Image regenerated successfully by refining the current post image."
+                )
             else:
-                headline = messages.IMAGE_REFINED
-            reply = f"{headline}\n\nBildprompt:\n{result.get('image_prompt', '')}"
+                fallback = messages.IMAGE_REFINED
+                situation = "Image regenerated successfully via text-to-image."
+            ack = compose_specialist_reply(
+                role="image",
+                hf=self._hf(),
+                fallback=fallback,
+                situation=situation,
+                user_message=message,
+                post=post,
+                artifact_summary=(
+                    f"mode={result.get('generation_mode')}; "
+                    f"source={result.get('img2img_source')}; "
+                    f"image_url={result.get('image_url')}"
+                ),
+            )
+            reply = f"{ack}\n\nBildprompt:\n{result.get('image_prompt', '')}"
         else:
             err = result.get("image_error") or "unbekannter Fehler"
+            ack = compose_specialist_reply(
+                role="image",
+                hf=self._hf(),
+                fallback=messages.IMAGE_REFINE_PROMPT_ONLY,
+                situation=(
+                    "Image prompt was created but image generation failed. "
+                    f"Error: {err}"
+                ),
+                user_message=message,
+                post=post,
+                artifact_summary=f"image_error={err}",
+            )
             reply = (
-                f"{messages.IMAGE_REFINE_PROMPT_ONLY}\n"
+                f"{ack}\n"
                 f"Fehler: {err}\n\n"
                 f"Bildprompt:\n{result.get('image_prompt', '')}"
             )

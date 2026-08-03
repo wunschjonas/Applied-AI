@@ -62,10 +62,4 @@ export class TextAgentComponent implements OnInit {
     });
   }
 
-  public onAgentSend(text: string): void {
-    this.chatFacade.updateTextAgentChat([
-      ...this.chatFacade.textAgentChat(),
-      { sender: ChatSender.Agent, text },
-    ]);
-  }
 }

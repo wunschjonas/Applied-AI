@@ -5,7 +5,7 @@ Deprecated: this file used to describe an older manual route test flow.
 Use the current walkthrough instead:
 
 ```text
-backend/docs/backend_agent_postman_walkthrough.md
+docs/backend_agent_postman_walkthrough.md
 ```
 
 Important current route corrections:

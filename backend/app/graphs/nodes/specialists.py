@@ -9,6 +9,7 @@ from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
 from app.graphs.support import brief_llm, messages, post_fields
 from app.graphs.support.delegation import context_value, image_task_with_marketing_text
+from app.services.rag_service import filter_rag_context
 
 
 class SpecialistNodes:
@@ -180,9 +181,18 @@ class SpecialistNodes:
         if not context:
             entries = self.deps.rag_service.list_all()
             if entries:
-                preview = "\n".join(f"- {entry[:240]}" for entry in entries[:8])
-                context = preview
-                source = "memory_list"
+                topic = ((state.get("post") or {}).get("topic") or "").strip()
+                joined = "\n".join(entries[:20])
+                filtered = filter_rag_context(
+                    joined,
+                    topic=topic or None,
+                    user_message=state.get("user_message"),
+                )
+                if filtered:
+                    context = filtered
+                    source = "memory_list"
+                else:
+                    context = ""
             else:
                 context = ""
 

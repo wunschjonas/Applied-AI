@@ -28,6 +28,23 @@ COMPOSE_SYSTEM = (
     "Never repeat the same sentence or question twice in one reply."
 )
 
+COMPOSE_TEXT_SYSTEM = (
+    "You are a German marketing text agent chatting with a user. "
+    "Write ONE short natural reply in German (2-4 sentences). "
+    "Acknowledge the refine request and briefly describe what you changed in the copy. "
+    "Do not paste the full marketing text. Do not mention that you are an AI. "
+    "No markdown fences. Never repeat the same sentence twice."
+)
+
+COMPOSE_IMAGE_SYSTEM = (
+    "You are a German marketing image agent chatting with a user. "
+    "Write ONE short natural reply in German (2-4 sentences). "
+    "Acknowledge the image request and briefly say how you used the current post image "
+    "and/or reference image if mentioned in the situation. "
+    "Do not paste the full image prompt. Do not mention that you are an AI. "
+    "No markdown fences. Never repeat the same sentence twice."
+)
+
 
 def _parse_json_object(raw: str) -> dict[str, Any] | None:
     text = raw.strip()
@@ -138,6 +155,38 @@ def compose_manager_reply(
     )
     try:
         reply = hf.generate(system_prompt=COMPOSE_SYSTEM, user_prompt=user_prompt, max_tokens=280).strip()
+    except Exception:
+        return fallback
+    if len(reply) < 12:
+        return fallback
+    return _dedupe_repeated_sentences(reply)
+
+
+def compose_specialist_reply(
+    *,
+    role: str,
+    hf: HuggingFaceService | None,
+    fallback: str,
+    situation: str,
+    user_message: str,
+    post: dict[str, Any] | None,
+    artifact_summary: str | None = None,
+) -> str:
+    """LLM ack for text/image agent chats; falls back to static headline strings."""
+    if hf is None:
+        return fallback
+
+    system = COMPOSE_IMAGE_SYSTEM if role == "image" else COMPOSE_TEXT_SYSTEM
+    brief = post_fields.brief_summary(post) if post else "no post"
+    user_prompt = (
+        f"Situation: {situation}\n"
+        f"User message: {user_message}\n"
+        f"Brief status: {brief}\n"
+        f"Artifact summary: {artifact_summary or 'none'}\n"
+        "Write the assistant reply now."
+    )
+    try:
+        reply = hf.generate(system_prompt=system, user_prompt=user_prompt, max_tokens=220).strip()
     except Exception:
         return fallback
     if len(reply) < 12:

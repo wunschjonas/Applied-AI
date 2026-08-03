@@ -24,14 +24,19 @@ MEMORY_SEARCH_TOOL: dict[str, Any] = {
         "description": (
             "Search stored brand facts, uploaded documents/images, and project memory. "
             "Call this when the user asks what is in memory/RAG/Gedaechtnis, or when stored "
-            "facts may help write or illustrate the marketing post."
+            "facts may help write or illustrate the CURRENT marketing post. "
+            "The query MUST stay on the current brief topic. "
+            "Do not search for unrelated past topics. Skip the tool if nothing on-topic is needed."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Short search query focused on brand facts, docs, images, or constraints.",
+                    "description": (
+                        "Short search query that includes the current post topic "
+                        "plus any on-topic brand fact keywords."
+                    ),
                 },
                 "n_results": {
                     "type": "integer",
@@ -43,6 +48,126 @@ MEMORY_SEARCH_TOOL: dict[str, Any] = {
         },
     },
 }
+
+_STOPWORDS = {
+    "der",
+    "die",
+    "das",
+    "und",
+    "oder",
+    "ein",
+    "eine",
+    "einer",
+    "einem",
+    "einen",
+    "mit",
+    "ohne",
+    "fuer",
+    "für",
+    "von",
+    "vom",
+    "zum",
+    "zur",
+    "zu",
+    "im",
+    "in",
+    "am",
+    "an",
+    "auf",
+    "aus",
+    "dem",
+    "den",
+    "des",
+    "ist",
+    "sind",
+    "war",
+    "wie",
+    "was",
+    "wer",
+    "wo",
+    "wenn",
+    "dann",
+    "auch",
+    "noch",
+    "nur",
+    "sehr",
+    "mehr",
+    "bitte",
+    "einen",
+    "einer",
+    "the",
+    "and",
+    "or",
+    "for",
+    "with",
+    "from",
+    "this",
+    "that",
+    "have",
+    "has",
+    "are",
+    "was",
+    "were",
+    "post",
+    "bild",
+    "text",
+    "agent",
+    "memory",
+    "rag",
+}
+
+
+def _significant_tokens(text: str) -> set[str]:
+    tokens = re.findall(r"[a-z0-9äöüß]+", (text or "").casefold())
+    return {token for token in tokens if len(token) >= 3 and token not in _STOPWORDS}
+
+
+def filter_rag_context(
+    rag_context: str | None,
+    *,
+    topic: str | None = None,
+    user_message: str | None = None,
+) -> str:
+    """Keep only memory chunks that overlap the current topic / user focus.
+
+    Without a usable topic or message focus, returns the context unchanged.
+    """
+    raw = (rag_context or "").strip()
+    if not raw:
+        return ""
+
+    focus = " ".join(part for part in ((topic or "").strip(), (user_message or "").strip()) if part)
+    focus_tokens = _significant_tokens(focus)
+    if not focus_tokens:
+        return raw
+
+    chunks = _split_memory_chunks(raw)
+    kept: list[str] = []
+    for chunk in chunks:
+        chunk_tokens = _significant_tokens(chunk)
+        if focus_tokens & chunk_tokens:
+            kept.append(chunk.strip())
+            continue
+        lowered = chunk.casefold()
+        if any(token in lowered for token in focus_tokens if len(token) >= 4):
+            kept.append(chunk.strip())
+    return "\n".join(kept).strip()
+
+
+def _split_memory_chunks(text: str) -> list[str]:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return []
+    numbered = [line for line in lines if re.match(r"^\d+\.\s+", line)]
+    if len(numbered) >= 2:
+        return numbered
+    if len(lines) == 1:
+        return lines
+    # Prefer blank-line paragraphs; otherwise treat each line as a chunk.
+    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
+    if len(paragraphs) > 1:
+        return paragraphs
+    return lines
 
 
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 100) -> list[str]:

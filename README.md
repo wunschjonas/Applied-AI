@@ -55,3 +55,7 @@ cd frontend
 npm install
 npm start
 ```
+
+## Dokumentation
+
+Weitere Projekt-Dokumentation (Architektur, Audits, Walkthroughs, Zusammenfassungen) liegt unter [`docs/`](docs/).

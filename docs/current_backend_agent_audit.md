@@ -10,7 +10,7 @@ Das Backend ist eine kompakte FastAPI-Anwendung mit JSON-basierter Speicherung, 
 
 Die FastAPI-Routenstruktur, JSON-Speicherung, Chat-Speicherung und Trace-Speicherung sind einfach und sollten für den geplanten Umbau stabil bleiben. Der kleinste sinnvolle Umbau betrifft vor allem `backend/app/graphs/manager_chat_graph.py` und eventuell `backend/app/agents/manager_agent.py`, weil dort Intent-Klassifikation und Orchestrierung noch teilweise doppelt oder historisch gewachsen sind.
 
-Wichtig: Die bestehende Dokumentation ist teilweise veraltet. Besonders `backend/docs/backend_agent_postman_walkthrough.md` nennt an mehreren Stellen Pfade wie `/api/agents/traces/{trace_id}` und `/api/agents/chats/{chat_id}`. Tatsächlich liegen die Trace- und Chat-History-Routen aktuell unter agent-spezifischen Prefixen wie `/api/agents/manager/traces/{trace_id}`, `/api/agents/manager/chats/{chat_id}`, `/api/agents/text/chats/{chat_id}` und `/api/agents/image/chats/{chat_id}`.
+Wichtig: Die bestehende Dokumentation ist teilweise veraltet. Besonders `docs/backend_agent_postman_walkthrough.md` nennt an mehreren Stellen Pfade wie `/api/agents/traces/{trace_id}` und `/api/agents/chats/{chat_id}`. Tatsächlich liegen die Trace- und Chat-History-Routen aktuell unter agent-spezifischen Prefixen wie `/api/agents/manager/traces/{trace_id}`, `/api/agents/manager/chats/{chat_id}`, `/api/agents/text/chats/{chat_id}` und `/api/agents/image/chats/{chat_id}`.
 
 ## 2. Relevante Ordnerstruktur
 
@@ -888,15 +888,15 @@ Es wurden keine Dateien unter üblichen Mustern wie `backend/tests`, `test_*.py`
 Manuelle Test-/Dokumentationsdateien:
 
 ```text
-backend/backend_route_tests.md
-backend/docs/backend_agent_architecture.md
-backend/docs/backend_agent_postman_walkthrough.md
-backend/docs/frontend_backend_alignment_review.md
+docs/backend_route_tests.md
+docs/backend_agent_architecture.md
+docs/backend_agent_postman_walkthrough.md
+docs/frontend_backend_alignment_review.md
 ```
 
-`backend/docs/backend_agent_architecture.md` passt grob zur aktuellen LangGraph-Implementierung, ist aber an mindestens einer Stelle veraltet: Es beschreibt `rag_retrieval_node` als reinen Placeholder mit festem Placeholder-Text. Tatsächlich ruft `rag_retrieval_node()` aktuell `RAGService.retrieve()` und damit den MCP Memory Service auf.
+`docs/backend_agent_architecture.md` passt grob zur aktuellen LangGraph-Implementierung, ist aber an mindestens einer Stelle veraltet: Es beschreibt `rag_retrieval_node` als reinen Placeholder mit festem Placeholder-Text. Tatsächlich ruft `rag_retrieval_node()` aktuell `RAGService.retrieve()` und damit den MCP Memory Service auf.
 
-`backend/docs/backend_agent_postman_walkthrough.md` ist teilweise veraltet:
+`docs/backend_agent_postman_walkthrough.md` ist teilweise veraltet:
 
 ```text
 - ManagerChatRequest-Beispiele lassen post_id weg, obwohl post_id im Schema Pflicht ist.
@@ -906,7 +906,7 @@ backend/docs/frontend_backend_alignment_review.md
 - RAG-Placeholder-Beschreibung passt nicht mehr exakt, weil RAGService MCP Memory aufruft und bei Fehler leer zurückgibt.
 ```
 
-`backend/backend_route_tests.md` ist deutlich veraltet:
+`docs/backend_route_tests.md` ist deutlich veraltet:
 
 ```text
 - erwähnt /api/posts/{post_id}/agent-trace, diese Route existiert nicht.
@@ -949,9 +949,9 @@ ChatService.get_chats_by_agent()
 Nicht mehr aktuelle Dokumentation oder Beispiele:
 
 ```text
-backend/backend_route_tests.md
-Teile von backend/docs/backend_agent_postman_walkthrough.md
-Teile von backend/docs/backend_agent_architecture.md zur RAG-Placeholder-Beschreibung
+docs/backend_route_tests.md
+Teile von docs/backend_agent_postman_walkthrough.md
+Teile von docs/backend_agent_architecture.md zur RAG-Placeholder-Beschreibung
 ```
 
 ## 12. Risiken beim Umbau
@@ -1066,8 +1066,8 @@ Für den späteren Minimal-Umbau wahrscheinlich:
 backend/app/graphs/manager_chat_graph.py
 backend/app/agents/manager_agent.py
 backend/app/services/agent_service.py
-backend/docs/backend_agent_architecture.md
-backend/docs/backend_agent_postman_walkthrough.md
+docs/backend_agent_architecture.md
+docs/backend_agent_postman_walkthrough.md
 ```
 
 Optional, nur wenn der Umbau bereinigt werden soll:

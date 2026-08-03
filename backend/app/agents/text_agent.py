@@ -37,7 +37,8 @@ class TextAgent(BaseAgent):
         generated_text = self.hf.generate(
             system_prompt=(
                 "You are a practical marketing copywriter. Write concise, useful copy. "
-                "Use only the provided brief. Return the final content directly."
+                "Use only the provided brief and ONLY memory facts that clearly match the "
+                "current post topic. Ignore unrelated memory. Return the final content directly."
             ),
             user_prompt=prompt,
             max_tokens=700,
@@ -85,6 +86,9 @@ Details:
 - Target audience: {target_audience or "unspecified"}
 - Context: {context_text}{memory_section}{feedback_section}
 
+Rules:
+- Stay on the current post topic from the task/brief.
+- Use Memory context only when it clearly relates to that topic; ignore off-topic memory.
 Include a clear CTA when useful.
 Include 3 to 6 relevant hashtags if the platform supports hashtags.
 Do not mention that you are an AI.

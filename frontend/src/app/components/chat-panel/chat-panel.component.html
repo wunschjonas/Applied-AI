@@ -3,8 +3,5 @@
     <app-chat [messages]="messages()" />
   </div>
 
-  <app-chat-input
-    (userSend)="userSend.emit($event)"
-    (agentSend)="agentSend.emit($event)"
-  />
+  <app-chat-input (userSend)="userSend.emit($event)" />
 </div>

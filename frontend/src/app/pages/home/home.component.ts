@@ -132,13 +132,6 @@ export class HomeComponent implements OnInit {
     });
   }
 
-  public onAgentSend(text: string): void {
-    this.chatFacade.updateMainAgentChat([
-      ...this.chatFacade.mainAgentChat(),
-      { sender: ChatSender.Agent, text },
-    ]);
-  }
-
   public fieldLabel(field: string): string {
     return FIELD_LABELS[field] ?? field;
   }

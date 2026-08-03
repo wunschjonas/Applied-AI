@@ -100,13 +100,6 @@ export class ImageAgentComponent implements OnInit, OnDestroy {
     });
   }
 
-  public onAgentSend(text: string): void {
-    this.chatFacade.updateImageAgentChat([
-      ...this.chatFacade.imageAgentChat(),
-      { sender: ChatSender.Agent, text },
-    ]);
-  }
-
   private clearSourcePreview(): void {
     const url = this.sourcePreviewUrl();
     if (url) {

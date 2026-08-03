@@ -8,17 +8,19 @@ from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
 from app.graphs.support.brief_llm import try_hf
 from app.graphs.support.post_fields import is_memory_inquiry, memory_search_query
-from app.services.rag_service import MEMORY_SEARCH_TOOL
+from app.services.rag_service import MEMORY_SEARCH_TOOL, filter_rag_context
 
 
 MAX_TOOL_ROUNDS = 2
 
 REACT_SYSTEM_PROMPT = """You are the retrieval planner for a marketing multi-agent system.
 You may call the memory_search tool when stored brand facts, uploaded PDFs, images, or prior notes
-could help. If the user asks what is stored in memory/RAG/Gedaechtnis, you MUST call memory_search.
+could help with the CURRENT post brief topic.
+If the user asks what is stored in memory/RAG/Gedaechtnis, you MUST call memory_search.
 If the user message and brief already contain enough information for normal generation,
 do not call any tool — reply briefly that no memory search is needed.
-Prefer a short, focused search query. At most one useful search is enough in most cases."""
+IMPORTANT: The search query MUST stay on the current brief topic. Never pull in unrelated past topics.
+Prefer a short, focused, on-topic search query. At most one useful search is enough in most cases."""
 
 
 class RagNodes:
@@ -155,16 +157,30 @@ class RagNodes:
             return self._keyword_fallback(state, started_at, reason=warning)
 
     def _forced_memory_search(self, state: ManagerChatState, started_at: datetime) -> ManagerChatState:
-        """Always retrieve for memory Q&A; fall back to memory_list if search is empty."""
+        """Always retrieve for memory Q&A; list_all only as last resort, then topic-filter."""
         query = memory_search_query(state["user_message"])
         observation, status = self._run_memory_search(state, {"query": query, "n_results": 5})
         if not state.get("rag_context"):
             entries = self.deps.rag_service.list_all()
             if entries:
-                state["rag_context"] = "\n".join(entries[:8])
-                state["rag_needed"] = True
-                observation = f"memory_list fallback returned {len(entries)} entr(y/ies)."
-                status = "success"
+                topic = ((state.get("post") or {}).get("topic") or query or "").strip()
+                joined = "\n".join(entries[:20])
+                filtered = filter_rag_context(
+                    joined,
+                    topic=topic or None,
+                    user_message=state.get("user_message"),
+                )
+                if filtered:
+                    state["rag_context"] = filtered
+                    state["rag_needed"] = True
+                    observation = (
+                        f"memory_list fallback returned {len(entries)} entr(y/ies); "
+                        "kept only topic-relevant lines."
+                    )
+                    status = "success"
+                else:
+                    observation = f"{observation} memory_list had no on-topic entries."
+                    status = "warning"
             else:
                 observation = f"{observation} memory_list also empty."
                 status = "warning"
@@ -191,7 +207,7 @@ class RagNodes:
         return state
 
     def _run_memory_search(self, state: ManagerChatState, arguments: dict[str, Any]) -> tuple[str, str]:
-        query = str(arguments.get("query") or "").strip() or state["user_message"]
+        query = str(arguments.get("query") or "").strip() or self._default_search_query(state)
         try:
             n_results = int(arguments.get("n_results") or 3)
         except (TypeError, ValueError):
@@ -208,13 +224,35 @@ class RagNodes:
             state["warnings"].append(observation)
             return observation, "warning"
 
-        if rag_context:
-            # Keep the raw memory text for specialists / memory answers.
+        topic = ((state.get("post") or {}).get("topic") or "").strip() or None
+        filtered = filter_rag_context(
+            rag_context,
+            topic=topic,
+            user_message=state.get("user_message"),
+        )
+        if filtered:
             existing = state.get("rag_context")
-            state["rag_context"] = f"{existing}\n{rag_context}".strip() if existing else rag_context
+            merged = f"{existing}\n{filtered}".strip() if existing else filtered
+            # Re-filter merged blob so older off-topic leftovers cannot accumulate.
+            state["rag_context"] = (
+                filter_rag_context(
+                    merged,
+                    topic=topic,
+                    user_message=state.get("user_message"),
+                )
+                or None
+            )
+            if not state["rag_context"]:
+                state["rag_needed"] = False
+                return "memory_search hits were off-topic and discarded.", "warning"
             state["rag_needed"] = True
-            lines = [line for line in rag_context.splitlines() if line.strip()]
-            return f"Retrieved {len(lines)} memory item(s). Summary: {rag_context[:240]}", "success"
+            lines = [line for line in state["rag_context"].splitlines() if line.strip()]
+            return (
+                f"Retrieved {len(lines)} on-topic memory item(s). "
+                f"Summary: {state['rag_context'][:240]}"
+            ), "success"
+        if rag_context:
+            return "memory_search hits were off-topic and discarded.", "warning"
         return "memory_search returned no results.", "warning"
 
     def _keyword_fallback(
@@ -246,23 +284,33 @@ class RagNodes:
             )
             return state
 
+        query = self._default_search_query(state)
         try:
             if hasattr(self.deps.rag_service, "search"):
-                rag_context = self.deps.rag_service.search(state["user_message"])
+                rag_context = self.deps.rag_service.search(query)
             else:
-                rag_context = self.deps.rag_service.retrieve(state["user_message"], state.get("context"))
-            state["rag_context"] = rag_context or None
-            if rag_context:
-                observation = f"Keyword fallback retrieved memory. Summary: {rag_context[:240]}"
+                rag_context = self.deps.rag_service.retrieve(query, state.get("context"))
+            topic = ((state.get("post") or {}).get("topic") or "").strip() or None
+            filtered = filter_rag_context(
+                rag_context,
+                topic=topic,
+                user_message=state.get("user_message"),
+            )
+            state["rag_context"] = filtered or None
+            if filtered:
+                observation = f"Keyword fallback retrieved on-topic memory. Summary: {filtered[:240]}"
                 status = "success"
+                state["rag_needed"] = True
             else:
-                observation = "Keyword fallback found no memory context."
+                observation = "Keyword fallback found no on-topic memory context."
                 status = "warning"
+                state["rag_needed"] = False
                 state["warnings"].append(observation)
         except Exception as exc:
             observation = f"Keyword fallback failed: {type(exc).__name__}: {exc}"
             status = "warning"
             state["rag_context"] = None
+            state["rag_needed"] = False
             state["warnings"].append(observation)
 
         self.recorder.step(
@@ -287,6 +335,15 @@ class RagNodes:
         return state
 
     @staticmethod
+    def _default_search_query(state: ManagerChatState) -> str:
+        post = state.get("post") or {}
+        topic = str(post.get("topic") or "").strip()
+        message = str(state.get("user_message") or "").strip()
+        if topic and message:
+            return f"{topic} {message[:80]}".strip()
+        return topic or message
+
+    @staticmethod
     def _user_prompt(state: ManagerChatState) -> str:
         post = state.get("post") or {}
         brief = {
@@ -297,11 +354,14 @@ class RagNodes:
             "additional_context": post.get("additional_context"),
         }
         intent = state.get("intent") or "unknown"
+        topic = brief.get("topic") or "unknown"
         return (
             f"User message:\n{state['user_message']}\n\n"
             f"Intent: {intent}\n"
+            f"Current post topic (REQUIRED search focus): {topic}\n"
             f"Brief snapshot:\n{json.dumps(brief, ensure_ascii=False)}\n\n"
-            "Decide whether to call memory_search."
+            "Decide whether to call memory_search. "
+            "If you search, the query must include the current post topic."
         )
 
     # Backward-compatible aliases used by older docs/tests if imported directly.

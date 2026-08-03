@@ -35,6 +35,8 @@ class ImageAgent(BaseAgent):
         prompt_text = self.hf.generate(
             system_prompt=(
                 "You write production-ready image generation prompts for marketing visuals. "
+                "Stay on the current post topic. Use memory only when it clearly matches that topic; "
+                "never invent motifs from unrelated memory. "
                 "Return a strong prompt, a short negative prompt, and a suggested style."
             ),
             user_prompt=self._build_prompt(task, platform, visual_style, context, rag_context),
@@ -249,6 +251,10 @@ Details:
 - Visual style: {visual_style or "choose an appropriate style"}
 - Context: {context_text}{memory_section}
 
+Rules:
+- The visual must match the current post topic from the task/brief.
+- Use Memory context only when it clearly relates to that topic; ignore unrelated memories.
+- Do not mix in motifs from off-topic memory.
 The prompt should describe subject, composition, lighting, colors, mood, and any platform-specific framing.
 Do not request readable text inside the image unless explicitly required.
 """.strip()

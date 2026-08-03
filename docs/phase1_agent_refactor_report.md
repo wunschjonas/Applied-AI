@@ -19,10 +19,10 @@ backend/app/services/chat_service.py
 backend/app/services/huggingface_service.py
 backend/app/services/image_storage_service.py
 backend/app/storage/json_store.py
-backend/backend_route_tests.md
-backend/docs/backend_agent_architecture.md
-backend/docs/backend_agent_postman_walkthrough.md
-backend/docs/phase1_agent_refactor_report.md
+docs/backend_route_tests.md
+docs/backend_agent_architecture.md
+docs/backend_agent_postman_walkthrough.md
+docs/phase1_agent_refactor_report.md
 backend/tests/test_phase1_agent_refactor.py
 ```
 
