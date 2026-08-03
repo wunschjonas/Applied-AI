@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
-import { MemoryService } from '../../services/memory.service';
+import { MemoryListEntry, MemoryService } from '../../services/memory.service';
 
 @Component({
   selector: 'app-rag',
@@ -32,8 +32,10 @@ export class RagComponent implements OnInit {
   public hasSearched = signal(false);
 
   // List
-  public allEntries = signal<string[]>([]);
+  public allEntries = signal<MemoryListEntry[]>([]);
   public isLoadingList = signal(false);
+  public deletingHash = signal<string | null>(null);
+  public deleteError = signal('');
 
   public ngOnInit(): void {
     this.loadAll();
@@ -132,10 +134,40 @@ export class RagComponent implements OnInit {
 
   public loadAll(): void {
     this.isLoadingList.set(true);
+    this.deleteError.set('');
     this.memoryService.list().subscribe({
       next: (res) => this.allEntries.set(res.entries),
       error: (err) => console.error('[Memory] List error:', err),
       complete: () => this.isLoadingList.set(false),
+    });
+  }
+
+  public deleteEntry(entry: MemoryListEntry): void {
+    if (!entry.content_hash || this.deletingHash()) {
+      return;
+    }
+    const confirmed = window.confirm('Diesen Gedächtnis-Eintrag wirklich löschen?');
+    if (!confirmed) {
+      return;
+    }
+
+    this.deletingHash.set(entry.content_hash);
+    this.deleteError.set('');
+    this.memoryService.delete(entry.content_hash).subscribe({
+      next: () => {
+        this.allEntries.update((entries) =>
+          entries.filter((item) => item.content_hash !== entry.content_hash)
+        );
+      },
+      error: (err) => {
+        console.error('[Memory] Delete error:', err);
+        const detail = err?.error?.detail;
+        this.deleteError.set(
+          typeof detail === 'string' ? detail : 'Löschen fehlgeschlagen.'
+        );
+        this.deletingHash.set(null);
+      },
+      complete: () => this.deletingHash.set(null),
     });
   }
 }

@@ -227,6 +227,8 @@ class AgentService:
             hf_token=hf_token,
             hf_model_id=settings.hf_model_id,
             hf_image_model_id=settings.hf_image_model_id,
+            hf_caption_model_id=settings.hf_caption_model_id,
+            hf_image_to_image_model_id=settings.hf_image_to_image_model_id,
         )
 
     def _to_http_error(self, exc: Exception) -> HTTPException:
@@ -297,39 +299,67 @@ class AgentService:
             "trace_id": trace["trace_id"],
         }
 
-    def image_agent_chat(self, message: str, post_id: str) -> dict[str, Any]:
-        """Refine the stored motif: regenerate the image and overwrite {post_id}.png."""
+    def image_agent_chat(
+        self,
+        message: str,
+        post_id: str,
+        source_image: bytes | None = None,
+        strength: float = 0.7,
+    ) -> dict[str, Any]:
+        """Regenerate the post image from the user message, optional reference, and current image."""
         t0 = datetime.utcnow()
         chat = self.chat_service.get_or_create_chat(post_id, agent="image_agent")
-        self.chat_service.add_message(chat, role="USER", content=message)
+        chat_message = message
+        if source_image:
+            chat_message = f"{message}\n[Referenzbild angehaengt]"
+        self.chat_service.add_message(chat, role="USER", content=chat_message)
 
         post = self.post_repository.get(post_id) or {}
         preview = post.get("preview") or {}
+        image_agent = ImageAgent(self._hf(), self.trace_service)
+        current_image = image_agent.image_storage.read_post_image(post_id)
+        if not current_image:
+            # Fallback: filename from preview metadata if stem differs.
+            current_image = image_agent.image_storage.read_bytes(preview.get("image_filename"))
+
         trace = self.trace_service.create_trace(
             chat_id=chat["id"],
-            metadata={"entrypoint": "image_agent_chat", "post_id": post_id},
+            metadata={
+                "entrypoint": "image_agent_chat",
+                "post_id": post_id,
+                "has_reference_image": bool(source_image),
+                "has_current_image": bool(current_image),
+            },
         )
         task = build_image_refine_task(
             message,
             preview.get("image_prompt_optional"),
             preview.get("generated_text"),
         )
+        tool_called = (
+            "huggingface_image_to_image"
+            if (source_image or current_image)
+            else "huggingface_text_to_image"
+        )
 
         try:
-            result = ImageAgent(self._hf(), self.trace_service).generate_image(
+            result = image_agent.generate_image(
                 task=task,
                 trace=trace,
                 platform=post.get("platform"),
                 visual_style=None,
                 context=post.get("additional_context"),
                 post_id=post_id,
+                source_image=source_image,
+                current_image=current_image,
+                strength=strength,
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
             self.log_service.add_log(
                 agent="image_agent", action="image_chat", input_summary=message,
                 status="error", duration_ms=self._ms(t0), run_id=trace["trace_id"],
-                step="refine_image", tool_called="huggingface_text_to_image",
+                step="refine_image", tool_called=tool_called,
                 thought="Image refinement failed.",
                 observation=error,
                 output_summary=error,
@@ -344,14 +374,41 @@ class AgentService:
                 patch["image_filename"] = result.get("image_filename")
             self.post_repository.merge_preview(post_id, patch)
 
-        headline = messages.IMAGE_REFINED if image_ready else messages.IMAGE_REFINE_PROMPT_ONLY
-        reply = f"{headline}\n\n{result.get('image_prompt', '')}"
+        if image_ready:
+            used_ref = bool(result.get("used_reference_image"))
+            used_cur = bool(result.get("used_current_image"))
+            if used_ref and used_cur:
+                headline = (
+                    "Ich habe das aktuelle Post-Bild und dein Referenzbild kombiniert "
+                    "und daraus ein neues Bild generiert."
+                )
+            elif used_ref:
+                headline = (
+                    "Ich habe dein Referenzbild einbezogen und ein neues Bild generiert."
+                )
+            elif used_cur:
+                headline = (
+                    "Ich habe das aktuelle Post-Bild weiterentwickelt und ein neues Bild generiert."
+                )
+            else:
+                headline = messages.IMAGE_REFINED
+            reply = f"{headline}\n\nBildprompt:\n{result.get('image_prompt', '')}"
+        else:
+            err = result.get("image_error") or "unbekannter Fehler"
+            reply = (
+                f"{messages.IMAGE_REFINE_PROMPT_ONLY}\n"
+                f"Fehler: {err}\n\n"
+                f"Bildprompt:\n{result.get('image_prompt', '')}"
+            )
         self.chat_service.add_message(chat, role="AGENT", content=reply)
-        summary = f"image_url={result.get('image_url')}; error={result.get('image_error')}"
+        summary = (
+            f"image_url={result.get('image_url')}; mode={result.get('generation_mode')}; "
+            f"source={result.get('img2img_source')}; error={result.get('image_error')}"
+        )
         self.log_service.add_log(
             agent="image_agent", action="image_chat", input_summary=message,
             status="success" if image_ready else "error", duration_ms=self._ms(t0),
-            run_id=trace["trace_id"], step="refine_image", tool_called="huggingface_text_to_image",
+            run_id=trace["trace_id"], step="refine_image", tool_called=tool_called,
             thought="Image refinement completed." if image_ready else "Image refinement partial.",
             observation=summary,
             output_summary=summary,

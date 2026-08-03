@@ -73,6 +73,9 @@ export class HomeComponent implements OnInit {
     });
     this.loadManagerChatHistory(post.id);
     this.artifactFacade.applyPreview(post.preview);
+    this.artifactFacade.updateMissingFields(
+      post.missing_fields ?? this.missingFieldsFromPost(post),
+    );
   }
 
   public createPost(): void {
@@ -89,6 +92,9 @@ export class HomeComponent implements OnInit {
           welcome ? [{ sender: ChatSender.Agent, text: welcome }] : [],
         );
         this.artifactFacade.reset();
+        this.artifactFacade.updateMissingFields(
+          response.missing_fields ?? ['topic', 'platform', 'target_audience', 'tone_of_voice'],
+        );
         this.postTitle.set('');
         this.loadPosts();
       },
@@ -135,6 +141,16 @@ export class HomeComponent implements OnInit {
 
   public fieldLabel(field: string): string {
     return FIELD_LABELS[field] ?? field;
+  }
+
+  private missingFieldsFromPost(post: Post): string[] {
+    const fields: (keyof Post)[] = [
+      'topic',
+      'platform',
+      'target_audience',
+      'tone_of_voice',
+    ];
+    return fields.filter((field) => !post[field]);
   }
 
   private loadManagerChatHistory(postId: string): void {

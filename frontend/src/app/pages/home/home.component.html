@@ -86,7 +86,7 @@
 
       @if (postFacade.currentPost() && artifactFacade.missingFields().length) {
         <div class="brief-status">
-          <strong>Noch offen im Brief:</strong>
+          <strong>Noch offen:</strong>
           @for (field of artifactFacade.missingFields(); track field) {
             <span class="brief-chip">{{ fieldLabel(field) }}</span>
           }

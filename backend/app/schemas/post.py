@@ -28,6 +28,7 @@ class PostInitResponse(BaseModel):
     post_id: str
     title: str
     welcome_message: str | None = None
+    missing_fields: list[str] = Field(default_factory=list)
 
 
 class PostCreate(BaseModel):
@@ -67,3 +68,4 @@ class PostResponse(BaseModel):
     tone_of_voice: str | None = None
     additional_context: str | None = None
     preview: PostPreview | None = None
+    missing_fields: list[str] = Field(default_factory=list)

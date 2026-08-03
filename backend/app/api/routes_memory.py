@@ -15,9 +15,15 @@ router = APIRouter(prefix="/api/memory", tags=["memory"])
 
 rag_service = RAGService(memory_url=settings.mcp_memory_url)
 
-ALLOWED_PDF = {"application/pdf"}
+ALLOWED_PDF = {
+    "application/pdf",
+    "application/x-pdf",
+    "application/acrobat",
+    "applications/vnd.pdf",
+}
 ALLOWED_IMAGES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
+PDF_MAGIC = b"%PDF"
 
 
 class MemoryStoreRequest(BaseModel):
@@ -34,8 +40,14 @@ class MemorySearchResponse(BaseModel):
     results: list[str]
 
 
+class MemoryListEntry(BaseModel):
+    content: str
+    content_hash: str
+    tags: list[str] = []
+
+
 class MemoryListResponse(BaseModel):
-    entries: list[str]
+    entries: list[MemoryListEntry]
 
 
 class MemoryUploadResponse(BaseModel):
@@ -43,6 +55,11 @@ class MemoryUploadResponse(BaseModel):
     filename: str
     kind: str
     preview: str
+
+
+class MemoryDeleteResponse(BaseModel):
+    status: str
+    content_hash: str
 
 
 @router.post("/store", response_model=MemoryStoreResponse, status_code=status.HTTP_201_CREATED)
@@ -66,14 +83,36 @@ def search_memory(q: str):
 @router.get("/list", response_model=MemoryListResponse)
 def list_memory():
     print("[Memory] GET /api/memory/list")
-    entries = rag_service.list_all()
+    entries = [
+        MemoryListEntry(
+            content=entry.get("content") or "",
+            content_hash=entry.get("content_hash") or "",
+            tags=list(entry.get("tags") or []),
+        )
+        for entry in rag_service.list_entries()
+        if entry.get("content")
+    ]
     return MemoryListResponse(entries=entries)
+
+
+@router.delete("/{content_hash}", response_model=MemoryDeleteResponse)
+def delete_memory(content_hash: str):
+    print(f"[Memory] DELETE /api/memory/{content_hash[:16]}...")
+    try:
+        deleted = rag_service.delete(content_hash)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memory entry not found or not deleted.")
+    return MemoryDeleteResponse(status="deleted", content_hash=content_hash)
 
 
 @router.post("/upload", response_model=MemoryUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_memory(file: UploadFile = File(...)):
-    filename = Path(file.filename or "upload.bin").name
-    content_type = (file.content_type or "").lower()
+    filename = Path(file.filename or "upload.bin").name.strip()
+    content_type = (file.content_type or "").lower().split(";", 1)[0].strip()
     print(f"[Memory] POST /api/memory/upload | filename='{filename}' type='{content_type}'")
 
     data = await file.read()
@@ -82,7 +121,7 @@ async def upload_memory(file: UploadFile = File(...)):
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large (max 15MB).")
 
-    kind = _detect_kind(filename, content_type)
+    kind = _detect_kind(filename, content_type, data)
     if kind == "pdf":
         text = _extract_pdf_text(data)
         if not text.strip():
@@ -133,16 +172,33 @@ async def upload_memory(file: UploadFile = File(...)):
 
     raise HTTPException(
         status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-        detail="Unsupported file type. Use PDF, PNG, JPEG, or WebP.",
+        detail=(
+            "Unsupported file type. Use PDF, PNG, JPEG, or WebP. "
+            f"(got filename='{filename}', content_type='{content_type or 'unknown'}')"
+        ),
     )
 
 
-def _detect_kind(filename: str, content_type: str) -> str | None:
-    suffix = Path(filename).suffix.lower()
-    if content_type in ALLOWED_PDF or suffix == ".pdf":
+def _detect_kind(filename: str, content_type: str, data: bytes | None = None) -> str | None:
+    suffix = Path(filename.strip()).suffix.lower().strip()
+    mime = (content_type or "").lower().split(";", 1)[0].strip()
+
+    if mime in ALLOWED_PDF or suffix == ".pdf":
         return "pdf"
-    if content_type in ALLOWED_IMAGES or suffix in {".png", ".jpg", ".jpeg", ".webp"}:
+    if mime in ALLOWED_IMAGES or suffix in {".png", ".jpg", ".jpeg", ".webp"}:
         return "image"
+
+    # Browsers sometimes send application/octet-stream or omit the extension in transit.
+    if data:
+        if data[:4] == PDF_MAGIC:
+            return "pdf"
+        if data.startswith(b"\x89PNG\r\n\x1a\n") or data[:3] == b"\xff\xd8\xff":
+            return "image"
+        if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            return "image"
+        if mime == "application/octet-stream" and b"/Type /Catalog" in data[:2048]:
+            return "pdf"
+
     return None
 
 

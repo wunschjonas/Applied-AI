@@ -14,8 +14,10 @@
         </p>
       } @else {
         <p class="agent-hint">
-          Beschreibe hier kleine Änderungen am Motiv. Der Agent generiert das
-          Bild neu und überschreibt es im Post.
+          Beschreibe Änderungen am Motiv. Optional ein Referenzbild anhängen —
+          der Agent kombiniert es mit dem aktuellen Post-Bild und erzeugt ein
+          neues Motiv. Ohne Referenzbild wird das bestehende Post-Bild
+          weiterentwickelt (sonst Text-to-Image).
         </p>
       }
 
@@ -37,6 +39,31 @@
         </div>
 
         <div class="main-split__chat">
+          <div class="reference-panel">
+            <label class="reference-label" for="image-agent-source">
+              Referenzbild (optional)
+            </label>
+            <div class="reference-controls">
+              <input
+                id="image-agent-source"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                (change)="onSourceImageSelected($event)"
+              />
+              @if (sourceImage()) {
+                <button type="button" class="reference-clear" (click)="clearSourceImage()">
+                  Entfernen
+                </button>
+              }
+            </div>
+            @if (sourcePreviewUrl()) {
+              <div class="reference-preview">
+                <img [src]="sourcePreviewUrl()" alt="Referenzbild Vorschau" />
+                <span>{{ sourceImage()?.name }}</span>
+              </div>
+            }
+          </div>
+
           <app-chat-panel
             [messages]="chatFacade.imageAgentChat()"
             (userSend)="onUserSend($event)"

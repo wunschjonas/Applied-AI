@@ -8,6 +8,7 @@ INTENT_ROUTES = {
     "image_only": "image_agent_node",
     "text_and_image": "text_agent_node",
     "memory_inquiry": "memory_answer_node",
+    "post_status_inquiry": "post_status_node",
 }
 
 
@@ -21,13 +22,15 @@ class GraphRouters:
     def intent_router(self, state: ManagerChatState) -> str:
         if state.get("intent") == "memory_inquiry":
             return "memory_answer_node"
+        if state.get("intent") == "post_status_inquiry":
+            return "post_status_node"
         if self._needs_brief_first(state):
             return "context_question_node"
         return INTENT_ROUTES.get(state["intent"], "clarification_node")
 
     def _needs_brief_first(self, state: ManagerChatState) -> bool:
-        """Ask for topic and platform before generating, unless the user explicitly ordered it."""
-        if state.get("intent") == "memory_inquiry":
+        """Ask for all brief fields before generating, unless the user explicitly ordered it."""
+        if state.get("intent") in {"memory_inquiry", "post_status_inquiry"}:
             return False
         if not state.get("post") or not state.get("brief_blocking"):
             return False

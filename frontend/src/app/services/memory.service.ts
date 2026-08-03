@@ -11,8 +11,14 @@ export interface MemorySearchResponse {
   results: string[];
 }
 
+export interface MemoryListEntry {
+  content: string;
+  content_hash: string;
+  tags: string[];
+}
+
 export interface MemoryListResponse {
-  entries: string[];
+  entries: MemoryListEntry[];
 }
 
 export interface MemoryUploadResponse {
@@ -20,6 +26,11 @@ export interface MemoryUploadResponse {
   filename: string;
   kind: string;
   preview: string;
+}
+
+export interface MemoryDeleteResponse {
+  status: string;
+  content_hash: string;
 }
 
 @Injectable({
@@ -48,7 +59,14 @@ export class MemoryService {
 
   upload(file: File): Observable<MemoryUploadResponse> {
     const formData = new FormData();
-    formData.append('file', file);
+    // Explicit filename helps some browsers/proxies keep the .pdf suffix for type detection.
+    formData.append('file', file, file.name || 'upload.bin');
     return this.http.post<MemoryUploadResponse>(`${this.baseUrl}/api/memory/upload`, formData);
+  }
+
+  delete(contentHash: string): Observable<MemoryDeleteResponse> {
+    return this.http.delete<MemoryDeleteResponse>(
+      `${this.baseUrl}/api/memory/${encodeURIComponent(contentHash)}`
+    );
   }
 }

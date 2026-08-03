@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     hf_token: SecretStr | None = Field(default=None, alias="HF_TOKEN")
     hf_model_id: str = Field(default="Qwen/Qwen2.5-7B-Instruct", alias="HF_MODEL_ID")
     hf_image_model_id: str = Field(default="black-forest-labs/FLUX.1-schnell", alias="HF_IMAGE_MODEL_ID")
+    hf_image_to_image_model_id: str = Field(
+        default="stabilityai/stable-diffusion-xl-base-1.0",
+        alias="HF_IMAGE_TO_IMAGE_MODEL_ID",
+    )
     hf_caption_model_id: str = Field(
         default="Salesforce/blip-image-captioning-base",
         alias="HF_CAPTION_MODEL_ID",

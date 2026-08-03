@@ -142,9 +142,28 @@
           } @else if (allEntries().length === 0) {
             <p class="empty-msg">Noch keine Einträge gespeichert.</p>
           } @else {
+            @if (deleteError()) {
+              <p class="error-msg">{{ deleteError() }}</p>
+            }
             <ul class="entry-list">
-              @for (entry of allEntries(); track $index) {
-                <li class="entry-item">{{ entry }}</li>
+              @for (entry of allEntries(); track entry.content_hash || $index) {
+                <li class="entry-item">
+                  <div class="entry-body">
+                    <p class="entry-content">{{ entry.content }}</p>
+                    @if (entry.tags.length > 0) {
+                      <p class="entry-tags">{{ entry.tags.join(', ') }}</p>
+                    }
+                  </div>
+                  <button
+                    class="delete-btn"
+                    type="button"
+                    title="Eintrag löschen"
+                    [disabled]="!entry.content_hash || deletingHash() === entry.content_hash"
+                    (click)="deleteEntry(entry)"
+                  >
+                    {{ deletingHash() === entry.content_hash ? '...' : 'Löschen' }}
+                  </button>
+                </li>
               }
             </ul>
           }

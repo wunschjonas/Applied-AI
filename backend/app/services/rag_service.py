@@ -119,11 +119,24 @@ class RAGService:
             raise
 
     def list_all(self) -> list[str]:
+        return [entry["content"] for entry in self.list_entries() if entry.get("content")]
+
+    def list_entries(self) -> list[dict[str, Any]]:
         try:
-            return _run_coro(self._list())
+            return _run_coro(self._list_entries())
         except Exception as exc:
             logger.warning("Memory list failed: %s", exc)
             return []
+
+    def delete(self, content_hash: str) -> bool:
+        content_hash = (content_hash or "").strip()
+        if not content_hash:
+            raise ValueError("content_hash is required")
+        try:
+            return bool(_run_coro(self._delete(content_hash)))
+        except Exception as exc:
+            logger.warning("Memory delete failed: %s", exc)
+            raise
 
     @asynccontextmanager
     async def _session(self) -> AsyncIterator[ClientSession]:
@@ -146,55 +159,99 @@ class RAGService:
         return "\n".join(contents) if contents else ""
 
     async def _store(self, content: str, tags: list[str]) -> None:
+        payload: dict[str, Any] = {"content": content}
+        if tags:
+            payload["metadata"] = {"tags": tags}
+            payload["tags"] = tags
         async with self._session() as session:
-            await session.call_tool(
-                "memory_store", {"content": content, "tags": tags}
-            )
+            await session.call_tool("memory_store", payload)
 
     async def _list(self) -> list[str]:
+        entries = await self._list_entries()
+        return [entry["content"] for entry in entries if entry.get("content")]
+
+    async def _list_entries(self) -> list[dict[str, Any]]:
         async with self._session() as session:
-            result = await session.call_tool("memory_list", {})
-        return self._extract_contents(result)
+            result = await session.call_tool("memory_list", {"page": 1, "page_size": 100})
+        return self._extract_entries(result)
+
+    async def _delete(self, content_hash: str) -> bool:
+        async with self._session() as session:
+            result = await session.call_tool("memory_delete", {"content_hash": content_hash})
+        texts = [item.text for item in result.content if hasattr(item, "text") and item.text]
+        joined = "\n".join(texts).lower()
+        if "fail" in joined or "error" in joined or "not found" in joined:
+            return False
+        return True
 
     def _extract_contents(self, result: Any) -> list[str]:
         """Parse MCP tool result — Memory Service returns JSON with memories/results/entries."""
-        raw_texts = [item.text for item in result.content if hasattr(item, "text") and item.text]
-        contents: list[str] = []
-        for text in raw_texts:
-            parsed = self._parse_memory_payload(text)
-            if parsed:
-                contents.extend(parsed)
-            else:
-                contents.append(text)
-        return contents
+        return [
+            entry["content"]
+            for entry in self._extract_entries(result)
+            if entry.get("content")
+        ]
 
-    def _parse_memory_payload(self, text: str) -> list[str]:
+    def _extract_entries(self, result: Any) -> list[dict[str, Any]]:
+        raw_texts = [item.text for item in result.content if hasattr(item, "text") and item.text]
+        entries: list[dict[str, Any]] = []
+        for text in raw_texts:
+            parsed = self._parse_memory_entries(text)
+            if parsed:
+                entries.extend(parsed)
+            elif text.strip():
+                entries.append({"content": text.strip(), "content_hash": "", "tags": []})
+        return entries
+
+    def _parse_memory_entries(self, text: str) -> list[dict[str, Any]]:
         try:
             data = json.loads(text)
         except (json.JSONDecodeError, TypeError):
-            return self._parse_plain_memory_text(text)
+            return [
+                {"content": content, "content_hash": "", "tags": []}
+                for content in self._parse_plain_memory_text(text)
+            ]
 
+        memories: list[Any]
         if isinstance(data, list):
-            return [str(item.get("content") or item.get("text") or item) for item in data if item]
+            memories = data
+        elif isinstance(data, dict):
+            memories = []
+            for key in ("memories", "results", "entries", "items", "data"):
+                values = data.get(key)
+                if isinstance(values, list):
+                    memories = values
+                    break
+            if not memories:
+                content = data.get("content") or data.get("text")
+                if content:
+                    return [
+                        {
+                            "content": str(content),
+                            "content_hash": str(data.get("content_hash") or data.get("hash") or ""),
+                            "tags": list(data.get("tags") or []),
+                        }
+                    ]
+                return []
+        else:
+            return [{"content": str(data), "content_hash": "", "tags": []}]
 
-        if not isinstance(data, dict):
-            return [str(data)]
-
-        for key in ("memories", "results", "entries", "items", "data"):
-            values = data.get(key)
-            if isinstance(values, list):
-                out: list[str] = []
-                for mem in values:
-                    if isinstance(mem, dict):
-                        content = mem.get("content") or mem.get("text") or mem.get("memory")
-                        if content:
-                            out.append(str(content))
-                    elif mem:
-                        out.append(str(mem))
-                return out
-
-        content = data.get("content") or data.get("text")
-        return [str(content)] if content else []
+        out: list[dict[str, Any]] = []
+        for mem in memories:
+            if isinstance(mem, dict):
+                content = mem.get("content") or mem.get("text") or mem.get("memory")
+                if not content:
+                    continue
+                out.append(
+                    {
+                        "content": str(content),
+                        "content_hash": str(mem.get("content_hash") or mem.get("hash") or ""),
+                        "tags": list(mem.get("tags") or []),
+                    }
+                )
+            elif mem:
+                out.append({"content": str(mem), "content_hash": "", "tags": []})
+        return out
 
     def _parse_plain_memory_text(self, text: str) -> list[str]:
         """Parse human-readable MCP memory_search output into content lines."""

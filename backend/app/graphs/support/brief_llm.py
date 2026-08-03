@@ -24,7 +24,8 @@ COMPOSE_SYSTEM = (
     "You are a helpful German marketing manager agent chatting with a user. "
     "Write ONE short natural reply in German (2-5 sentences). "
     "Acknowledge what you learned, ask at most one clear next question if needed, "
-    "and stay concrete. Do not mention that you are an AI. Do not use markdown fences."
+    "and stay concrete. Do not mention that you are an AI. Do not use markdown fences. "
+    "Never repeat the same sentence or question twice in one reply."
 )
 
 
@@ -82,7 +83,7 @@ def extract_brief_with_llm(
     hf: HuggingFaceService | None,
 ) -> dict[str, Any]:
     """Prefer LLM extraction; always merge with regex/alias fallback."""
-    if post_fields.is_memory_inquiry(message):
+    if post_fields.is_memory_inquiry(message) or post_fields.is_post_status_inquiry(message):
         return {}
 
     regex_updates = post_fields.extract_fields(message, post)
@@ -141,7 +142,19 @@ def compose_manager_reply(
         return fallback
     if len(reply) < 12:
         return fallback
-    return reply
+    return _dedupe_repeated_sentences(reply)
+
+
+def _dedupe_repeated_sentences(text: str) -> str:
+    """Collapse exact consecutive duplicate sentences the model sometimes emits twice."""
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    cleaned: list[str] = []
+    for part in parts:
+        normalized = re.sub(r"\s+", " ", part).strip().casefold()
+        if cleaned and re.sub(r"\s+", " ", cleaned[-1]).strip().casefold() == normalized:
+            continue
+        cleaned.append(part.strip())
+    return " ".join(p for p in cleaned if p)
 
 
 def welcome_message(title: str, hf: HuggingFaceService | None = None) -> str:

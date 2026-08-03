@@ -7,7 +7,7 @@ from typing import Any
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
 from app.graphs.support.brief_llm import try_hf
-from app.graphs.support.post_fields import is_memory_inquiry
+from app.graphs.support.post_fields import is_memory_inquiry, memory_search_query
 from app.services.rag_service import MEMORY_SEARCH_TOOL
 
 
@@ -33,6 +33,8 @@ class RagNodes:
         state["rag_context"] = None
 
         # Memory Q&A: always retrieve (tool loop or direct search), never skip silently.
+        if state.get("intent") == "post_status_inquiry":
+            return state
         if state.get("intent") == "memory_inquiry" or is_memory_inquiry(state["user_message"]):
             return self._forced_memory_search(state, started_at)
 
@@ -154,7 +156,7 @@ class RagNodes:
 
     def _forced_memory_search(self, state: ManagerChatState, started_at: datetime) -> ManagerChatState:
         """Always retrieve for memory Q&A; fall back to memory_list if search is empty."""
-        query = state["user_message"]
+        query = memory_search_query(state["user_message"])
         observation, status = self._run_memory_search(state, {"query": query, "n_results": 5})
         if not state.get("rag_context"):
             entries = self.deps.rag_service.list_all()
@@ -170,7 +172,7 @@ class RagNodes:
         self.recorder.step(
             state,
             "rag_react_node",
-            "Forced memory retrieval for a RAG/Gedaechtnis question.",
+            f"Forced memory retrieval for query '{query}'.",
             "call_memory_search",
             observation,
             status,
@@ -182,7 +184,7 @@ class RagNodes:
             step="rag_react_forced",
             started_at=started_at,
             tool_called="mcp_memory_search",
-            thought="Forced memory retrieval for a RAG/Gedaechtnis question.",
+            thought=f"Forced memory retrieval for query '{query}'.",
             observation=observation,
             output_summary=observation[:300],
         )

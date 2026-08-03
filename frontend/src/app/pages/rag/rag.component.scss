@@ -294,6 +294,10 @@ h1 {
 }
 
 .entry-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding: 0.6rem 0.85rem;
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -301,6 +305,41 @@ h1 {
   font-size: 0.9rem;
   color: #374151;
   word-break: break-word;
+}
+
+.entry-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.entry-content {
+  margin: 0;
+}
+
+.entry-tags {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.delete-btn {
+  flex-shrink: 0;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.8rem;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #fee2e2;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 // Responsive

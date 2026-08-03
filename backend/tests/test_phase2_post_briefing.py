@@ -111,6 +111,17 @@ def test_manager_generates_once_topic_and_platform_are_known(tmp_path: Path):
     assert stored_post(graph, POST_A)["status"] == "preview_ready"
 
 
+def test_incomplete_brief_blocks_generation_without_explicit_order(tmp_path: Path):
+    graph = build_graph(tmp_path)
+    seed_post(graph, POST_A, topic="KI-Agenten im Marketing", platform="linkedin")
+    result = graph.run("Ich brauche bitte eine Caption dazu.", POST_A)
+
+    assert result["used_agents"] == []
+    assert "text" not in result["generated_artifacts"]
+    assert post_fields.FIELD_QUESTIONS["target_audience"] in result["assistant_message"]
+    assert "Soll ich Marketing-Text" not in result["assistant_message"]
+
+
 def test_generation_appends_followup_question_for_an_open_field(tmp_path: Path):
     graph = build_graph(tmp_path)
     seed_post(graph, POST_A, topic="KI-Agenten im Marketing", platform="linkedin")
@@ -119,6 +130,25 @@ def test_generation_appends_followup_question_for_an_open_field(tmp_path: Path):
     assert BRIEF_FOLLOWUP_PREFIX in result["assistant_message"]
     assert post_fields.FIELD_QUESTIONS["target_audience"] in result["assistant_message"]
     assert stored_post(graph, POST_A)[post_fields.AWAITING_FIELD_KEY] == "target_audience"
+
+
+def test_post_status_inquiry_summarizes_current_post(tmp_path: Path):
+    graph = build_graph(tmp_path)
+    seed_post(
+        graph,
+        POST_A,
+        topic="Nachhaltiges Bauen",
+        platform="linkedin",
+        target_audience="Bauleiter",
+        tone_of_voice="sachlich",
+    )
+    result = graph.run("Was wissen wir schon zum aktuellen Post?", POST_A)
+
+    assert result["used_agents"] == []
+    assert "post_status_answer" in result["generated_artifacts"]
+    assert "Nachhaltiges Bauen" in result["assistant_message"]
+    assert "linkedin" in result["assistant_message"].lower()
+    assert "Bauleiter" in result["assistant_message"]
 
 
 def test_explicit_order_generates_despite_missing_fields(tmp_path: Path):
@@ -221,6 +251,12 @@ def test_post_init_writes_welcome_message_with_title(tmp_path: Path):
 
     assert response.welcome_message
     assert "Nachhaltige Mode" in response.welcome_message
+    assert response.missing_fields == [
+        "topic",
+        "platform",
+        "target_audience",
+        "tone_of_voice",
+    ]
     post = service.store.get(response.post_id)
     assert post[post_fields.AWAITING_FIELD_KEY] == "topic"
     chat = service.chat_service.get_chat(f"{response.post_id}::manager_agent")
@@ -251,9 +287,188 @@ def test_image_agent_chat_regenerates_the_post_image(tmp_path: Path):
     refine_brief = next(prompt for prompt in hf.user_prompts if "Verfeinerungsauftrag" in prompt)
     assert "Ein alter Bildprompt mit blauem Hintergrund." in refine_brief
     assert "Marketing-Text zum Bild." in refine_brief
+    assert hf.img2img_calls == []
 
     preview = service.post_repository.get(POST_B)["preview"]
     assert preview["image_url"] == f"/generated-images/{POST_B}.png"
     assert preview["generated_text"] == "Marketing-Text zum Bild."
     assert (tmp_path / "generated_images" / f"{POST_B}.png").exists()
     assert result["generated_artifacts"]["image"]["image_filename"] == f"{POST_B}.png"
+
+
+def _tiny_png_bytes(color: tuple[int, int, int] = (20, 40, 60)) -> bytes:
+    from io import BytesIO
+
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (16, 16), color=color).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def test_image_agent_chat_uses_img2img_when_source_image_given(tmp_path: Path):
+    hf = FakeHF()
+    service = build_agent_service(tmp_path, hf)
+    service.post_repository.save(
+        {
+            "id": POST_B,
+            "title": "Testpost",
+            "status": "preview_ready",
+            "topic": "KI-Agenten",
+            "platform": "instagram",
+            "additional_context": None,
+            "preview": {
+                "generated_text": "Marketing-Text zum Bild.",
+                "image_prompt_optional": "Ein alter Bildprompt.",
+            },
+        }
+    )
+    source = _tiny_png_bytes()
+
+    result = service.image_agent_chat(
+        "Behalte die Komposition, aendere die Farbe zu Orange.",
+        POST_B,
+        source_image=source,
+        strength=0.55,
+    )
+
+    assert len(hf.img2img_calls) == 1
+    assert hf.img2img_calls[0]["image_bytes"] == source
+    assert hf.img2img_calls[0]["strength"] == 0.55
+    artifact = result["generated_artifacts"]["image"]
+    assert artifact["used_image_to_image"] is True
+    assert artifact["generation_mode"] == "image_to_image"
+    assert artifact["used_reference_image"] is True
+    assert artifact["img2img_source"] == "reference"
+    assert artifact["image_url"] == f"/generated-images/{POST_B}.png"
+    assert (tmp_path / "generated_images" / f"{POST_B}.png").read_bytes() == b"fake-img2img-png-bytes"
+    assert "neues Bild" in result["assistant_message"].lower() or "Referenzbild" in result["assistant_message"]
+
+
+def test_image_agent_chat_combines_current_and_reference_images(tmp_path: Path):
+    hf = FakeHF()
+    service = build_agent_service(tmp_path, hf)
+    service.post_repository.save(
+        {
+            "id": POST_B,
+            "title": "Testpost",
+            "status": "preview_ready",
+            "topic": "KI-Agenten",
+            "platform": "instagram",
+            "preview": {
+                "image_prompt_optional": "Alter Prompt",
+                "image_filename": f"{POST_B}.png",
+                "image_url": f"/generated-images/{POST_B}.png",
+            },
+        }
+    )
+    current = _tiny_png_bytes(color=(10, 20, 30))
+    reference = _tiny_png_bytes(color=(200, 100, 50))
+    (tmp_path / "generated_images").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "generated_images" / f"{POST_B}.png").write_bytes(current)
+
+    result = service.image_agent_chat(
+        "Mische beide Motive zu einem sommerlichen Post.",
+        POST_B,
+        source_image=reference,
+    )
+
+    artifact = result["generated_artifacts"]["image"]
+    assert artifact["used_current_image"] is True
+    assert artifact["used_reference_image"] is True
+    assert artifact["img2img_source"] == "current_plus_reference"
+    assert artifact["generation_mode"] == "image_to_image"
+    assert len(hf.img2img_calls) == 1
+    assert hf.img2img_calls[0]["image_bytes"] != current
+    assert hf.img2img_calls[0]["image_bytes"] != reference
+    assert "Post-Bild" in result["assistant_message"] and "Referenzbild" in result["assistant_message"]
+
+
+def test_image_agent_chat_falls_back_to_txt2img_when_img2img_fails(tmp_path: Path):
+    class FailingImg2ImgHF(FakeHF):
+        def generate_image_from_image(self, prompt, image_bytes, *, negative_prompt=None, strength=0.7):
+            self.img2img_calls.append({"prompt": prompt, "image_bytes": image_bytes})
+            raise RuntimeError("HuggingFace image-to-image unsupported or unavailable model")
+
+    hf = FailingImg2ImgHF()
+    service = build_agent_service(tmp_path, hf)
+    service.post_repository.save(
+        {
+            "id": POST_B,
+            "title": "Testpost",
+            "status": "preview_ready",
+            "topic": "KI-Agenten",
+            "platform": "instagram",
+            "preview": {"image_prompt_optional": "Alter Prompt"},
+        }
+    )
+
+    result = service.image_agent_chat(
+        "Beziehe das Referenzbild ein und mache es sommerlicher.",
+        POST_B,
+        source_image=_tiny_png_bytes(),
+    )
+
+    artifact = result["generated_artifacts"]["image"]
+    assert artifact["generation_mode"] == "text_to_image_fallback"
+    assert artifact["used_image_to_image"] is False
+    assert artifact["image_url"] == f"/generated-images/{POST_B}.png"
+    assert (tmp_path / "generated_images" / f"{POST_B}.png").read_bytes() == b"fake-png-bytes"
+    assert "neues Bild" in result["assistant_message"].lower() or "Referenzbild" in result["assistant_message"]
+
+
+def test_image_agent_chat_multipart_accepts_source_image(tmp_path: Path):
+    from fastapi.testclient import TestClient
+
+    from app.core import config as config_module
+    from app.main import app
+    from app.services.agent_service import AgentService
+
+    previous = {
+        "chats_file": config_module.settings.chats_file,
+        "traces_file": config_module.settings.traces_file,
+        "agent_logs_file": config_module.settings.agent_logs_file,
+        "posts_file": config_module.settings.posts_file,
+        "generated_images_dir": config_module.settings.generated_images_dir,
+    }
+    import app.api.routes_image_agent as image_routes
+
+    previous_service = image_routes.agent_service
+
+    try:
+        config_module.settings.chats_file = tmp_path / "chats.json"
+        config_module.settings.traces_file = tmp_path / "traces.json"
+        config_module.settings.agent_logs_file = tmp_path / "agent_logs.json"
+        config_module.settings.posts_file = tmp_path / "posts.json"
+        config_module.settings.generated_images_dir = tmp_path / "generated_images"
+
+        hf = FakeHF()
+        service = AgentService()
+        service._hf = lambda: hf  # type: ignore[method-assign]
+        service.post_repository.save(
+            {
+                "id": POST_A,
+                "title": "Testpost",
+                "status": "preview_ready",
+                "topic": "KI",
+                "platform": "linkedin",
+                "preview": {"image_prompt_optional": "Alter Prompt"},
+            }
+        )
+
+        image_routes.agent_service = service
+        client = TestClient(app)
+        response = client.post(
+            "/api/agents/image/chat",
+            data={"message": "Mach es warmer.", "post_id": POST_A, "strength": "0.6"},
+            files={"source_image": ("ref.png", _tiny_png_bytes(), "image/png")},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["generated_artifacts"]["image"]["used_image_to_image"] is True
+        assert len(hf.img2img_calls) == 1
+    finally:
+        image_routes.agent_service = previous_service
+        for key, value in previous.items():
+            setattr(config_module.settings, key, value)

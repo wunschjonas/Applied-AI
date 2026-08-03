@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
-REQUIRED_FIELDS = ("topic", "platform")
-OPTIONAL_FIELDS = ("target_audience", "tone_of_voice")
+REQUIRED_FIELDS = ("topic", "platform", "target_audience", "tone_of_voice")
+OPTIONAL_FIELDS: tuple[str, ...] = ()
 BRIEF_FIELDS = REQUIRED_FIELDS + OPTIONAL_FIELDS
 FREE_TEXT_FIELDS = ("topic", "platform", "target_audience", "tone_of_voice", "additional_context")
 
@@ -89,16 +89,78 @@ MEMORY_INQUIRY_MARKERS = (
     "gedachtnis",
     "gedaechtnis",
     "memory",
-    " knowledge base",
     "knowledge base",
     "im rag",
     "dein rag",
     "deinem rag",
+    "vom rag",
+    "aus dem rag",
+    "zum rag",
     "unsere daten",
     "was steht in",
     "hast du im",
     "gespeichert",
     "hochgeladen",
+    "was weißt du über",
+    "was weisst du ueber",
+    "was weisst du über",
+    "kennst du details",
+    "kennst du etwas",
+    "hast du infos",
+    "gibt es infos",
+)
+
+MEMORY_INQUIRY_PATTERNS = (
+    r"\b(?:im|aus dem|vom|zum)\s+rag\b",
+    r"\brag\b.{0,40}\b(?:zu|über|ueber|zum thema)\b",
+    r"\b(?:zu|über|ueber|zum thema)\b.{0,80}\b(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory)\b",
+    r"\b(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory)\b.{0,80}\b(?:zu|über|ueber|thema)\b",
+    r"was\s+(?:steht|wei[sß]t|findest).{0,40}\b(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory|daten)\b",
+    r"was\s+wei[sß]t\s+du\s+(?:über|ueber|zu|zur|zum|zum thema)\b",
+    r"kennst\s+du\s+(?:details|etwas|infos)\s+(?:zu|zur|zum|über|ueber|zum thema)\b",
+    r"was\s+kannst\s+du\s+mir\s+(?:über|ueber|zu|zur|zum)\b",
+    r"(?:hast|gibt)\s+(?:du\s+)?infos?\s+(?:zu|zur|zum|über|ueber)\b",
+)
+
+MEMORY_QUERY_PATTERNS = (
+    r"(?:was steht|was wei[sß]t du|was findest du|was kannst du mir).*(?:zum thema|über|ueber|zur|zum|zu)\s+(.+)$",
+    r"(?:kennst du (?:details|etwas|infos)|hast du infos|gibt es infos).*(?:zum thema|über|ueber|zur|zum|zu)\s+(.+)$",
+    r"(?:im rag|im gedächtnis|im gedachtnis|im gedaechtnis|in memory).*(?:zum thema|über|ueber|zur|zum|zu)\s+(.+)$",
+    r"(?:zum thema|über|ueber)\s+(.+?)(?:\s+(?:im|aus dem|vom)\s+(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory).*)?$",
+    r"(?:zur|zum|zu)\s+(.+?)(?:\s+(?:im|aus dem|vom)\s+(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory).*)?$",
+    r"(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory).*(?:zum thema|über|ueber|zur|zum|zu)\s+(.+)$",
+)
+
+POST_STATUS_MARKERS = (
+    "aktueller post",
+    "aktuellen post",
+    "zum post",
+    "zum aktuellen post",
+    "post-status",
+    "post status",
+    "brief-status",
+    "brief status",
+    "welche felder",
+    "offene felder",
+    "was haben wir bereits",
+    "was wissen wir schon",
+    "was ist schon gesetzt",
+    "was steht in posts",
+    "post-daten",
+    "post daten",
+    "zeig den brief",
+    "zeig mir den brief",
+    "zeig den post",
+)
+
+POST_STATUS_PATTERNS = (
+    r"\b(?:aktueller|aktuellen|dieser|diesen)\s+post\b",
+    r"\b(?:zum|ueber den|über den)\s+(?:aktuellen\s+)?post\b",
+    r"\b(?:brief|post)[\s-]?status\b",
+    r"was\s+(?:wissen|haben)\s+wir\s+(?:schon|bereits)\b",
+    r"welche\s+felder\b",
+    r"was\s+ist\s+schon\s+gesetzt\b",
+    r"zeig(?:\s+mir)?\s+den\s+(?:brief|post)\b",
 )
 
 
@@ -107,10 +169,54 @@ def wants_generation(message: str) -> bool:
     return any(marker in normalized for marker in GENERATE_MARKERS)
 
 
+def is_post_status_inquiry(message: str) -> bool:
+    """True when the user asks about the current post's stored brief/preview data."""
+    normalized = message.lower()
+    if any(marker in normalized for marker in POST_STATUS_MARKERS):
+        return True
+    return any(re.search(pattern, normalized) for pattern in POST_STATUS_PATTERNS)
+
+
 def is_memory_inquiry(message: str) -> bool:
     """True when the user asks what is stored in RAG/memory rather than briefing a post."""
+    if is_post_status_inquiry(message):
+        return False
     normalized = message.lower()
-    return any(marker in normalized for marker in MEMORY_INQUIRY_MARKERS)
+    if any(marker in normalized for marker in MEMORY_INQUIRY_MARKERS):
+        return True
+    return any(re.search(pattern, normalized) for pattern in MEMORY_INQUIRY_PATTERNS)
+
+
+def memory_search_query(message: str) -> str:
+    """Extract a focused search query from a memory/RAG question about topic X."""
+    cleaned = re.sub(r"\s+", " ", (message or "").strip())
+    if not cleaned:
+        return "brand facts"
+    lowered = cleaned.lower()
+    for pattern in MEMORY_QUERY_PATTERNS:
+        match = re.search(pattern, lowered, flags=re.IGNORECASE)
+        if match:
+            topic = match.group(1).strip(" \t,;:!?-")
+            topic = re.sub(
+                r"\b(?:im|aus dem|vom|dein|deinem|unser|unsere)?\s*"
+                r"(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory|daten)\b",
+                "",
+                topic,
+                flags=re.IGNORECASE,
+            ).strip(" \t,;:!?-")
+            if len(topic) >= FIELD_MIN_LENGTH:
+                return topic[:200]
+    # Fallback: drop filler words but keep the topical remainder.
+    stripped = re.sub(
+        r"\b(?:was|steht|wei[sß]t|du|findest|kennst|details|etwas|infos|kannst|"
+        r"sagen|hast|gibt|es|im|aus|dem|vom|zum|rag|gedächtnis|gedachtnis|"
+        r"gedaechtnis|memory|bitte|mir|dazu|ueber|über)\b",
+        " ",
+        lowered,
+        flags=re.IGNORECASE,
+    )
+    stripped = re.sub(r"\s+", " ", stripped).strip(" \t,;:!?-")
+    return (stripped or cleaned)[:200]
 
 
 def is_valid_platform(value: str | None) -> bool:
@@ -168,7 +274,7 @@ def _clean_answer(field: str, message: str) -> str | None:
 
 def extract_fields(message: str, post: dict[str, Any]) -> dict[str, Any]:
     """Collect post field updates from a chat message (regex/alias path)."""
-    if is_memory_inquiry(message):
+    if is_memory_inquiry(message) or is_post_status_inquiry(message):
         return {}
 
     updates: dict[str, Any] = {}
@@ -239,3 +345,36 @@ def brief_context(post: dict[str, Any]) -> dict[str, Any]:
 def brief_summary(post: dict[str, Any]) -> str:
     parts = [f"{field}={post.get(field) or 'offen'}" for field in BRIEF_FIELDS]
     return "; ".join(parts)
+
+
+def post_status_summary(post: dict[str, Any]) -> str:
+    """Human-readable snapshot of the current posts.json entry for chat answers."""
+    from app.graphs.support.messages import FIELD_LABELS
+
+    lines = [
+        f"Titel: {post.get('title') or '—'}",
+        f"Status: {post.get('status') or '—'}",
+    ]
+    for field in BRIEF_FIELDS:
+        label = FIELD_LABELS.get(field, field)
+        value = post.get(field)
+        lines.append(f"{label}: {value if value else 'offen'}")
+    if post.get("additional_context"):
+        lines.append(f"Zusatzkontext: {post['additional_context']}")
+
+    preview = post.get("preview") or {}
+    if isinstance(preview, dict):
+        text = (preview.get("generated_text") or "").strip()
+        hashtags = preview.get("hashtags") or []
+        image_url = preview.get("image_url")
+        lines.append(f"Marketing-Text: {'vorhanden' if text else 'fehlt'}")
+        lines.append(f"Hashtags: {', '.join(hashtags) if hashtags else 'fehlen'}")
+        lines.append(f"Bild: {'vorhanden' if image_url else 'fehlt'}")
+
+    missing = missing_fields(post)
+    if missing:
+        labels = ", ".join(FIELD_LABELS.get(field, field) for field in missing)
+        lines.append(f"Noch offen: {labels}")
+    else:
+        lines.append("Noch offen: nichts")
+    return "\n".join(lines)

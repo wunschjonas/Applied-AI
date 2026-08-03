@@ -9,6 +9,7 @@ export interface InitPostResponse {
   title: string;
   created_at?: string;
   welcome_message?: string;
+  missing_fields?: string[];
 }
 
 export interface CreatePostRequest {
@@ -50,6 +51,7 @@ export interface Post {
   tone_of_voice?: string | null;
   additional_context?: string | null;
   preview?: PostPreview | null;
+  missing_fields?: string[];
 }
 
 export interface AgentTraceStep {

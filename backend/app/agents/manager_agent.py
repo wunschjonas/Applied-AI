@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.graphs.support.post_fields import is_memory_inquiry, is_post_status_inquiry
+
 
 @dataclass(frozen=True)
 class AgentIntent:
@@ -73,27 +75,22 @@ class ManagerIntentClassifier:
         "visualisierung",
     }
 
-    memory_inquiry_markers = {
-        "gedächtnis",
-        "gedachtnis",
-        "gedaechtnis",
-        "memory",
-        "im rag",
-        "dein rag",
-        "deinem rag",
-        "knowledge base",
-        "was steht in",
-        "hast du im",
-        "gespeichert",
-        "hochgeladen",
-        "unsere daten",
-    }
-
     def classify_intent(self, message: str) -> AgentIntent:
         normalized = message.lower()
 
+        # Current-post status questions win over generic knowledge / keyword matches.
+        if is_post_status_inquiry(message):
+            return AgentIntent(
+                use_text=False,
+                use_image=False,
+                needs_clarification=False,
+                label="post_status_inquiry",
+                decision="Detected a question about the current post's stored data.",
+                observation="Post status inquiry selected. Answer from posts.json / state.post.",
+            )
+
         # Ask-about-memory must win over generic "bild"/"image" keyword matches.
-        if self._contains_any(normalized, self.memory_inquiry_markers):
+        if is_memory_inquiry(message):
             return AgentIntent(
                 use_text=False,
                 use_image=False,

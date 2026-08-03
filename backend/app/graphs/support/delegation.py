@@ -64,6 +64,9 @@ def build_execution_plan(
     if intent == "memory_inquiry":
         expected_artifacts.append("memory_answer")
         validation_requirements.append("assistant_message_present")
+    if intent == "post_status_inquiry":
+        expected_artifacts.append("post_status_answer")
+        validation_requirements.append("assistant_message_present")
 
     return {
         "required_agents": required_agents,

@@ -18,12 +18,14 @@ from app.services.trace_service import TraceService
 class FakeHF:
     hf_model_id = "fake-text-model"
     hf_image_model_id = "fake-image-model"
+    hf_image_to_image_model_id = "fake-img2img-model"
 
     def __init__(self, image_failures: int = 0, short_text_failures: int = 0):
         self.image_failures = image_failures
         self.short_text_failures = short_text_failures
         self.user_prompts: list[str] = []
         self.tool_rounds: list[dict] = []
+        self.img2img_calls: list[dict] = []
         self._rag_tool_used = False
 
     def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = 700) -> str:
@@ -84,6 +86,27 @@ class FakeHF:
             raise RuntimeError("HuggingFace image transient error: TimeoutError: temporary unavailable")
         return b"fake-png-bytes"
 
+    def generate_image_from_image(
+        self,
+        prompt: str,
+        image_bytes: bytes,
+        *,
+        negative_prompt: str | None = None,
+        strength: float = 0.7,
+    ) -> bytes:
+        self.img2img_calls.append(
+            {
+                "prompt": prompt,
+                "image_bytes": image_bytes,
+                "negative_prompt": negative_prompt,
+                "strength": strength,
+            }
+        )
+        if self.image_failures > 0:
+            self.image_failures -= 1
+            raise RuntimeError("HuggingFace image transient error: TimeoutError: temporary unavailable")
+        return b"fake-img2img-png-bytes"
+
 
 class FakeRAG:
     def __init__(self, result: str = "stored memory context"):
@@ -108,6 +131,26 @@ class FakeRAG:
 
     def list_all(self) -> list[str]:
         return [content for content, _ in self.stored]
+
+    def list_entries(self) -> list[dict]:
+        return [
+            {"content": content, "content_hash": f"hash-{index}", "tags": tags}
+            for index, (content, tags) in enumerate(self.stored)
+        ]
+
+    def delete(self, content_hash: str) -> bool:
+        index = next(
+            (
+                i
+                for i, _ in enumerate(self.stored)
+                if f"hash-{i}" == content_hash
+            ),
+            None,
+        )
+        if index is None:
+            return False
+        self.stored.pop(index)
+        return True
 
 
 def build_graph(tmp_path: Path, hf_factory=None, rag_service=None) -> ManagerChatGraph:
@@ -153,6 +196,11 @@ def test_intent_classification_cases():
     assert classifier.classify_intent("Instagram Caption mit Hashtags und Bildidee").label == "text_and_image"
     assert classifier.classify_intent("Ist im Gedaechtnis ein Bild?").label == "memory_inquiry"
     assert classifier.classify_intent("Was steht in deinem Rag / Gedaechtnis?").label == "memory_inquiry"
+    assert classifier.classify_intent("Was steht zum Thema Formel 1 im Rag?").label == "memory_inquiry"
+    assert classifier.classify_intent("Was weisst du ueber Formel 1?").label == "memory_inquiry"
+    assert classifier.classify_intent("Kennst du Details zur Zielgruppe?").label == "memory_inquiry"
+    assert classifier.classify_intent("Was wissen wir schon zum aktuellen Post?").label == "post_status_inquiry"
+    assert classifier.classify_intent("Zeig mir den Brief").label == "post_status_inquiry"
     assert classifier.classify_intent("Hilf mir bitte").label == "clarification_needed"
 
 
@@ -233,6 +281,9 @@ def test_graph_clarification_uses_no_specialist(tmp_path):
     assert result["used_agents"] == []
     assert result["generated_artifacts"] == {}
     assert "Marketing-Text" in result["assistant_message"]
+    # Clarification must stay a single reply (no duplicated append).
+    text = result["assistant_message"]
+    assert text.count("Marketing-Text") == 1
 
 
 def test_rag_request_executes_rag_path(tmp_path):
@@ -314,7 +365,15 @@ def test_safe_filename_and_static_route_serves_test_image(tmp_path):
     assert named["image_filename"] == f"{post_id}.png"
     assert storage.exists(named["image_filename"])
 
-    static_storage = ImageStorageService(settings.generated_images_dir)
+    # Use the directory the app mounted at import time (not a mutated settings path).
+    mount_dir = None
+    for route in app.routes:
+        if getattr(route, "name", None) == "generated-images":
+            mount_dir = Path(route.app.directory)
+            break
+    assert mount_dir is not None
+
+    static_storage = ImageStorageService(mount_dir)
     static_stored = static_storage.save_png(b"static-test-bytes")
     client = TestClient(app)
     assert any(route.path == "/api/agents/image/generate" for route in app.routes if hasattr(route, "path"))

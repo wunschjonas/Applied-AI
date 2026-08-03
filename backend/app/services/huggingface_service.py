@@ -5,6 +5,7 @@ from io import BytesIO
 from typing import Any
 
 from huggingface_hub import InferenceClient
+from PIL import Image
 
 
 class HuggingFaceService:
@@ -14,6 +15,7 @@ class HuggingFaceService:
         hf_model_id: str,
         hf_image_model_id: str | None = None,
         hf_caption_model_id: str | None = None,
+        hf_image_to_image_model_id: str | None = None,
     ):
         if not hf_token:
             raise ValueError("HF_TOKEN is missing. Configure it in backend/.env before calling an agent.")
@@ -21,6 +23,9 @@ class HuggingFaceService:
         self.hf_model_id = hf_model_id
         self.hf_image_model_id = hf_image_model_id
         self.hf_caption_model_id = hf_caption_model_id or "Salesforce/blip-image-captioning-base"
+        self.hf_image_to_image_model_id = (
+            hf_image_to_image_model_id or "stabilityai/stable-diffusion-xl-base-1.0"
+        )
         self.client = InferenceClient(token=hf_token)
 
     def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = 700) -> str:
@@ -146,22 +151,72 @@ class HuggingFaceService:
             if negative_prompt:
                 kwargs["negative_prompt"] = negative_prompt
             image = self.client.text_to_image(prompt, **kwargs)
-        except PermissionError as exc:
-            raise RuntimeError(f"HuggingFace image permission denied: {type(exc).__name__}: {exc}") from exc
-        except TimeoutError as exc:
-            raise RuntimeError(f"HuggingFace image transient error: {type(exc).__name__}: {exc}") from exc
         except Exception as exc:
-            message = str(exc).lower()
-            if any(term in message for term in ("permission", "unauthorized", "forbidden", "401", "403")):
-                category = "permission denied"
-            elif any(term in message for term in ("not found", "unsupported", "not supported", "404")):
-                category = "unsupported or unavailable model"
-            elif any(term in message for term in ("timeout", "temporarily", "unavailable", "503", "rate limit", "429")):
-                category = "transient error"
-            else:
-                category = "request failed"
-            raise RuntimeError(f"HuggingFace image {category}: {type(exc).__name__}: {exc}") from exc
+            raise self._image_error(exc, mode="text-to-image") from exc
 
+        return self._image_response_to_png_bytes(image)
+
+    def generate_image_from_image(
+        self,
+        prompt: str,
+        image_bytes: bytes,
+        *,
+        negative_prompt: str | None = None,
+        strength: float = 0.7,
+    ) -> bytes:
+        if not self.hf_image_to_image_model_id:
+            raise ValueError(
+                "HF_IMAGE_TO_IMAGE_MODEL_ID is missing. "
+                "Configure it in backend/.env before using image-to-image."
+            )
+        if not image_bytes:
+            raise ValueError("Cannot run image-to-image without a source image.")
+
+        strength = max(0.05, min(1.0, float(strength)))
+        try:
+            source = Image.open(BytesIO(image_bytes)).convert("RGB")
+        except Exception as exc:
+            raise ValueError(f"Source image could not be decoded: {type(exc).__name__}: {exc}") from exc
+
+        errors: list[str] = []
+        # Some providers reject `strength`; retry without it before failing hard.
+        attempt_kwargs: list[dict[str, Any]] = [
+            {"model": self.hf_image_to_image_model_id, "prompt": prompt, "strength": strength},
+            {"model": self.hf_image_to_image_model_id, "prompt": prompt},
+        ]
+        for kwargs in attempt_kwargs:
+            call_kwargs = dict(kwargs)
+            if negative_prompt:
+                call_kwargs["negative_prompt"] = negative_prompt
+            try:
+                image = self.client.image_to_image(source, **call_kwargs)
+                return self._image_response_to_png_bytes(image)
+            except Exception as exc:
+                errors.append(f"{type(exc).__name__}: {exc}")
+
+        raise self._image_error(
+            RuntimeError(" | ".join(errors[:2])),
+            mode="image-to-image",
+        )
+
+    def _image_error(self, exc: Exception, *, mode: str) -> RuntimeError:
+        if isinstance(exc, PermissionError):
+            return RuntimeError(f"HuggingFace image permission denied: {type(exc).__name__}: {exc}")
+        if isinstance(exc, TimeoutError):
+            return RuntimeError(f"HuggingFace image transient error: {type(exc).__name__}: {exc}")
+
+        message = str(exc).lower()
+        if any(term in message for term in ("permission", "unauthorized", "forbidden", "401", "403")):
+            category = "permission denied"
+        elif any(term in message for term in ("not found", "unsupported", "not supported", "404")):
+            category = "unsupported or unavailable model"
+        elif any(term in message for term in ("timeout", "temporarily", "unavailable", "503", "rate limit", "429")):
+            category = "transient error"
+        else:
+            category = "request failed"
+        return RuntimeError(f"HuggingFace {mode} {category}: {type(exc).__name__}: {exc}")
+
+    def _image_response_to_png_bytes(self, image: Any) -> bytes:
         if image is None:
             raise RuntimeError("HuggingFace image generation returned an empty response.")
 
@@ -178,4 +233,6 @@ class HuggingFaceService:
                 raise RuntimeError("HuggingFace image generation returned an invalid image object.")
             return data
 
-        raise RuntimeError(f"HuggingFace image generation returned an unsupported response type: {type(image).__name__}.")
+        raise RuntimeError(
+            f"HuggingFace image generation returned an unsupported response type: {type(image).__name__}."
+        )

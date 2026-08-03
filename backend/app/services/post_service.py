@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.graphs.support import brief_llm
-from app.graphs.support.post_fields import AWAITING_FIELD_KEY
+from app.graphs.support.post_fields import AWAITING_FIELD_KEY, missing_fields
 from app.schemas.post import Platform, PostCreate, PostInit, PostInitResponse, PostResponse, PostStatus, PostUpdate
 from app.services.agent_service import AgentService
 from app.services.chat_service import ChatService
@@ -41,7 +41,12 @@ class PostService:
         chat = self.chat_service.get_or_create_chat(post_id, agent="manager_agent")
         self.chat_service.add_message(chat, "AGENT", welcome)
 
-        return PostInitResponse(post_id=post_id, title=post_init.title, welcome_message=welcome)
+        return PostInitResponse(
+            post_id=post_id,
+            title=post_init.title,
+            welcome_message=welcome,
+            missing_fields=missing_fields(post),
+        )
 
     def _optional_hf(self) -> HuggingFaceService | None:
         token = settings.hf_token.get_secret_value() if settings.hf_token else None
@@ -52,6 +57,8 @@ class PostService:
                 hf_token=token,
                 hf_model_id=settings.hf_model_id,
                 hf_image_model_id=settings.hf_image_model_id,
+                hf_caption_model_id=settings.hf_caption_model_id,
+                hf_image_to_image_model_id=settings.hf_image_to_image_model_id,
             )
         except Exception:
             return None
@@ -147,7 +154,17 @@ class PostService:
         return post["preview"]
 
     def _to_response(self, post: dict[str, Any]) -> PostResponse:
-        allowed = {"id", "title", "status", "topic", "platform", "target_audience", "tone_of_voice", "additional_context", "preview"}
+        allowed = {
+            "id",
+            "title",
+            "status",
+            "topic",
+            "platform",
+            "target_audience",
+            "tone_of_voice",
+            "additional_context",
+            "preview",
+        }
         payload = {k: v for k, v in post.items() if k in allowed}
         platform = payload.get("platform")
         if platform is not None:
@@ -156,4 +173,5 @@ class PostService:
             except ValueError:
                 # Corrupt brief values must not break the whole posts API.
                 payload["platform"] = None
+        payload["missing_fields"] = missing_fields(post)
         return PostResponse(**payload)

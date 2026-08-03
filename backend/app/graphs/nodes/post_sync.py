@@ -156,6 +156,10 @@ class PostSyncNodes:
         if state.get("followup_question"):
             return  # context_question_node already asked; do not stack a second question.
 
+        # Clarification / memory answers are already complete replies — never append another LLM turn.
+        if state.get("intent") in {"clarification_needed", "memory_inquiry", "post_status_inquiry"}:
+            return
+
         question = post_fields.next_question(state["post"] or {})
         if not question:
             self._set_awaiting_field(state["post_id"], None)
@@ -163,22 +167,11 @@ class PostSyncNodes:
 
         field, question_text = question
         state["followup_question"] = question_text
+        # Use the static follow-up only (no second compose call) to avoid duplicated replies.
         followup = messages.followup_question(question_text)
-        composed = brief_llm.compose_manager_reply(
-            hf=brief_llm.try_hf(self.deps.hf_factory),
-            fallback=followup,
-            situation="Append one short follow-up question for an optional brief field.",
-            user_message=state["user_message"],
-            post=state.get("post"),
-            brief_updates=state.get("brief_updates"),
-            next_question=question_text,
-            artifact_summary=state.get("assistant_message"),
-        )
-        # Keep the result summary, then ask the follow-up.
-        if composed == followup:
-            state["assistant_message"] = f"{state['assistant_message']} {followup}"
-        else:
-            state["assistant_message"] = f"{state['assistant_message']} {composed}"
+        existing = (state.get("assistant_message") or "").strip()
+        if followup.strip() and followup.strip() not in existing:
+            state["assistant_message"] = f"{existing} {followup}".strip() if existing else followup
         self._set_awaiting_field(state["post_id"], field)
 
         self.recorder.step(

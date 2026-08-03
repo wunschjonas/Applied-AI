@@ -13,6 +13,7 @@ ROUTE_OBSERVATIONS = {
     "image_only": "Route to ImageAgent.",
     "text_and_image": "Route to TextAgent first, then ImageAgent.",
     "memory_inquiry": "Route to memory answer from RAG context.",
+    "post_status_inquiry": "Route to post status summary from posts.json.",
     "clarification_needed": "Route to clarification response.",
 }
 

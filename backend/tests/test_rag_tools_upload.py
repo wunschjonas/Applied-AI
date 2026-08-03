@@ -6,9 +6,21 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from app.graphs.support.post_fields import is_memory_inquiry, memory_search_query
 from app.main import app
 from app.services.rag_service import chunk_text
 from tests.test_phase1_agent_refactor import FakeHF, FakeRAG, build_graph, seed_post
+
+
+def test_memory_topic_query_extraction():
+    assert is_memory_inquiry("Was steht zum Thema Formel 1 im Rag?")
+    assert memory_search_query("Was steht zum Thema Formel 1 im Rag?") == "formel 1"
+    assert "zielgruppe" in memory_search_query("Was weisst du im Gedaechtnis ueber die Zielgruppe?")
+    assert is_memory_inquiry("Was weisst du ueber Formel 1?")
+    assert memory_search_query("Was weisst du ueber Formel 1?") == "formel 1"
+    assert is_memory_inquiry("Kennst du Details zur Kampagne Q3?")
+    assert "kampagne" in memory_search_query("Kennst du Details zur Kampagne Q3?")
+    assert not is_memory_inquiry("Was wissen wir schon zum aktuellen Post?")
 
 
 def test_chunk_text_splits_long_content():
@@ -53,9 +65,11 @@ def test_memory_inquiry_answers_from_rag(tmp_path: Path):
     graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=rag)
     seed_post(graph, "post-memory-q")
 
-    result = graph.run("Was steht in deinem Rag / Gedaechtnis?", "post-memory-q")
+    result = graph.run("Was steht zum Thema Elektroauto im Rag?", "post-memory-q")
 
     assert rag.retrieve_called or rag.list_all()
+    assert rag.search_queries
+    assert "elektroauto" in rag.search_queries[0].lower()
     assert "car" in result["assistant_message"].lower() or "ged" in result["assistant_message"].lower() or "memory" in result["assistant_message"].lower() or "bild" in result["assistant_message"].lower() or "eintrag" in result["assistant_message"].lower() or "gefunden" in result["assistant_message"].lower()
     assert result["used_agents"] == []
     # Must not poison platform with the chat question.
@@ -144,3 +158,28 @@ def test_upload_image_stores_caption(tmp_path: Path):
     assert body["stored_chunks"] == 1
     assert "marketing product photo" in rag.stored[0][0]
     assert (tmp_path / "uploads").exists()
+
+
+def test_memory_list_and_delete_by_hash(tmp_path: Path):
+    rag = FakeRAG()
+    rag.store("Brand voice is clear.", ["brand"])
+    rag.store("Target audience is CMOs.", ["audience"])
+
+    with patch("app.api.routes_memory.rag_service", rag):
+        client = TestClient(app)
+        listed = client.get("/api/memory/list")
+        assert listed.status_code == 200
+        entries = listed.json()["entries"]
+        assert len(entries) == 2
+        assert entries[0]["content_hash"] == "hash-0"
+
+        deleted = client.delete(f"/api/memory/{entries[0]['content_hash']}")
+        assert deleted.status_code == 200
+        assert deleted.json()["status"] == "deleted"
+
+        remaining = client.get("/api/memory/list").json()["entries"]
+        assert len(remaining) == 1
+        assert remaining[0]["content"] == "Target audience is CMOs."
+
+        missing = client.delete("/api/memory/hash-999")
+        assert missing.status_code == 404

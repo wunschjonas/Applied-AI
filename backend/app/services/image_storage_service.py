@@ -34,6 +34,20 @@ class ImageStorageService:
             "image_content_type": self.content_type,
         }
 
+    def read_bytes(self, filename: str | None) -> bytes | None:
+        """Load a previously generated image if it exists on disk."""
+        if not filename or not self.is_safe_filename(filename):
+            return None
+        path = self.storage_dir / filename
+        if not path.exists() or not path.is_file() or path.stat().st_size == 0:
+            return None
+        return path.read_bytes()
+
+    def read_post_image(self, post_id: str | None) -> bytes | None:
+        if not post_id:
+            return None
+        return self.read_bytes(f"{post_id}.png")
+
     def exists(self, filename: str | None) -> bool:
         if not filename or not self.is_safe_filename(filename):
             return False

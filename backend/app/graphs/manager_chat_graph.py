@@ -100,6 +100,7 @@ class ManagerChatGraph:
         graph.add_node("image_agent_node", self.specialist_nodes.image_agent_node)
         graph.add_node("clarification_node", self.specialist_nodes.clarification_node)
         graph.add_node("memory_answer_node", self.specialist_nodes.memory_answer_node)
+        graph.add_node("post_status_node", self.specialist_nodes.post_status_node)
         graph.add_node("context_question_node", self.post_sync_nodes.context_question_node)
         graph.add_node("validation_node", self.response_nodes.validation_node)
         graph.add_node("assemble_response_node", self.response_nodes.assemble_response_node)
@@ -120,6 +121,7 @@ class ManagerChatGraph:
                 "image_agent_node": "image_agent_node",
                 "clarification_node": "clarification_node",
                 "memory_answer_node": "memory_answer_node",
+                "post_status_node": "post_status_node",
                 "context_question_node": "context_question_node",
             },
         )
@@ -131,6 +133,7 @@ class ManagerChatGraph:
         graph.add_edge("image_agent_node", "validation_node")
         graph.add_edge("clarification_node", "validation_node")
         graph.add_edge("memory_answer_node", "validation_node")
+        graph.add_edge("post_status_node", "validation_node")
         graph.add_conditional_edges(
             "validation_node",
             self.routers.retry_router,

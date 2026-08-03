@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from io import BytesIO
 from typing import Any
+
+from PIL import Image
 
 from app.agents.base_agent import BaseAgent
 from app.services.image_storage_service import ImageStorageService
@@ -63,7 +66,19 @@ class ImageAgent(BaseAgent):
         rag_context: str | None = None,
         validation_feedback: str | None = None,
         post_id: str | None = None,
+        source_image: bytes | None = None,
+        current_image: bytes | None = None,
+        strength: float = 0.7,
     ) -> dict[str, Any]:
+        """Generate a new image from text and optional visual inputs.
+
+        - ``source_image``: user reference upload
+        - ``current_image``: existing post preview image on disk
+        When both are present, they are composed into one img2img input.
+        """
+        if current_image is None and post_id:
+            current_image = self.image_storage.read_post_image(post_id)
+
         prompt_task = task
         if validation_feedback:
             prompt_task = f"{task}\n\nValidation feedback for retry: {validation_feedback}"
@@ -79,16 +94,60 @@ class ImageAgent(BaseAgent):
 
         prompt = artifact.get("image_prompt", "")
         negative_prompt = artifact.get("negative_prompt_optional")
-        model_id = getattr(self.hf, "hf_image_model_id", None) or "unconfigured"
+        img2img_bytes, img2img_source = self._resolve_img2img_source(current_image, source_image)
+        use_img2img = bool(img2img_bytes)
+        model_id = (
+            getattr(self.hf, "hf_image_to_image_model_id", None)
+            if use_img2img
+            else getattr(self.hf, "hf_image_model_id", None)
+        ) or "unconfigured"
 
         try:
-            self.trace(
-                trace,
-                thought="Image prompt is ready for text-to-image inference.",
-                action="call_text_to_image_model",
-                observation=f"Calling HuggingFace text-to-image model {model_id}.",
-            )
-            image_bytes = self.hf.generate_image(prompt=prompt, negative_prompt=negative_prompt)
+            generation_mode = "text_to_image"
+            if use_img2img:
+                self.trace(
+                    trace,
+                    thought="Visual inputs ready for image-to-image inference.",
+                    action="call_image_to_image_model",
+                    observation=(
+                        f"Calling HuggingFace image-to-image model {model_id} "
+                        f"with strength={strength}; source={img2img_source}."
+                    ),
+                )
+                try:
+                    image_bytes = self.hf.generate_image_from_image(
+                        prompt=prompt,
+                        image_bytes=img2img_bytes or b"",
+                        negative_prompt=negative_prompt,
+                        strength=strength,
+                    )
+                    generation_mode = "image_to_image"
+                except Exception as img2img_exc:
+                    self.trace(
+                        trace,
+                        thought="Image-to-image failed; falling back to text-to-image.",
+                        action="fallback_text_to_image",
+                        observation=f"{type(img2img_exc).__name__}: {img2img_exc}",
+                        status_value="warning",
+                    )
+                    txt_model = getattr(self.hf, "hf_image_model_id", None) or "unconfigured"
+                    self.trace(
+                        trace,
+                        thought="Generating a new image from the enriched prompt.",
+                        action="call_text_to_image_model",
+                        observation=f"Calling HuggingFace text-to-image model {txt_model}.",
+                    )
+                    image_bytes = self.hf.generate_image(prompt=prompt, negative_prompt=negative_prompt)
+                    generation_mode = "text_to_image_fallback"
+                    artifact["image_to_image_error"] = f"{type(img2img_exc).__name__}: {img2img_exc}"
+            else:
+                self.trace(
+                    trace,
+                    thought="Image prompt is ready for text-to-image inference.",
+                    action="call_text_to_image_model",
+                    observation=f"Calling HuggingFace text-to-image model {model_id}.",
+                )
+                image_bytes = self.hf.generate_image(prompt=prompt, negative_prompt=negative_prompt)
 
             self.trace(
                 trace,
@@ -98,12 +157,22 @@ class ImageAgent(BaseAgent):
             )
             stored = self.image_storage.save_png(image_bytes, filename_stem=post_id)
             artifact.update(stored)
+            artifact["generation_mode"] = generation_mode
+            artifact["img2img_source"] = img2img_source
+            artifact["used_current_image"] = bool(current_image)
+            artifact["used_reference_image"] = bool(source_image)
+            if use_img2img:
+                artifact["used_image_to_image"] = generation_mode == "image_to_image"
+                artifact["image_to_image_strength"] = strength
 
             self.trace(
                 trace,
                 thought="Generated image file is available.",
                 action="return_image_artifact",
-                observation=f"Stored {stored['image_filename']} at {stored['image_url']}.",
+                observation=(
+                    f"Stored {stored['image_filename']} at {stored['image_url']} "
+                    f"({generation_mode}, source={img2img_source})."
+                ),
             )
             return artifact
         except Exception as exc:
@@ -126,6 +195,40 @@ class ImageAgent(BaseAgent):
                 status_value="partial_success",
             )
             return artifact
+
+    def _resolve_img2img_source(
+        self,
+        current_image: bytes | None,
+        reference_image: bytes | None,
+    ) -> tuple[bytes | None, str]:
+        if current_image and reference_image:
+            return self._compose_side_by_side(current_image, reference_image), "current_plus_reference"
+        if current_image:
+            return current_image, "current_post"
+        if reference_image:
+            return reference_image, "reference"
+        return None, "none"
+
+    def _compose_side_by_side(self, left_bytes: bytes, right_bytes: bytes) -> bytes:
+        """Pack current post (left) + reference (right) into one img2img input."""
+        left = Image.open(BytesIO(left_bytes)).convert("RGB")
+        right = Image.open(BytesIO(right_bytes)).convert("RGB")
+        target_height = min(max(left.height, right.height, 512), 1024)
+        left = self._resize_to_height(left, target_height)
+        right = self._resize_to_height(right, target_height)
+        canvas = Image.new("RGB", (left.width + right.width, target_height), color=(255, 255, 255))
+        canvas.paste(left, (0, 0))
+        canvas.paste(right, (left.width, 0))
+        buffer = BytesIO()
+        canvas.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    @staticmethod
+    def _resize_to_height(image: Image.Image, height: int) -> Image.Image:
+        if image.height == height:
+            return image
+        width = max(1, int(image.width * (height / image.height)))
+        return image.resize((width, height), Image.Resampling.LANCZOS)
 
     def _build_prompt(
         self,
@@ -160,5 +263,15 @@ Do not request readable text inside the image unless explicitly required.
     def _is_retryable_error(self, error: str) -> bool:
         lowered = error.lower()
         transient_terms = ("transient", "timeout", "temporarily", "unavailable", "503", "429", "rate limit")
-        permanent_terms = ("hf_token", "permission", "forbidden", "unauthorized", "unsupported", "not found", "invalid configuration")
-        return any(term in lowered for term in transient_terms) and not any(term in lowered for term in permanent_terms)
+        permanent_terms = (
+            "hf_token",
+            "permission",
+            "forbidden",
+            "unauthorized",
+            "unsupported",
+            "not found",
+            "invalid configuration",
+        )
+        return any(term in lowered for term in transient_terms) and not any(
+            term in lowered for term in permanent_terms
+        )

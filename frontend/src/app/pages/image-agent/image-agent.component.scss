@@ -63,7 +63,76 @@ h1 {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
   overflow: hidden;
+
+  app-chat-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
+
+.reference-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #d7e3ee;
+  border-radius: 10px;
+  background: #f7fafc;
+}
+
+.reference-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #17324d;
+}
+
+.reference-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.reference-controls input[type='file'] {
+  font-size: 0.85rem;
+  color: #374151;
+  max-width: 100%;
+}
+
+.reference-clear {
+  border: 1px solid #c8d8e8;
+  background: #ffffff;
+  color: #17324d;
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.reference-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+
+  img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #c8d8e8;
+  }
+
+  span {
+    font-size: 0.8rem;
+    color: #4b5563;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .prompt-row {

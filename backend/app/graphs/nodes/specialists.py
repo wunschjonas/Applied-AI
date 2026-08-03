@@ -7,7 +7,7 @@ from app.agents.image_agent import ImageAgent
 from app.agents.text_agent import TextAgent
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
-from app.graphs.support import brief_llm, messages
+from app.graphs.support import brief_llm, messages, post_fields
 from app.graphs.support.delegation import context_value, image_task_with_marketing_text
 
 
@@ -116,20 +116,41 @@ class SpecialistNodes:
 
     def clarification_node(self, state: ManagerChatState) -> ManagerChatState:
         started_at = datetime.utcnow()
+        post = state.get("post")
+        missing = post_fields.missing_fields(post) if post else []
+        if missing:
+            field = missing[0]
+            question = post_fields.FIELD_QUESTIONS[field]
+            fallback = messages.context_question(state.get("brief_updates") or {}, question)
+            situation = (
+                "Brief fields are still open. Ask only for the next missing brief field. "
+                "Do not ask whether to generate text or image yet."
+            )
+            state["followup_question"] = question
+            self.deps.post_repository.update_fields(
+                state["post_id"], {post_fields.AWAITING_FIELD_KEY: field}
+            )
+        else:
+            fallback = messages.CLARIFICATION_REQUEST
+            situation = (
+                "Intent is unclear. Ask whether the user wants text, image, or both."
+            )
+
         state["assistant_message"] = brief_llm.compose_manager_reply(
             hf=brief_llm.try_hf(self.deps.hf_factory),
-            fallback=messages.CLARIFICATION_REQUEST,
-            situation="Intent is unclear. Ask whether the user wants text, image, or both, and invite brief details.",
+            fallback=fallback,
+            situation=situation,
             user_message=state["user_message"],
-            post=state.get("post"),
+            post=post,
             brief_updates=state.get("brief_updates"),
+            next_question=fallback if missing else None,
         )
         state["status"] = "needs_input"
 
         self.recorder.step(
             state,
             "clarification_node",
-            "The request is unclear.",
+            "The request is unclear." if not missing else f"Asking for missing brief field '{missing[0]}'.",
             "ask_clarification",
             "No specialist agent or HuggingFace call was made.",
             "needs_input",
@@ -140,7 +161,11 @@ class SpecialistNodes:
             status="skipped",
             step="ask_clarification",
             started_at=started_at,
-            thought="Intent unclear - asked user for text/image/both + platform/audience/tone",
+            thought=(
+                f"Brief still missing {missing}"
+                if missing
+                else "Intent unclear - asked user for text/image/both"
+            ),
             observation="No specialist agent or HuggingFace call was made.",
         )
         return state
@@ -150,6 +175,7 @@ class SpecialistNodes:
         started_at = datetime.utcnow()
         context = (state.get("rag_context") or "").strip()
         source = "memory_search"
+        missing = post_fields.missing_fields(state.get("post") or {})
 
         if not context:
             entries = self.deps.rag_service.list_all()
@@ -161,15 +187,30 @@ class SpecialistNodes:
                 context = ""
 
         if context:
-            fallback = (
-                "Im Gedächtnis habe ich dazu Folgendes gefunden:\n"
-                f"{context}\n\n"
-                "Soll ich daraus Text oder Bild fuer den Post ableiten?"
-            )
-            situation = (
-                "Summarize the retrieved memory/RAG entries for the user in German. "
-                "Be concrete about what is stored. Do not invent missing facts."
-            )
+            if missing:
+                next_question = post_fields.FIELD_QUESTIONS[missing[0]]
+                fallback = (
+                    "Im Gedächtnis habe ich dazu Folgendes gefunden:\n"
+                    f"{context}\n\n"
+                    f"{next_question}"
+                )
+                situation = (
+                    "Summarize the retrieved memory/RAG entries for the user in German. "
+                    "Answer specifically about the topic they asked. "
+                    "Do not invent missing facts. Do not ask to generate text or image yet; "
+                    f"end by asking for the next open brief field: {next_question}"
+                )
+            else:
+                fallback = (
+                    "Im Gedächtnis habe ich dazu Folgendes gefunden:\n"
+                    f"{context}"
+                )
+                situation = (
+                    "Summarize the retrieved memory/RAG entries for the user in German. "
+                    "Answer specifically about the topic they asked. "
+                    "Be concrete about what is stored. Do not invent missing facts. "
+                    "Do not push text/image generation unless the user asks."
+                )
             status = "success"
             observation = f"Answered from {source} ({len(context)} chars)."
         else:
@@ -179,8 +220,8 @@ class SpecialistNodes:
                 "dann kann ich danach suchen."
             )
             situation = (
-                "Tell the user that memory/RAG is empty for this query and suggest uploading "
-                "or storing a fact on the Rag page."
+                "Tell the user that memory/RAG has no matching entries for their topic and "
+                "suggest uploading or storing a fact on the Rag page."
             )
             status = "warning"
             observation = "No memory context available for the inquiry."
@@ -191,7 +232,7 @@ class SpecialistNodes:
             situation=situation,
             user_message=state["user_message"],
             post=state.get("post"),
-            artifact_summary=f"rag_source={source}; rag_chars={len(context)}",
+            artifact_summary=f"rag_source={source}; rag_chars={len(context)}; rag_context={context[:800]}",
         )
         state["status"] = status
         state["generated_artifacts"]["memory_answer"] = {
@@ -216,6 +257,52 @@ class SpecialistNodes:
             tool_called="mcp_memory_search" if source == "memory_search" else "mcp_memory_list",
             thought="User asked what is stored in RAG/memory.",
             observation=observation,
+            output_summary=state["assistant_message"][:300],
+        )
+        return state
+
+    def post_status_node(self, state: ManagerChatState) -> ManagerChatState:
+        """Summarize the current post entry from posts.json without RAG or specialists."""
+        started_at = datetime.utcnow()
+        post = state.get("post") or {}
+        summary = post_fields.post_status_summary(post) if post else "Fuer diesen Post liegen noch keine Daten vor."
+        fallback = (
+            "Hier der aktuelle Stand des Posts:\n"
+            f"{summary}"
+        )
+        state["assistant_message"] = brief_llm.compose_manager_reply(
+            hf=brief_llm.try_hf(self.deps.hf_factory),
+            fallback=fallback,
+            situation=(
+                "Summarize the current marketing post brief and preview status in German. "
+                "Use only the provided post snapshot. Do not invent fields. "
+                "Do not ask to generate text or image unless the user asks."
+            ),
+            user_message=state["user_message"],
+            post=post,
+            artifact_summary=summary[:800],
+        )
+        state["status"] = "success"
+        state["generated_artifacts"]["post_status_answer"] = {
+            "summary": summary,
+        }
+
+        self.recorder.step(
+            state,
+            "post_status_node",
+            "Answering a question about the current post data.",
+            "answer_post_status",
+            f"Summarized post_id={state.get('post_id')}.",
+            "success",
+        )
+        self.recorder.log(
+            state,
+            agent="manager_agent",
+            status="success",
+            step="post_status",
+            started_at=started_at,
+            thought="User asked about the current post's stored fields.",
+            observation=f"post_id={state.get('post_id')}",
             output_summary=state["assistant_message"][:300],
         )
         return state
