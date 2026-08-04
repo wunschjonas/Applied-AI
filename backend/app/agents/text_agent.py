@@ -20,19 +20,18 @@ class TextAgent(BaseAgent):
         rag_context: str | None = None,
         validation_feedback: str | None = None,
     ) -> dict[str, Any]:
-        self.trace(
+        self.record(
             trace,
-            thought="Text generation requested.",
-            action="build_text_prompt",
-            observation=f"Platform={platform or 'unspecified'}, tone={tone or 'unspecified'}.",
+            "text_build_prompt",
+            platform=platform,
+            tone=tone,
         )
 
         prompt = self._build_prompt(task, platform, tone, target_audience, context, rag_context, validation_feedback)
-        self.trace(
+        self.record(
             trace,
-            thought="Text prompt is ready for model inference.",
-            action="call_text_model",
-            observation=f"Calling HuggingFace text model {getattr(self.hf, 'hf_model_id', 'unknown')}.",
+            "text_call_model",
+            model_id=getattr(self.hf, "hf_model_id", None) or "unknown",
         )
         generated_text = self.hf.generate(
             system_prompt=(
@@ -43,19 +42,18 @@ class TextAgent(BaseAgent):
             user_prompt=prompt,
             max_tokens=700,
         )
-        self.trace(
+        self.record(
             trace,
-            thought="HuggingFace returned text content.",
-            action="parse_text_response",
-            observation=f"Received {len(generated_text)} characters.",
+            "text_parse",
+            text_chars=len(generated_text),
         )
         hashtags = self._extract_hashtags(generated_text, task)
 
-        self.trace(
+        self.record(
             trace,
-            thought="HuggingFace returned marketing text.",
-            action="return_text_artifact",
-            observation=f"Generated {len(generated_text)} characters and {len(hashtags)} hashtags.",
+            "text_return",
+            text_chars=len(generated_text),
+            hashtag_count=len(hashtags),
         )
 
         return {

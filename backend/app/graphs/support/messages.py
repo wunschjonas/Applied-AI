@@ -16,9 +16,9 @@ TEXT_REFINED = "Ich habe den Marketing-Text neu erstellt und in der Post-Vorscha
 IMAGE_REFINED = "Ich habe das Bild neu generiert und in der Post-Vorschau aktualisiert."
 IMAGE_REFINE_PROMPT_ONLY = "Der neue Bildprompt steht, die Bildgenerierung ist jedoch fehlgeschlagen."
 
-BRIEF_QUESTION_INTRO = "Damit der Post passt, brauche ich noch etwas Kontext."
-BRIEF_SAVED_PREFIX = "Notiert:"
-BRIEF_FOLLOWUP_PREFIX = "Damit ich den Post weiter schaerfen kann:"
+POST_DATA_QUESTION_INTRO = "Damit der Post passt, brauche ich noch etwas Kontext."
+POST_DATA_SAVED_PREFIX = "Notiert:"
+POST_DATA_FOLLOWUP_PREFIX = "Damit ich den Post weiter schaerfen kann:"
 
 FIELD_LABELS = {
     "topic": "Thema",
@@ -33,16 +33,16 @@ def saved_fields_sentence(updates: dict[str, object]) -> str:
     if not updates:
         return ""
     parts = [f"{FIELD_LABELS.get(field, field)} = {value}" for field, value in updates.items()]
-    return f"{BRIEF_SAVED_PREFIX} {', '.join(parts)}."
+    return f"{POST_DATA_SAVED_PREFIX} {', '.join(parts)}."
 
 
 def context_question(updates: dict[str, object], question: str) -> str:
-    intro = saved_fields_sentence(updates) or BRIEF_QUESTION_INTRO
+    intro = saved_fields_sentence(updates) or POST_DATA_QUESTION_INTRO
     return f"{intro} {question}"
 
 
 def followup_question(question: str) -> str:
-    return f"{BRIEF_FOLLOWUP_PREFIX} {question}"
+    return f"{POST_DATA_FOLLOWUP_PREFIX} {question}"
 
 
 def partial_message(text_ok: bool, image_ok: bool, image_prompt_only: bool) -> str:

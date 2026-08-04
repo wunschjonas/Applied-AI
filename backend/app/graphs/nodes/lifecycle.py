@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
 from app.graphs.support.delegation import resolve_platform
+from app.graphs.support.tao_composer import TaoEvent
 
 
 class LifecycleNodes:
@@ -46,19 +47,33 @@ class LifecycleNodes:
             "validation_result": "pending",
             "execution_plan": {},
             "post": None,
-            "brief_updates": {},
-            "brief_missing": [],
-            "brief_blocking": [],
+            "post_data_updates": {},
+            "post_data_missing": [],
+            "post_data_blocking": [],
             "explicit_generate": False,
             "followup_question": None,
+            "tools_called": [],
+            "post_data_checked": False,
+            "post_data_complete": None,
+            "post_data_incomplete_from_tool": False,
+            "web_context": None,
+            "tool_safety_blocked": False,
+            "stored_preview": None,
+            "stored_tags": [],
         }
 
-        self.recorder.step(
+        self.recorder.record(
             new_state,
-            "init_state_node",
-            "Initialized Manager chat graph state.",
-            "init_state",
-            f"chat_id={chat['id']}; trace_id={trace['trace_id']}; platform={new_state['platform'] or 'unspecified'}.",
+            TaoEvent(
+                phase="init_state",
+                node="init_state_node",
+                agent="init_state_node",
+                facts={
+                    "chat_id": chat["id"],
+                    "trace_id": trace["trace_id"],
+                    "platform": new_state["platform"],
+                },
+            ),
         )
         return new_state
 
@@ -80,13 +95,20 @@ class LifecycleNodes:
         state["trace"]["metadata"].update(metadata)
         self.deps.trace_service.store.save(state["trace"])
 
-        self.recorder.step(
+        self.recorder.record(
             state,
-            "save_trace_node",
-            "Chat messages, trace metadata and specialist logs are saved.",
-            "persist_chat_trace_and_logs",
-            f"Saved chat {state['chat_id']} with trace {state['trace_id']}.",
-            state.get("status", "success"),
+            TaoEvent(
+                phase="save_trace",
+                node="save_trace_node",
+                agent="save_trace_node",
+                status=state.get("status", "success"),
+                intent=state.get("intent"),
+                facts={
+                    "chat_id": state["chat_id"],
+                    "trace_id": state["trace_id"],
+                    "used_agents": state["used_agents"],
+                },
+            ),
         )
         self.deps.trace_service.print_run_footer(state["trace"], state.get("status", "success"))
         return state

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -30,7 +30,7 @@ class LogService:
             "id": str(uuid4()),
             "run_id": run_id or str(uuid4()),
             "agent": agent,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "step": step or action,
             "tool_called": tool_called,
             "thought": thought,

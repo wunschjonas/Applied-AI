@@ -25,7 +25,7 @@ MEMORY_SEARCH_TOOL: dict[str, Any] = {
             "Search stored brand facts, uploaded documents/images, and project memory. "
             "Call this when the user asks what is in memory/RAG/Gedaechtnis, or when stored "
             "facts may help write or illustrate the CURRENT marketing post. "
-            "The query MUST stay on the current brief topic. "
+            "The query MUST stay on the current Steckbrief topic. "
             "Do not search for unrelated past topics. Skip the tool if nothing on-topic is needed."
         ),
         "parameters": {

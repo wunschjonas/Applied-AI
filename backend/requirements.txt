@@ -10,3 +10,4 @@ httpx
 Pillow
 pypdf
 python-multipart
+ddgs

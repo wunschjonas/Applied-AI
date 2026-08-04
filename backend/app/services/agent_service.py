@@ -8,10 +8,12 @@ from fastapi import HTTPException, status
 from app.agents.image_agent import ImageAgent
 from app.agents.text_agent import TextAgent
 from app.core.config import settings
+from app.graphs.dependencies import record_trace_event
 from app.graphs.manager_chat_graph import ManagerChatGraph
 from app.graphs.support import messages
-from app.graphs.support.brief_llm import compose_specialist_reply
+from app.graphs.support.post_data_llm import compose_specialist_reply
 from app.graphs.support.delegation import build_image_refine_task, build_text_refine_task
+from app.graphs.support.tao_composer import TaoEvent, compose
 from app.services.chat_service import ChatService
 from app.services.huggingface_service import HuggingFaceService
 from app.services.log_service import LogService
@@ -68,14 +70,14 @@ class AgentService:
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
-            self.trace_service.add_step(
-                trace,
-                "TextAgent",
-                "Text generation failed.",
-                "return_error",
-                error,
-                "error",
+            event = TaoEvent(
+                phase="direct_error",
+                node="TextAgent",
+                agent="TextAgent",
+                status="error",
+                facts={"artifact_type": "Text", "error": error},
             )
+            triple = record_trace_event(self.trace_service, trace, event)
             self.log_service.add_log(
                 agent="text_agent",
                 action="direct_generate_text",
@@ -85,12 +87,23 @@ class AgentService:
                 run_id=trace["trace_id"],
                 step="generate_text",
                 tool_called="huggingface_generate_text",
-                thought="Text generation failed.",
-                observation=error,
+                thought=triple.thought,
+                observation=triple.observation,
                 output_summary=error,
             )
             raise self._to_http_error(exc) from exc
 
+        done = compose(
+            TaoEvent(
+                phase="text_return",
+                node="TextAgent",
+                agent="TextAgent",
+                facts={
+                    "text_chars": len(result.get("generated_text", "")),
+                    "hashtag_count": len(result.get("hashtags", [])),
+                },
+            )
+        )
         self.log_service.add_log(
             agent="text_agent",
             action="direct_generate_text",
@@ -100,8 +113,8 @@ class AgentService:
             run_id=trace["trace_id"],
             step="generate_text",
             tool_called="huggingface_generate_text",
-            thought="Text generation completed.",
-            observation=f"{len(result.get('generated_text', ''))} chars, {len(result.get('hashtags', []))} hashtags",
+            thought=done.thought,
+            observation=done.observation,
             output_summary=f"{len(result.get('generated_text', ''))} chars generated",
         )
         return {**result, "trace_id": trace["trace_id"]}
@@ -125,14 +138,14 @@ class AgentService:
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
-            self.trace_service.add_step(
-                trace,
-                "ImageAgent",
-                "Image prompt generation failed.",
-                "return_error",
-                error,
-                "error",
+            event = TaoEvent(
+                phase="direct_error",
+                node="ImageAgent",
+                agent="ImageAgent",
+                status="error",
+                facts={"artifact_type": "Bildprompt", "error": error},
             )
+            triple = record_trace_event(self.trace_service, trace, event)
             self.log_service.add_log(
                 agent="image_agent",
                 action="direct_generate_image_prompt",
@@ -142,12 +155,20 @@ class AgentService:
                 run_id=trace["trace_id"],
                 step="generate_image_prompt",
                 tool_called="huggingface_generate_text",
-                thought="Image prompt generation failed.",
-                observation=error,
+                thought=triple.thought,
+                observation=triple.observation,
                 output_summary=error,
             )
             raise self._to_http_error(exc) from exc
 
+        done = compose(
+            TaoEvent(
+                phase="image_prompt_done",
+                node="ImageAgent",
+                agent="ImageAgent",
+                facts={"prompt_chars": len(result.get("image_prompt", ""))},
+            )
+        )
         self.log_service.add_log(
             agent="image_agent",
             action="direct_generate_image_prompt",
@@ -157,8 +178,8 @@ class AgentService:
             run_id=trace["trace_id"],
             step="generate_image_prompt",
             tool_called="huggingface_generate_text",
-            thought="Image prompt generation completed.",
-            observation=f"Generated prompt with {len(result.get('image_prompt', ''))} characters.",
+            thought=done.thought,
+            observation=done.observation,
             output_summary=f"Image prompt: {len(result.get('image_prompt', ''))} chars",
         )
         return {**result, "trace_id": trace["trace_id"]}
@@ -184,14 +205,14 @@ class AgentService:
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
-            self.trace_service.add_step(
-                trace,
-                "ImageAgent",
-                "Image generation failed.",
-                "return_error",
-                error,
-                "error",
+            event = TaoEvent(
+                phase="direct_error",
+                node="ImageAgent",
+                agent="ImageAgent",
+                status="error",
+                facts={"artifact_type": "Bild", "error": error},
             )
+            triple = record_trace_event(self.trace_service, trace, event)
             self.log_service.add_log(
                 agent="image_agent",
                 action="direct_generate_image",
@@ -201,12 +222,27 @@ class AgentService:
                 run_id=trace["trace_id"],
                 step="generate_image",
                 tool_called="huggingface_text_to_image",
-                thought="Image generation failed.",
-                observation=error,
+                thought=triple.thought,
+                observation=triple.observation,
                 output_summary=error,
             )
             raise self._to_http_error(exc) from exc
 
+        done = compose(
+            TaoEvent(
+                phase="image_return",
+                node="ImageAgent",
+                agent="ImageAgent",
+                status="success" if result.get("image_url") else "partial_success",
+                facts={
+                    "image_filename": result.get("image_filename"),
+                    "image_url": result.get("image_url"),
+                    "image_mode": result.get("generation_mode") or "text_to_image",
+                    "img2img_source": result.get("img2img_source") or "none",
+                    "error": result.get("image_error"),
+                },
+            )
+        )
         self.log_service.add_log(
             agent="image_agent",
             action="direct_generate_image",
@@ -216,8 +252,8 @@ class AgentService:
             run_id=trace["trace_id"],
             step="generate_image",
             tool_called="huggingface_text_to_image",
-            thought="Image generation completed." if result.get("image_url") else "Image generation partial.",
-            observation=f"image_url={result.get('image_url')}; error={result.get('image_error')}",
+            thought=done.thought,
+            observation=done.observation,
             output_summary=f"image_url={result.get('image_url')}; error={result.get('image_error')}",
         )
         return {**result, "trace_id": trace["trace_id"]}
@@ -266,12 +302,21 @@ class AgentService:
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
+            fail = compose(
+                TaoEvent(
+                    phase="direct_error",
+                    node="TextAgent",
+                    agent="TextAgent",
+                    status="error",
+                    facts={"artifact_type": "Text", "error": error},
+                )
+            )
             self.log_service.add_log(
                 agent="text_agent", action="text_chat", input_summary=message,
                 status="error", duration_ms=self._ms(t0), run_id=trace["trace_id"],
                 step="refine_text", tool_called="huggingface_generate_text",
-                thought="Text refinement failed.",
-                observation=error,
+                thought=fail.thought,
+                observation=fail.observation,
                 output_summary=error,
             )
             raise self._to_http_error(exc) from exc
@@ -297,12 +342,23 @@ class AgentService:
         )
         reply = f"{ack}\n\n{generated_text}"
         self.chat_service.add_message(chat, role="AGENT", content=reply)
+        done = compose(
+            TaoEvent(
+                phase="text_return",
+                node="TextAgent",
+                agent="TextAgent",
+                facts={
+                    "text_chars": len(generated_text),
+                    "hashtag_count": len(result.get("hashtags", [])),
+                },
+            )
+        )
         self.log_service.add_log(
             agent="text_agent", action="text_chat", input_summary=message,
             status="success", duration_ms=self._ms(t0), run_id=trace["trace_id"],
             step="refine_text", tool_called="huggingface_generate_text",
-            thought="Text refinement completed.",
-            observation=f"{len(generated_text)} chars, {len(result.get('hashtags', []))} hashtags",
+            thought=done.thought,
+            observation=done.observation,
             output_summary=f"{len(generated_text)} chars, {len(result.get('hashtags', []))} hashtags",
         )
         return {
@@ -369,12 +425,21 @@ class AgentService:
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
+            fail = compose(
+                TaoEvent(
+                    phase="direct_error",
+                    node="ImageAgent",
+                    agent="ImageAgent",
+                    status="error",
+                    facts={"artifact_type": "Bild", "error": error},
+                )
+            )
             self.log_service.add_log(
                 agent="image_agent", action="image_chat", input_summary=message,
                 status="error", duration_ms=self._ms(t0), run_id=trace["trace_id"],
                 step="refine_image", tool_called=tool_called,
-                thought="Image refinement failed.",
-                observation=error,
+                thought=fail.thought,
+                observation=fail.observation,
                 output_summary=error,
             )
             raise self._to_http_error(exc) from exc
@@ -454,12 +519,27 @@ class AgentService:
             f"image_url={result.get('image_url')}; mode={result.get('generation_mode')}; "
             f"source={result.get('img2img_source')}; error={result.get('image_error')}"
         )
+        done = compose(
+            TaoEvent(
+                phase="image_return",
+                node="ImageAgent",
+                agent="ImageAgent",
+                status="success" if image_ready else "partial_success",
+                facts={
+                    "image_filename": result.get("image_filename"),
+                    "image_url": result.get("image_url"),
+                    "image_mode": result.get("generation_mode") or "text_to_image",
+                    "img2img_source": result.get("img2img_source") or "none",
+                    "error": result.get("image_error"),
+                },
+            )
+        )
         self.log_service.add_log(
             agent="image_agent", action="image_chat", input_summary=message,
             status="success" if image_ready else "error", duration_ms=self._ms(t0),
             run_id=trace["trace_id"], step="refine_image", tool_called=tool_called,
-            thought="Image refinement completed." if image_ready else "Image refinement partial.",
-            observation=summary,
+            thought=done.thought,
+            observation=done.observation,
             output_summary=summary,
         )
         return {

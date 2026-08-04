@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.graphs.support.post_fields import is_memory_inquiry, is_post_status_inquiry
+from app.graphs.support.post_fields import (
+    is_memory_inquiry,
+    is_memory_store_request,
+    is_post_status_inquiry,
+    is_web_inquiry,
+    wants_generation,
+)
 
 
 @dataclass(frozen=True)
@@ -89,6 +95,17 @@ class ManagerIntentClassifier:
                 observation="Post status inquiry selected. Answer from posts.json / state.post.",
             )
 
+        # Explicit store requests must not be treated as memory Q&A.
+        if is_memory_store_request(message):
+            return AgentIntent(
+                use_text=False,
+                use_image=False,
+                needs_clarification=False,
+                label="memory_store",
+                decision="Detected an explicit request to store a fact in RAG/memory.",
+                observation="Memory store selected. Persist fact via memory_store, then confirm.",
+            )
+
         # Ask-about-memory must win over generic "bild"/"image" keyword matches.
         if is_memory_inquiry(message):
             return AgentIntent(
@@ -98,6 +115,17 @@ class ManagerIntentClassifier:
                 label="memory_inquiry",
                 decision="Detected a question about stored RAG/memory content.",
                 observation="Memory inquiry selected. Answer from memory_search / memory_list.",
+            )
+
+        # Pure web/current-events questions (not "schreibe einen Post …").
+        if is_web_inquiry(message) and not wants_generation(message):
+            return AgentIntent(
+                use_text=False,
+                use_image=False,
+                needs_clarification=False,
+                label="web_inquiry",
+                decision="Detected a question about current public/web information.",
+                observation="Web inquiry selected. Answer from web_search results only.",
             )
 
         if self._contains_any(normalized, self.image_only_phrases):

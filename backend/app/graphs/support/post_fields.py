@@ -5,7 +5,7 @@ from typing import Any
 
 REQUIRED_FIELDS = ("topic", "platform", "target_audience", "tone_of_voice")
 OPTIONAL_FIELDS: tuple[str, ...] = ()
-BRIEF_FIELDS = REQUIRED_FIELDS + OPTIONAL_FIELDS
+POST_DATA_FIELDS = REQUIRED_FIELDS + OPTIONAL_FIELDS
 FREE_TEXT_FIELDS = ("topic", "platform", "target_audience", "tone_of_voice", "additional_context")
 
 FIELD_QUESTIONS = {
@@ -138,7 +138,7 @@ POST_STATUS_MARKERS = (
     "zum aktuellen post",
     "post-status",
     "post status",
-    "brief-status",
+    "post-data-status",
     "brief status",
     "welche felder",
     "offene felder",
@@ -163,10 +163,90 @@ POST_STATUS_PATTERNS = (
     r"zeig(?:\s+mir)?\s+den\s+(?:brief|post)\b",
 )
 
+WEB_INQUIRY_MARKERS = (
+    "aktuell",
+    "heutige",
+    "heute",
+    "trend",
+    "trends",
+    "nachrichten",
+    "news",
+    "recherchier",
+    "im web",
+    "im internet",
+    "suche im web",
+    "suche im internet",
+    "such im web",
+    "such im internet",
+    "websearch",
+    "web search",
+    "was passiert",
+    "aktueller stand der",
+    "neuigkeiten",
+)
+
+WEB_INQUIRY_PATTERNS = (
+    r"\b(?:aktuell(?:e|er|en|es)?|heutige[rnsm]?)\b.{0,40}\b(?:trend|news|nachricht|lage|stand)\b",
+    r"\b(?:trend|nachrichten|news)\b",
+    r"\b(?:recherchier|googlen|suche?)\b.{0,30}\b(?:web|internet|online)\b",
+    r"\b(?:im|aufs?)\s+(?:web|internet)\b",
+    r"was\s+passiert\s+(?:gerade|heute|aktuell)\b",
+)
+
 
 def wants_generation(message: str) -> bool:
     normalized = message.lower()
     return any(marker in normalized for marker in GENERATE_MARKERS)
+
+
+def is_question_message(message: str) -> bool:
+    """True for interrogative turns that should not fill Steckbrief fields."""
+    text = (message or "").strip()
+    if not text:
+        return False
+    if "?" in text:
+        return True
+    lowered = text.lower()
+    starters = (
+        "wer ",
+        "was ",
+        "wie ",
+        "wo ",
+        "wann ",
+        "warum ",
+        "wieso ",
+        "weshalb ",
+        "welche ",
+        "welcher ",
+        "welches ",
+        "kennst du",
+        "weißt du",
+        "weisst du",
+        "hast du",
+        "gibt es",
+        "suche im",
+        "such im",
+        "recherchier",
+    )
+    return any(lowered.startswith(s) for s in starters)
+
+
+def is_memory_store_request(message: str) -> bool:
+    """True when the user asks to save/remember a fact into RAG/memory."""
+    lowered = (message or "").strip().lower()
+    if not lowered:
+        return False
+    return any(
+        token in lowered
+        for token in (
+            "merk dir",
+            "merke dir",
+            "speicher",
+            "remember",
+            "store this",
+            "save this",
+        )
+    )
 
 
 def is_post_status_inquiry(message: str) -> bool:
@@ -179,12 +259,22 @@ def is_post_status_inquiry(message: str) -> bool:
 
 def is_memory_inquiry(message: str) -> bool:
     """True when the user asks what is stored in RAG/memory rather than briefing a post."""
-    if is_post_status_inquiry(message):
+    if is_post_status_inquiry(message) or is_memory_store_request(message):
         return False
     normalized = message.lower()
     if any(marker in normalized for marker in MEMORY_INQUIRY_MARKERS):
         return True
     return any(re.search(pattern, normalized) for pattern in MEMORY_INQUIRY_PATTERNS)
+
+
+def is_web_inquiry(message: str) -> bool:
+    """True when the user wants public/current web facts (not memory, not post status)."""
+    if is_post_status_inquiry(message) or is_memory_inquiry(message):
+        return False
+    normalized = message.lower()
+    if any(marker in normalized for marker in WEB_INQUIRY_MARKERS):
+        return True
+    return any(re.search(pattern, normalized) for pattern in WEB_INQUIRY_PATTERNS)
 
 
 def memory_search_query(message: str) -> str:
@@ -312,7 +402,7 @@ def extract_fields(message: str, post: dict[str, Any]) -> dict[str, Any]:
 
 
 def missing_fields(post: dict[str, Any]) -> list[str]:
-    return [field for field in BRIEF_FIELDS if not post.get(field)]
+    return [field for field in POST_DATA_FIELDS if not post.get(field)]
 
 
 def missing_required_fields(post: dict[str, Any]) -> list[str]:
@@ -342,8 +432,8 @@ def brief_context(post: dict[str, Any]) -> dict[str, Any]:
     return context
 
 
-def brief_summary(post: dict[str, Any]) -> str:
-    parts = [f"{field}={post.get(field) or 'offen'}" for field in BRIEF_FIELDS]
+def post_data_summary(post: dict[str, Any]) -> str:
+    parts = [f"{field}={post.get(field) or 'offen'}" for field in POST_DATA_FIELDS]
     return "; ".join(parts)
 
 
@@ -355,7 +445,7 @@ def post_status_summary(post: dict[str, Any]) -> str:
         f"Titel: {post.get('title') or '—'}",
         f"Status: {post.get('status') or '—'}",
     ]
-    for field in BRIEF_FIELDS:
+    for field in POST_DATA_FIELDS:
         label = FIELD_LABELS.get(field, field)
         value = post.get(field)
         lines.append(f"{label}: {value if value else 'offen'}")

@@ -7,8 +7,9 @@ from app.agents.image_agent import ImageAgent
 from app.agents.text_agent import TextAgent
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
-from app.graphs.support import brief_llm, messages, post_fields
+from app.graphs.support import post_data_llm, messages, post_fields
 from app.graphs.support.delegation import context_value, image_task_with_marketing_text
+from app.graphs.support.tao_composer import TaoEvent
 from app.services.rag_service import filter_rag_context
 
 
@@ -29,7 +30,7 @@ class SpecialistNodes:
                 tone=assignment.get("tone", context_value(context, "tone", "professional")),
                 target_audience=assignment.get("target_audience", context_value(context, "target_audience")),
                 context=context,
-                rag_context=state.get("rag_context"),
+                rag_context=self._combined_knowledge(state),
                 validation_feedback=state.get("validation_feedback", {}).get("text"),
             )
         except Exception as exc:
@@ -39,13 +40,18 @@ class SpecialistNodes:
         state["generated_artifacts"]["text"] = result
         self._remember_agent(state, "TextAgent")
         self._save_specialist_chat(state, "text_agent", "Text artifact generated.", "text")
-        self.recorder.step(
-            state,
-            "text_agent_node",
-            "TextAgent completed successfully.",
-            "call_text_agent",
-            "Text artifact stored in graph state.",
+        event = TaoEvent(
+            phase="delegate_text",
+            node="text_agent_node",
+            agent="text_agent_node",
+            intent=state.get("intent"),
+            facts={
+                "retry_count": state["text_retry_count"],
+                "text_chars": len(result.get("generated_text", "")),
+                "hashtag_count": len(result.get("hashtags", [])),
+            },
         )
+        self.recorder.record(state, event)
         self.recorder.log(
             state,
             agent="text_agent",
@@ -53,9 +59,11 @@ class SpecialistNodes:
             step="generate_text",
             started_at=started_at,
             tool_called="huggingface_generate_text",
-            thought=f"graph_node=text_agent_node; retry_count={state['text_retry_count']}",
-            observation="Text artifact stored in graph state.",
-            output_summary=f"{len(result.get('generated_text', ''))} chars, {len(result.get('hashtags', []))} hashtags",
+            event=event,
+            output_summary=(
+                f"{len(result.get('generated_text', ''))} chars, "
+                f"{len(result.get('hashtags', []))} hashtags"
+            ),
         )
         return state
 
@@ -79,7 +87,7 @@ class SpecialistNodes:
                 platform=assignment.get("platform", state.get("platform")),
                 visual_style=assignment.get("visual_style", context_value(context, "visual_style")),
                 context=context,
-                rag_context=state.get("rag_context"),
+                rag_context=self._combined_knowledge(state),
                 validation_feedback=state.get("validation_feedback", {}).get("image"),
                 post_id=state["post_id"],
             )
@@ -90,18 +98,21 @@ class SpecialistNodes:
         state["generated_artifacts"]["image"] = result
         self._remember_agent(state, "ImageAgent")
         status = "partial_success" if result.get("partial_success") else "success"
-        summary = self._image_summary(result)
-        self._save_specialist_chat(state, "image_agent", "Image artifact generated.", "image")
-        self.recorder.step(
-            state,
-            "image_agent_node",
-            "ImageAgent completed with image artifact."
-            if status == "success"
-            else "ImageAgent returned prompt-only partial success.",
-            "call_image_agent",
-            summary,
-            status,
+        event = TaoEvent(
+            phase="delegate_image",
+            node="image_agent_node",
+            agent="image_agent_node",
+            status=status,
+            intent=state.get("intent"),
+            facts={
+                "retry_count": state["image_retry_count"],
+                "image_mode": result.get("generation_mode") or "text_to_image",
+                "image_filename": result.get("image_filename"),
+                "detail": self._image_summary(result),
+            },
         )
+        self._save_specialist_chat(state, "image_agent", "Image artifact generated.", "image")
+        self.recorder.record(state, event)
         self.recorder.log(
             state,
             agent="image_agent",
@@ -109,9 +120,8 @@ class SpecialistNodes:
             step="generate_image",
             started_at=started_at,
             tool_called="huggingface_text_to_image",
-            thought=f"graph_node=image_agent_node; retry_count={state['image_retry_count']}",
-            observation=summary,
-            output_summary=summary,
+            event=event,
+            output_summary=self._image_summary(result),
         )
         return state
 
@@ -122,9 +132,9 @@ class SpecialistNodes:
         if missing:
             field = missing[0]
             question = post_fields.FIELD_QUESTIONS[field]
-            fallback = messages.context_question(state.get("brief_updates") or {}, question)
+            fallback = messages.context_question(state.get("post_data_updates") or {}, question)
             situation = (
-                "Brief fields are still open. Ask only for the next missing brief field. "
+                "Steckbrief fields are still open. Ask only for the next missing Steckbrief field. "
                 "Do not ask whether to generate text or image yet."
             )
             state["followup_question"] = question
@@ -137,37 +147,33 @@ class SpecialistNodes:
                 "Intent is unclear. Ask whether the user wants text, image, or both."
             )
 
-        state["assistant_message"] = brief_llm.compose_manager_reply(
-            hf=brief_llm.try_hf(self.deps.hf_factory),
+        state["assistant_message"] = post_data_llm.compose_manager_reply(
+            hf=post_data_llm.try_hf(self.deps.hf_factory),
             fallback=fallback,
             situation=situation,
             user_message=state["user_message"],
             post=post,
-            brief_updates=state.get("brief_updates"),
+            post_data_updates=state.get("post_data_updates"),
             next_question=fallback if missing else None,
         )
         state["status"] = "needs_input"
 
-        self.recorder.step(
-            state,
-            "clarification_node",
-            "The request is unclear." if not missing else f"Asking for missing brief field '{missing[0]}'.",
-            "ask_clarification",
-            "No specialist agent or HuggingFace call was made.",
-            "needs_input",
+        event = TaoEvent(
+            phase="clarification",
+            node="clarification_node",
+            agent="clarification_node",
+            status="needs_input",
+            intent=state.get("intent"),
+            facts={"missing": missing},
         )
+        self.recorder.record(state, event)
         self.recorder.log(
             state,
             agent="manager_agent",
             status="skipped",
             step="ask_clarification",
             started_at=started_at,
-            thought=(
-                f"Brief still missing {missing}"
-                if missing
-                else "Intent unclear - asked user for text/image/both"
-            ),
-            observation="No specialist agent or HuggingFace call was made.",
+            event=event,
         )
         return state
 
@@ -176,7 +182,6 @@ class SpecialistNodes:
         started_at = datetime.utcnow()
         context = (state.get("rag_context") or "").strip()
         source = "memory_search"
-        missing = post_fields.missing_fields(state.get("post") or {})
 
         if not context:
             entries = self.deps.rag_service.list_all()
@@ -197,32 +202,18 @@ class SpecialistNodes:
                 context = ""
 
         if context:
-            if missing:
-                next_question = post_fields.FIELD_QUESTIONS[missing[0]]
-                fallback = (
-                    "Im Gedächtnis habe ich dazu Folgendes gefunden:\n"
-                    f"{context}\n\n"
-                    f"{next_question}"
-                )
-                situation = (
-                    "Summarize the retrieved memory/RAG entries for the user in German. "
-                    "Answer specifically about the topic they asked. "
-                    "Do not invent missing facts. Do not ask to generate text or image yet; "
-                    f"end by asking for the next open brief field: {next_question}"
-                )
-            else:
-                fallback = (
-                    "Im Gedächtnis habe ich dazu Folgendes gefunden:\n"
-                    f"{context}"
-                )
-                situation = (
-                    "Summarize the retrieved memory/RAG entries for the user in German. "
-                    "Answer specifically about the topic they asked. "
-                    "Be concrete about what is stored. Do not invent missing facts. "
-                    "Do not push text/image generation unless the user asks."
-                )
+            fallback = (
+                "Im Gedächtnis habe ich dazu Folgendes gefunden:\n"
+                f"{context}"
+            )
+            situation = (
+                "Summarize the retrieved memory/RAG entries for the user in German. "
+                "Answer specifically about the topic they asked. "
+                "Be concrete about what is stored. Do not invent missing facts. "
+                "Do not ask for Steckbrief fields, platform, audience, or tone. "
+                "Do not push text/image generation unless the user asks."
+            )
             status = "success"
-            observation = f"Answered from {source} ({len(context)} chars)."
         else:
             fallback = (
                 "Im Gedächtnis habe ich gerade keine passenden Eintraege gefunden. "
@@ -231,13 +222,13 @@ class SpecialistNodes:
             )
             situation = (
                 "Tell the user that memory/RAG has no matching entries for their topic and "
-                "suggest uploading or storing a fact on the Rag page."
+                "suggest uploading or storing a fact on the Rag page. "
+                "Do not ask for Steckbrief fields."
             )
             status = "warning"
-            observation = "No memory context available for the inquiry."
 
-        state["assistant_message"] = brief_llm.compose_manager_reply(
-            hf=brief_llm.try_hf(self.deps.hf_factory),
+        state["assistant_message"] = post_data_llm.compose_manager_reply(
+            hf=post_data_llm.try_hf(self.deps.hf_factory),
             fallback=fallback,
             situation=situation,
             user_message=state["user_message"],
@@ -250,14 +241,15 @@ class SpecialistNodes:
             "context_preview": context[:500],
         }
 
-        self.recorder.step(
-            state,
-            "memory_answer_node",
-            "Answering a memory/RAG inquiry.",
-            "answer_memory_inquiry",
-            observation,
-            status,
+        event = TaoEvent(
+            phase="memory_answer",
+            node="memory_answer_node",
+            agent="memory_answer_node",
+            status=status,
+            intent=state.get("intent"),
+            facts={"source": source, "context_chars": len(context)},
         )
+        self.recorder.record(state, event)
         self.recorder.log(
             state,
             agent="manager_agent",
@@ -265,8 +257,120 @@ class SpecialistNodes:
             step="memory_answer",
             started_at=started_at,
             tool_called="mcp_memory_search" if source == "memory_search" else "mcp_memory_list",
-            thought="User asked what is stored in RAG/memory.",
-            observation=observation,
+            event=event,
+            output_summary=state["assistant_message"][:300],
+        )
+        return state
+
+    def memory_store_ack_node(self, state: ManagerChatState) -> ManagerChatState:
+        """Confirm a successful memory_store — do not run empty memory Q&A."""
+        started_at = datetime.utcnow()
+        preview = (state.get("stored_preview") or "").strip()
+        tags = state.get("stored_tags") or []
+        if preview:
+            tag_text = f" Tags: {', '.join(tags)}." if tags else ""
+            fallback = (
+                "Alles klar — ich habe den Fakt im RAG gespeichert.\n\n"
+                f"Gespeichert: {preview}"
+                f"{tag_text}"
+            )
+            situation = (
+                "Confirm in German that you successfully stored the user's fact in RAG/memory. "
+                "Quote or briefly paraphrase the stored preview. Mention tags only briefly if useful. "
+                "Do not claim that nothing was found. Do not ask for Steckbrief fields."
+            )
+            status = "success"
+        else:
+            fallback = (
+                "Ich konnte gerade keinen klaren Fakt zum Speichern erkennen. "
+                "Schick mir bitte den Fakt noch einmal als eigenen Text oder formuliere "
+                "„Merk dir: …“ mit dem Inhalt."
+            )
+            situation = (
+                "Tell the user in German that storing failed because no durable fact was found. "
+                "Ask them to resend the fact clearly. Do not ask for Steckbrief fields."
+            )
+            status = "warning"
+
+        state["assistant_message"] = post_data_llm.compose_manager_reply(
+            hf=post_data_llm.try_hf(self.deps.hf_factory),
+            fallback=fallback,
+            situation=situation,
+            user_message=state["user_message"],
+            post=state.get("post"),
+            artifact_summary=f"stored_preview={preview[:500]}; tags={tags}",
+        )
+        state["status"] = status
+        state["generated_artifacts"]["memory_store_ack"] = {
+            "stored_preview": preview,
+            "tags": tags,
+        }
+
+        event = TaoEvent(
+            phase="memory_store_ack",
+            node="memory_store_ack_node",
+            agent="memory_store_ack_node",
+            status=status,
+            intent=state.get("intent"),
+            facts={"stored_preview": preview[:200], "stored_tags": tags},
+        )
+        self.recorder.record(state, event)
+        self.recorder.log(
+            state,
+            agent="manager_agent",
+            status="success" if status == "success" else "skipped",
+            step="memory_store_ack",
+            started_at=started_at,
+            tool_called="memory_store",
+            event=event,
+            output_summary=state["assistant_message"][:300],
+        )
+        return state
+
+    def web_answer_node(self, state: ManagerChatState) -> ManagerChatState:
+        """Present a short summary of web_search results — no brief prompts."""
+        started_at = datetime.utcnow()
+        context = (state.get("web_context") or "").strip()
+
+        if context:
+            state["assistant_message"] = post_data_llm.compose_web_summary(
+                hf=post_data_llm.try_hf(self.deps.hf_factory),
+                user_message=state["user_message"],
+                web_context=context,
+            )
+            status = "success"
+        else:
+            state["assistant_message"] = post_data_llm.compose_web_summary(
+                hf=None,
+                user_message=state["user_message"],
+                web_context="",
+            )
+            status = "warning"
+
+        state["status"] = status
+        state["generated_artifacts"]["web_answer"] = {
+            "context_preview": context[:500],
+            "hit": bool(context),
+            "summarized": True,
+        }
+
+        event = TaoEvent(
+            phase="web_answer",
+            node="web_answer_node",
+            agent="web_answer_node",
+            status=status,
+            intent=state.get("intent"),
+            facts={"context_chars": len(context), "has_results": bool(context)},
+        )
+        self.recorder.record(state, event)
+        self.recorder.log(
+            state,
+            agent="manager_agent",
+            status="success" if status == "success" else "skipped",
+            step="web_answer",
+            started_at=started_at,
+            tool_called="web_search",
+            event=event,
             output_summary=state["assistant_message"][:300],
         )
         return state
@@ -280,11 +384,11 @@ class SpecialistNodes:
             "Hier der aktuelle Stand des Posts:\n"
             f"{summary}"
         )
-        state["assistant_message"] = brief_llm.compose_manager_reply(
-            hf=brief_llm.try_hf(self.deps.hf_factory),
+        state["assistant_message"] = post_data_llm.compose_manager_reply(
+            hf=post_data_llm.try_hf(self.deps.hf_factory),
             fallback=fallback,
             situation=(
-                "Summarize the current marketing post brief and preview status in German. "
+                "Summarize the current marketing post Steckbrief and preview status in German. "
                 "Use only the provided post snapshot. Do not invent fields. "
                 "Do not ask to generate text or image unless the user asks."
             ),
@@ -297,22 +401,21 @@ class SpecialistNodes:
             "summary": summary,
         }
 
-        self.recorder.step(
-            state,
-            "post_status_node",
-            "Answering a question about the current post data.",
-            "answer_post_status",
-            f"Summarized post_id={state.get('post_id')}.",
-            "success",
+        event = TaoEvent(
+            phase="post_status",
+            node="post_status_node",
+            agent="post_status_node",
+            intent=state.get("intent"),
+            facts={"post_id": state.get("post_id")},
         )
+        self.recorder.record(state, event)
         self.recorder.log(
             state,
             agent="manager_agent",
             status="success",
             step="post_status",
             started_at=started_at,
-            thought="User asked about the current post's stored fields.",
-            observation=f"post_id={state.get('post_id')}",
+            event=event,
             output_summary=state["assistant_message"][:300],
         )
         return state
@@ -320,6 +423,11 @@ class SpecialistNodes:
     def _assignment(self, state: ManagerChatState, artifact_type: str) -> dict[str, Any]:
         assignments = state.get("execution_plan", {}).get("assignments", {})
         return assignments.get(artifact_type) or {}
+
+    @staticmethod
+    def _combined_knowledge(state: ManagerChatState) -> str | None:
+        parts = [p for p in (state.get("rag_context"), state.get("web_context")) if p]
+        return "\n\n".join(parts) if parts else None
 
     def _record_failure(
         self,
@@ -334,15 +442,17 @@ class SpecialistNodes:
         state["status"] = "error"
         is_text = artifact_type == "text"
         node = f"{artifact_type}_agent_node"
+        phase = "delegate_text" if is_text else "delegate_image"
 
-        self.recorder.step(
-            state,
-            node,
-            f"{'TextAgent' if is_text else 'ImageAgent'} failed.",
-            f"call_{artifact_type}_agent",
-            error,
-            "error",
+        event = TaoEvent(
+            phase=phase,
+            node=node,
+            agent=node,
+            status="error",
+            intent=state.get("intent"),
+            facts={"retry_count": retry_count, "error": error},
         )
+        self.recorder.record(state, event)
         self.recorder.log(
             state,
             agent=f"{artifact_type}_agent",
@@ -350,8 +460,7 @@ class SpecialistNodes:
             step=f"generate_{artifact_type}",
             started_at=started_at,
             tool_called="huggingface_generate_text" if is_text else "huggingface_text_to_image",
-            thought=f"graph_node={node}; retry_count={retry_count}",
-            observation=error,
+            event=event,
             output_summary=error,
         )
 

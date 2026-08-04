@@ -28,8 +28,17 @@ class ManagerChatState(TypedDict, total=False):
     validation_result: str
     execution_plan: dict[str, Any]
     post: dict[str, Any] | None
-    brief_updates: dict[str, Any]
-    brief_missing: list[str]
-    brief_blocking: list[str]
+    post_data_updates: dict[str, Any]
+    post_data_missing: list[str]
+    post_data_blocking: list[str]
     explicit_generate: bool
     followup_question: str | None
+    # Manager ReAct tool side-effects
+    tools_called: list[str]
+    post_data_checked: bool
+    post_data_complete: bool | None
+    post_data_incomplete_from_tool: bool
+    web_context: str | None
+    tool_safety_blocked: bool
+    stored_preview: str | None
+    stored_tags: list[str]

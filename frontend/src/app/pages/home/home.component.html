@@ -85,10 +85,10 @@
       <app-post-context />
 
       @if (postFacade.currentPost() && artifactFacade.missingFields().length) {
-        <div class="brief-status">
+        <div class="post-data-status">
           <strong>Noch offen:</strong>
           @for (field of artifactFacade.missingFields(); track field) {
-            <span class="brief-chip">{{ fieldLabel(field) }}</span>
+            <span class="post-data-chip">{{ fieldLabel(field) }}</span>
           }
         </div>
       }

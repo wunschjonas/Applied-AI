@@ -10,7 +10,7 @@ IMAGE_INTENTS = frozenset({"image_only", "text_and_image"})
 TEXT_BRIEF_HEADLINE = "Teilauftrag des ManagerAgent: Erstelle den Marketing-Text."
 IMAGE_BRIEF_HEADLINE = "Teilauftrag des ManagerAgent: Erstelle das Bildmotiv."
 MARKETING_TEXT_LABEL = "Bereits erstellter Marketing-Text, zu dem das Bild passen muss:"
-POST_BRIEF_LABEL = "Post-Brief aus dem Manager-Chat:"
+POST_BRIEF_LABEL = "Post-Steckbrief aus dem Manager-Chat:"
 
 TEXT_REFINE_HEADLINE = "Verfeinerungsauftrag: Passe den bestehenden Marketing-Text an."
 IMAGE_REFINE_HEADLINE = "Verfeinerungsauftrag: Passe das bestehende Bildmotiv an."
@@ -63,6 +63,12 @@ def build_execution_plan(
         validation_requirements.append("assistant_message_present")
     if intent == "memory_inquiry":
         expected_artifacts.append("memory_answer")
+        validation_requirements.append("assistant_message_present")
+    if intent == "memory_store":
+        expected_artifacts.append("memory_store_ack")
+        validation_requirements.append("assistant_message_present")
+    if intent == "web_inquiry":
+        expected_artifacts.append("web_answer")
         validation_requirements.append("assistant_message_present")
     if intent == "post_status_inquiry":
         expected_artifacts.append("post_status_answer")

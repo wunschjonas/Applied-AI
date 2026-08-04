@@ -37,6 +37,12 @@ class ArtifactValidator:
     ) -> dict[str, str]:
         feedback: dict[str, str] = {}
 
+        # Research-first turn: web results only — do not require text/image artifacts.
+        if artifacts.get("web_answer"):
+            if not assistant_message:
+                feedback["manager"] = "assistant_message missing"
+            return feedback
+
         if intent in TEXT_INTENTS:
             issues = self.validate_text(artifacts.get("text"), platform)
             if issues:
@@ -47,7 +53,7 @@ class ArtifactValidator:
             if issues:
                 feedback["image"] = "; ".join(issues)
 
-        if intent in {"clarification_needed", "memory_inquiry", "post_status_inquiry"} and not assistant_message:
+        if intent in {"clarification_needed", "memory_inquiry", "post_status_inquiry", "web_inquiry"} and not assistant_message:
             feedback["manager"] = "assistant_message missing"
 
         return feedback

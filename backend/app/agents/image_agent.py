@@ -25,11 +25,11 @@ class ImageAgent(BaseAgent):
         context: str | dict[str, Any] | None = None,
         rag_context: str | None = None,
     ) -> dict[str, Any]:
-        self.trace(
+        self.record(
             trace,
-            thought="Image prompt generation requested.",
-            action="generate_image_prompt",
-            observation=f"Platform={platform or 'unspecified'}, style={visual_style or 'model choice'}.",
+            "image_prompt_start",
+            platform=platform,
+            visual_style=visual_style,
         )
 
         prompt_text = self.hf.generate(
@@ -49,11 +49,10 @@ class ImageAgent(BaseAgent):
             "suggested_style": visual_style or "clean commercial marketing visual",
         }
 
-        self.trace(
+        self.record(
             trace,
-            thought="HuggingFace returned an image prompt draft.",
-            action="return_image_prompt_artifact",
-            observation=f"Generated prompt with {len(prompt_text)} characters.",
+            "image_prompt_done",
+            prompt_chars=len(prompt_text),
         )
 
         return result
@@ -104,17 +103,16 @@ class ImageAgent(BaseAgent):
             else getattr(self.hf, "hf_image_model_id", None)
         ) or "unconfigured"
 
+        generation_mode = "text_to_image"
         try:
-            generation_mode = "text_to_image"
             if use_img2img:
-                self.trace(
+                self.record(
                     trace,
-                    thought="Visual inputs ready for image-to-image inference.",
-                    action="call_image_to_image_model",
-                    observation=(
-                        f"Calling HuggingFace image-to-image model {model_id} "
-                        f"with strength={strength}; source={img2img_source}."
-                    ),
+                    "image_call",
+                    image_mode="image_to_image",
+                    model_id=model_id,
+                    strength=strength,
+                    img2img_source=img2img_source,
                 )
                 try:
                     image_bytes = self.hf.generate_image_from_image(
@@ -125,38 +123,32 @@ class ImageAgent(BaseAgent):
                     )
                     generation_mode = "image_to_image"
                 except Exception as img2img_exc:
-                    self.trace(
+                    self.record(
                         trace,
-                        thought="Image-to-image failed; falling back to text-to-image.",
-                        action="fallback_text_to_image",
-                        observation=f"{type(img2img_exc).__name__}: {img2img_exc}",
-                        status_value="warning",
+                        "image_fallback",
+                        status="warning",
+                        error=f"{type(img2img_exc).__name__}: {img2img_exc}",
                     )
                     txt_model = getattr(self.hf, "hf_image_model_id", None) or "unconfigured"
-                    self.trace(
+                    self.record(
                         trace,
-                        thought="Generating a new image from the enriched prompt.",
-                        action="call_text_to_image_model",
-                        observation=f"Calling HuggingFace text-to-image model {txt_model}.",
+                        "image_call",
+                        image_mode="text_to_image_fallback",
+                        model_id=txt_model,
                     )
                     image_bytes = self.hf.generate_image(prompt=prompt, negative_prompt=negative_prompt)
                     generation_mode = "text_to_image_fallback"
                     artifact["image_to_image_error"] = f"{type(img2img_exc).__name__}: {img2img_exc}"
             else:
-                self.trace(
+                self.record(
                     trace,
-                    thought="Image prompt is ready for text-to-image inference.",
-                    action="call_text_to_image_model",
-                    observation=f"Calling HuggingFace text-to-image model {model_id}.",
+                    "image_call",
+                    image_mode="text_to_image",
+                    model_id=model_id,
                 )
                 image_bytes = self.hf.generate_image(prompt=prompt, negative_prompt=negative_prompt)
 
-            self.trace(
-                trace,
-                thought="HuggingFace returned image bytes.",
-                action="store_generated_image",
-                observation="Storing generated image bytes as a local PNG file.",
-            )
+            self.record(trace, "image_store")
             stored = self.image_storage.save_png(image_bytes, filename_stem=post_id)
             artifact.update(stored)
             artifact["generation_mode"] = generation_mode
@@ -167,14 +159,13 @@ class ImageAgent(BaseAgent):
                 artifact["used_image_to_image"] = generation_mode == "image_to_image"
                 artifact["image_to_image_strength"] = strength
 
-            self.trace(
+            self.record(
                 trace,
-                thought="Generated image file is available.",
-                action="return_image_artifact",
-                observation=(
-                    f"Stored {stored['image_filename']} at {stored['image_url']} "
-                    f"({generation_mode}, source={img2img_source})."
-                ),
+                "image_return",
+                image_filename=stored.get("image_filename"),
+                image_url=stored.get("image_url"),
+                image_mode=generation_mode,
+                img2img_source=img2img_source,
             )
             return artifact
         except Exception as exc:
@@ -189,12 +180,12 @@ class ImageAgent(BaseAgent):
                     "retryable": self._is_retryable_error(error),
                 }
             )
-            self.trace(
+            self.record(
                 trace,
-                thought="Image prompt exists but image generation failed.",
-                action="return_image_artifact",
-                observation=error,
-                status_value="partial_success",
+                "image_return",
+                status="partial_success",
+                error=error,
+                image_mode=generation_mode,
             )
             return artifact
 

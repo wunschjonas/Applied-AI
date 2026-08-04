@@ -13,7 +13,7 @@ export interface ChatResponse {
   trace_id?: string;
   /** Post fields the manager filled from this message. */
   post_updates?: Record<string, unknown>;
-  /** Brief fields that are still open, in the order the manager will ask for them. */
+  /** Steckbrief fields that are still open, in the order the manager will ask for them. */
   missing_fields?: string[];
 }
 

@@ -5,7 +5,6 @@
 Dieses Projekt verwendet:
 - Backend: `FastAPI` API in `backend/app.py` (Port 8080)
 - Frontend: `Angular` App in `frontend/` (Port 4200)
-- Agentenlogik: `LangGraph` (noch nicht implementiert)
 - Containerisierung: `Docker` + `docker-compose`
 
 ## Lokaler Start (Docker)

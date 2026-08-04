@@ -52,25 +52,101 @@ class FakeHF:
         combined = " ".join(
             str(item.get("content") or "")
             for item in messages
+            if item.get("role") in {"user", "tool"}
+        ).lower()
+        # Also include the planner user prompt (brief snapshot) from last user message only once
+        user_bits = " ".join(
+            str(item.get("content") or "")
+            for item in messages
             if item.get("role") == "user"
         ).lower()
+
+        available = set()
+        for tool in tools or []:
+            name = (tool.get("function") or {}).get("name")
+            if name:
+                available.add(name)
+
+        def _call(name: str, arguments: dict) -> dict:
+            return {
+                "content": f"Calling {name}.",
+                "tool_calls": [{"id": f"call_{name}_{len(self.tool_rounds)}", "name": name, "arguments": arguments}],
+            }
+
+        # Explicit store request
+        if any(k in user_bits for k in ("merk dir", "speicher", "remember", "save this", "store this")):
+            if not getattr(self, "_store_used", False) and "memory_store" in available:
+                self._store_used = True
+                # Intentionally thin content — dispatcher must resolve from prior USER turn when needed.
+                return _call("memory_store", {"content": "den Fakt im Rag", "tags": ["test"]})
+
+        # Web / current events — prefer before completeness (research-first turn).
+        web_like = any(
+            k in user_bits
+            for k in (
+                "web",
+                "internet",
+                "aktuell",
+                "trend",
+                "nachrichten",
+                "heute",
+                "news",
+                "recherchier",
+            )
+        )
+        if web_like:
+            if not getattr(self, "_web_used", False) and "web_search" in available:
+                self._web_used = True
+                return _call(
+                    "web_search",
+                    {"query": "Fußball Weltmeisterschaft 2014 Gewinner", "max_results": 3},
+                )
+
+        # Factual knowledge questions → memory_search (LLM tool choice path in tests).
+        knowledge_like = any(
+            k in user_bits
+            for k in ("weißt du", "weisst du", "kennst du", "gewonnen", "wer hat", "wer war")
+        )
+        if knowledge_like and not web_like:
+            if not self._rag_tool_used and "memory_search" in available:
+                self._rag_tool_used = True
+                return _call("memory_search", {"query": "WM 2014 Fußball Gewinner", "n_results": 3})
+
+        # Memory overview questions
+        if any(k in user_bits for k in ("gedächtnis", "gedaechtnis", "was weisst", "was weißt", "memory list")):
+            if not getattr(self, "_list_used", False) and "memory_list" in available:
+                self._list_used = True
+                return _call("memory_list", {"limit": 10})
+
+        # Generation path: completeness first, then optional memory_search for PDF/brand
+        # Skip completeness for pure store intents ("merk dir …") and pure web research.
+        store_like = any(k in user_bits for k in ("merk dir", "speichere", "remember"))
+        generate_like = any(
+            k in user_bits
+            for k in ("schreibe", "linkedin", "instagram", "post", "gener", "caption", "bild")
+        )
+        if generate_like and not store_like and not web_like and "check_post_data_completeness" in available:
+            if not getattr(self, "_post_data_checked", False):
+                self._post_data_checked = True
+                return _call("check_post_data_completeness", {})
+
         should_search = (
             not self._rag_tool_used
-            and ("pdf" in combined or "brand guidelines" in combined or "gedächtnis" in combined)
+            and ("pdf" in user_bits or "brand guidelines" in user_bits or "gedächtnis" in user_bits)
+            and "memory_search" in available
         )
         if should_search:
             self._rag_tool_used = True
-            return {
-                "content": "I should check project memory for the uploaded PDF.",
-                "tool_calls": [
-                    {
-                        "id": "call_memory_1",
-                        "name": "memory_search",
-                        "arguments": {"query": "brand guidelines pdf", "n_results": 3},
-                    }
-                ],
-            }
-        return {"content": "No memory search needed.", "tool_calls": []}
+            return _call("memory_search", {"query": "brand guidelines pdf", "n_results": 3})
+
+        # After completeness, if get_post_data requested in script
+        if getattr(self, "force_get_post_data", False) and not getattr(self, "_post_data_read", False):
+            if "get_post_data" in available:
+                self._post_data_read = True
+                return _call("get_post_data", {})
+
+        return {"content": "No further tools needed.", "tool_calls": []}
+
 
     def describe_image(self, image_bytes: bytes) -> str:
         return "a marketing product photo on a clean desk"

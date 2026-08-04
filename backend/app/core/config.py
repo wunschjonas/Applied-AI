@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     mcp_memory_url: str = Field(default="http://localhost:8765/mcp", alias="MCP_MEMORY_URL")
     tao_verbose: bool = Field(default=True, alias="TAO_VERBOSE")
+    web_search_enabled: bool = Field(default=True, alias="WEB_SEARCH_ENABLED")
 
     data_dir: Path = Path(__file__).resolve().parent.parent / "storage" / "data"
     generated_images_dir: Path = Path(__file__).resolve().parent.parent / "storage" / "generated_images"

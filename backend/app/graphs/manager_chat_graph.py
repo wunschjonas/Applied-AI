@@ -84,14 +84,14 @@ class ManagerChatGraph:
             "used_agents": final_state["used_agents"],
             "generated_artifacts": final_state["generated_artifacts"],
             "trace_id": final_state["trace_id"],
-            "post_updates": final_state.get("brief_updates") or {},
-            "missing_fields": final_state.get("brief_missing") or [],
+            "post_updates": final_state.get("post_data_updates") or {},
+            "missing_fields": final_state.get("post_data_missing") or [],
         }
 
     def _build_graph(self):
         graph = StateGraph(ManagerChatState)
         graph.add_node("init_state_node", self.lifecycle_nodes.init_state_node)
-        graph.add_node("collect_brief_node", self.post_sync_nodes.collect_brief_node)
+        graph.add_node("collect_post_data_node", self.post_sync_nodes.collect_post_data_node)
         graph.add_node("classify_intent_node", self.planning_nodes.classify_intent_node)
         graph.add_node("create_plan_node", self.planning_nodes.create_plan_node)
         graph.add_node("rag_react_node", self.rag_nodes.rag_react_node)
@@ -100,6 +100,8 @@ class ManagerChatGraph:
         graph.add_node("image_agent_node", self.specialist_nodes.image_agent_node)
         graph.add_node("clarification_node", self.specialist_nodes.clarification_node)
         graph.add_node("memory_answer_node", self.specialist_nodes.memory_answer_node)
+        graph.add_node("memory_store_ack_node", self.specialist_nodes.memory_store_ack_node)
+        graph.add_node("web_answer_node", self.specialist_nodes.web_answer_node)
         graph.add_node("post_status_node", self.specialist_nodes.post_status_node)
         graph.add_node("context_question_node", self.post_sync_nodes.context_question_node)
         graph.add_node("validation_node", self.response_nodes.validation_node)
@@ -108,8 +110,8 @@ class ManagerChatGraph:
         graph.add_node("save_trace_node", self.lifecycle_nodes.save_trace_node)
 
         graph.add_edge(START, "init_state_node")
-        graph.add_edge("init_state_node", "collect_brief_node")
-        graph.add_edge("collect_brief_node", "classify_intent_node")
+        graph.add_edge("init_state_node", "collect_post_data_node")
+        graph.add_edge("collect_post_data_node", "classify_intent_node")
         graph.add_edge("classify_intent_node", "create_plan_node")
         graph.add_edge("create_plan_node", "rag_react_node")
         graph.add_edge("rag_react_node", "route_by_intent")
@@ -121,6 +123,8 @@ class ManagerChatGraph:
                 "image_agent_node": "image_agent_node",
                 "clarification_node": "clarification_node",
                 "memory_answer_node": "memory_answer_node",
+                "memory_store_ack_node": "memory_store_ack_node",
+                "web_answer_node": "web_answer_node",
                 "post_status_node": "post_status_node",
                 "context_question_node": "context_question_node",
             },
@@ -133,6 +137,8 @@ class ManagerChatGraph:
         graph.add_edge("image_agent_node", "validation_node")
         graph.add_edge("clarification_node", "validation_node")
         graph.add_edge("memory_answer_node", "validation_node")
+        graph.add_edge("memory_store_ack_node", "validation_node")
+        graph.add_edge("web_answer_node", "validation_node")
         graph.add_edge("post_status_node", "validation_node")
         graph.add_conditional_edges(
             "validation_node",

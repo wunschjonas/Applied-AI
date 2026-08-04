@@ -56,14 +56,14 @@ app/graphs/
   routers.py               maybe_rag / intent / after_text / retry routers
   nodes/
     lifecycle.py           init_state_node, save_trace_node
-    post_sync.py           collect_brief_node, context_question_node, persist_post_node
+    post_sync.py           collect_post_data_node, context_question_node, persist_post_node
     planning.py            classify_intent_node, create_plan_node, route_by_intent_node
     rag.py                 rag_decision_node, rag_retrieval_node
     specialists.py         text_agent_node, image_agent_node, clarification_node
     response.py            validation_node, assemble_response_node
   support/
     delegation.py          per-agent task briefs, refinement briefs, platform/context resolution
-    post_fields.py         brief field extraction, questions, awaiting_field bookkeeping
+    post_fields.py         Steckbrief field extraction, questions, awaiting_field bookkeeping
     validation.py          ArtifactValidator with text and image rules
     messages.py            German assistant response texts
 ```
@@ -77,7 +77,7 @@ Graph flow:
 ```text
 START
 -> init_state_node
--> collect_brief_node
+-> collect_post_data_node
 -> classify_intent_node
 -> create_plan_node
 -> rag_decision_node
@@ -92,13 +92,13 @@ START
 -> END
 ```
 
-The graph state tracks `chat_id`, `trace_id`, `post_id`, `user_message`, `context`, `intent`, `execution_plan`, `rag_needed`, `rag_context`, `generated_artifacts`, `used_agents`, `errors`, `warnings`, `status`, `validation_feedback`, `validation_result`, `text_retry_count`, `image_retry_count`, plus the brief keys `post`, `brief_updates`, `brief_missing`, `brief_blocking`, `explicit_generate` and `followup_question`.
+The graph state tracks `chat_id`, `trace_id`, `post_id`, `user_message`, `context`, `intent`, `execution_plan`, `rag_needed`, `rag_context`, `generated_artifacts`, `used_agents`, `errors`, `warnings`, `status`, `validation_feedback`, `validation_result`, `text_retry_count`, `image_retry_count`, plus the brief keys `post`, `post_data_updates`, `post_data_missing`, `post_data_blocking`, `explicit_generate` and `followup_question`.
 
 ## Chat-Driven Post Brief
 
 A post starts with mostly empty fields. The manager fills them from the conversation instead of requiring a form.
 
-`collect_brief_node` loads the post through `PostRepository` and extracts fields from the message using the deterministic rules in `support/post_fields.py`:
+`collect_post_data_node` loads the post through `PostRepository` and extracts fields from the message using the deterministic rules in `support/post_fields.py`:
 
 - `platform` and `tone_of_voice` come from word-boundary alias matching and may correct an existing value.
 - `topic` and `target_audience` come from markers such as `zum Thema`, `über`, `about`, `Zielgruppe` and only fill empty fields.
@@ -177,13 +177,13 @@ Explicit overrides such as `Nur das Bild!`, `nur text`, `only image` and `text o
   ],
   "assignments": {
     "text": {
-      "task": "Teilauftrag des ManagerAgent: Erstelle den Marketing-Text.\nNutzeranfrage: ...\nPost-Brief aus dem Manager-Chat:\n- Thema des Posts: ...",
+      "task": "Teilauftrag des ManagerAgent: Erstelle den Marketing-Text.\nNutzeranfrage: ...\nPost-Steckbrief aus dem Manager-Chat:\n- Thema des Posts: ...",
       "platform": "instagram",
       "tone": "professional",
       "target_audience": null
     },
     "image": {
-      "task": "Teilauftrag des ManagerAgent: Erstelle das Bildmotiv.\nNutzeranfrage: ...\nPost-Brief aus dem Manager-Chat:\n- Thema des Posts: ...",
+      "task": "Teilauftrag des ManagerAgent: Erstelle das Bildmotiv.\nNutzeranfrage: ...\nPost-Steckbrief aus dem Manager-Chat:\n- Thema des Posts: ...",
       "platform": "instagram",
       "visual_style": null
     }
@@ -366,4 +366,4 @@ Home, Text Agent, Image Agent and Preview all read the same facade, so an artifa
 
 Image URLs from the backend are relative. `toAbsoluteApiUrl()` in `src/app/core/api.config.ts` prefixes the backend origin, and the facade appends a timestamp query so a regenerated `{post_id}.png` is not served from the browser cache.
 
-`Home` additionally shows the open brief fields from `missing_fields` and reloads the post list when `post_updates` is non-empty.
+`Home` additionally shows the open Steckbrief fields from `missing_fields` and reloads the post list when `post_updates` is non-empty.

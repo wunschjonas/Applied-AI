@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -20,7 +20,7 @@ class TraceService:
             "id": trace_id,
             "trace_id": trace_id,
             "chat_id": chat_id,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "steps": [],
             "metadata": metadata or {},
         }
@@ -45,7 +45,7 @@ class TraceService:
             "action": action,
             "observation": observation,
             "status": status_value,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         trace["steps"].append(step)
         self.store.save(trace)

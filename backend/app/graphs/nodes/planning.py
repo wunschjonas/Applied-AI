@@ -7,14 +7,16 @@ from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
 from app.graphs.support import post_fields
 from app.graphs.support.delegation import build_execution_plan
+from app.graphs.support.tao_composer import TaoEvent
 
-ROUTE_OBSERVATIONS = {
-    "text_only": "Route to TextAgent.",
-    "image_only": "Route to ImageAgent.",
-    "text_and_image": "Route to TextAgent first, then ImageAgent.",
-    "memory_inquiry": "Route to memory answer from RAG context.",
-    "post_status_inquiry": "Route to post status summary from posts.json.",
-    "clarification_needed": "Route to clarification response.",
+ROUTE_TARGETS = {
+    "text_only": "TextAgent",
+    "image_only": "ImageAgent",
+    "text_and_image": "TextAgent, danach ImageAgent",
+    "memory_inquiry": "Memory-Antwort aus RAG",
+    "web_inquiry": "Web-Antwort aus Suche",
+    "post_status_inquiry": "Post-Status aus posts.json",
+    "clarification_needed": "Klärungsfrage",
 }
 
 
@@ -29,17 +31,22 @@ class PlanningNodes:
         state["intent"] = intent.label
         status = "needs_input" if intent.needs_clarification else "success"
 
-        self.recorder.step(
-            state, "classify_intent_node", intent.decision, "classify_intent", intent.observation, status
+        event = TaoEvent(
+            phase="classify_intent",
+            node="classify_intent_node",
+            agent="classify_intent_node",
+            status=status,
+            intent=intent.label,
+            facts={"decision": intent.decision, "detail": intent.observation},
         )
+        self.recorder.record(state, event)
         self.recorder.log(
             state,
             agent="manager_agent",
             status=status,
             step="classify_intent",
             started_at=started_at,
-            thought=f"{intent.label} - {intent.observation}",
-            observation=intent.observation,
+            event=event,
             output_summary=f"Intent: {intent.label}",
         )
         return state
@@ -53,12 +60,19 @@ class PlanningNodes:
         )
         state["execution_plan"] = plan
 
-        self.recorder.step(
+        self.recorder.record(
             state,
-            "create_plan_node",
-            "Created high-level execution plan.",
-            "create_plan",
-            str(plan),
+            TaoEvent(
+                phase="create_plan",
+                node="create_plan_node",
+                agent="create_plan_node",
+                intent=state.get("intent"),
+                facts={
+                    "required_agents": plan.get("required_agents"),
+                    "expected_artifacts": plan.get("expected_artifacts"),
+                    "needs_rag_check": plan.get("needs_rag_check"),
+                },
+            ),
         )
         return state
 
@@ -75,12 +89,15 @@ class PlanningNodes:
         return merged
 
     def route_by_intent_node(self, state: ManagerChatState) -> ManagerChatState:
-        observation = ROUTE_OBSERVATIONS.get(state["intent"], "Unknown intent.")
-        self.recorder.step(
+        intent = state["intent"]
+        self.recorder.record(
             state,
-            "route_by_intent",
-            f"Routing selected for intent={state['intent']}.",
-            "route_by_intent",
-            observation,
+            TaoEvent(
+                phase="route_by_intent",
+                node="route_by_intent",
+                agent="route_by_intent",
+                intent=intent,
+                facts={"route_target": ROUTE_TARGETS.get(intent, "unbekannt")},
+            ),
         )
         return state

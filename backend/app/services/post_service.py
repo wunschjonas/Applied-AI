@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 
 from app.core.config import settings
-from app.graphs.support import brief_llm
+from app.graphs.support import post_data_llm
 from app.graphs.support.post_fields import AWAITING_FIELD_KEY, missing_fields
 from app.schemas.post import Platform, PostCreate, PostInit, PostInitResponse, PostResponse, PostStatus, PostUpdate
 from app.services.agent_service import AgentService
@@ -37,7 +37,7 @@ class PostService:
         self.store.save(post)
         self.chat_service.ensure_chats_for_post(post_id)
 
-        welcome = brief_llm.welcome_message(post_init.title, self._optional_hf())
+        welcome = post_data_llm.welcome_message(post_init.title, self._optional_hf())
         chat = self.chat_service.get_or_create_chat(post_id, agent="manager_agent")
         self.chat_service.add_message(chat, "AGENT", welcome)
 

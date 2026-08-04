@@ -27,5 +27,5 @@ def test_react_rag_calls_memory_search_tool(tmp_path: Path):
     assert rag.search_queries
     assert any(round_["tools"] for round_ in hf.tool_rounds)
     trace = graph.trace_service.get_trace(result["trace_id"])
-    assert any(step["action"] == "call_memory_search" for step in trace["steps"])
+    assert any("memory_search" in (step.get("action") or "") for step in trace["steps"])
     assert result["used_agents"] == ["TextAgent"]

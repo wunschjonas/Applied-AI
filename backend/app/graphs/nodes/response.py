@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
-from app.graphs.support import brief_llm, messages
+from app.graphs.support import post_data_llm, messages
+from app.graphs.support.tao_composer import TaoEvent
 from app.graphs.support.validation import ArtifactValidator
 
 VALIDATION_STATUS = {
@@ -35,7 +36,6 @@ class ResponseNodes:
         )
         state["validation_feedback"] = feedback
         state["validation_result"] = result
-        # Increment here (not in the router) so LangGraph persists the retry budget.
         if result == "retry_text":
             state["text_retry_count"] = state["text_retry_count"] + 1
         elif result == "retry_image":
@@ -43,19 +43,21 @@ class ResponseNodes:
         if result in VALIDATION_STATUS:
             state["status"] = VALIDATION_STATUS[result]
 
-        self.recorder.step(
+        self.recorder.record(
             state,
-            "validation_node",
-            f"Validation result: {result}.",
-            "validate_results",
-            str(
-                {
-                    "feedback": feedback,
+            TaoEvent(
+                phase="validate",
+                node="validation_node",
+                agent="validation_node",
+                status="success" if result == "valid" else result,
+                intent=state.get("intent"),
+                facts={
+                    "validation_result": result,
+                    "feedback_keys": list(feedback.keys()) if isinstance(feedback, dict) else [],
                     "text_retry_count": state["text_retry_count"],
                     "image_retry_count": state["image_retry_count"],
-                }
+                },
             ),
-            "success" if result == "valid" else result,
         )
         return state
 
@@ -68,54 +70,61 @@ class ResponseNodes:
         image_prompt_only = bool(image.get("image_prompt")) and not image_ok
 
         if intent == "clarification_needed":
-            observation = "Clarification response kept."
+            detail = "Klärungsantwort beibehalten."
         elif intent == "memory_inquiry":
-            observation = "Memory inquiry response kept."
+            detail = "Memory-Antwort beibehalten."
+        elif intent == "memory_store" or artifacts.get("memory_store_ack"):
+            detail = "Memory-Speicher-Bestätigung beibehalten."
+        elif intent == "web_inquiry" or artifacts.get("web_answer"):
+            detail = "Web-Suchantwort beibehalten."
         elif intent == "post_status_inquiry":
-            observation = "Post status response kept."
+            detail = "Post-Status-Antwort beibehalten."
         elif state["status"] == "error":
             if text_ok or image_prompt_only or image_ok:
                 state["status"] = "partial_success"
                 fallback = messages.partial_message(text_ok, image_ok, image_prompt_only)
-                observation = "Partial response assembled after validation failure."
+                detail = "Teilantwort nach Validierungsfehler."
             else:
                 fallback = messages.WORKFLOW_FAILED
-                observation = "Failure response assembled."
-            state["assistant_message"] = self._compose(state, fallback, observation)
+                detail = "Fehlerantwort zusammengestellt."
+            state["assistant_message"] = self._compose(state, fallback, detail)
         elif intent == "text_only":
             fallback = messages.TEXT_SUCCESS
-            observation = "Text-only success response assembled."
-            state["assistant_message"] = self._compose(state, fallback, observation)
+            detail = "Text-Erfolg zusammengestellt."
+            state["assistant_message"] = self._compose(state, fallback, detail)
         elif intent == "image_only":
             if image_ok:
                 fallback = messages.IMAGE_SUCCESS
-                observation = "Image-only success response assembled."
+                detail = "Bild-Erfolg zusammengestellt."
             else:
                 state["status"] = "partial_success"
                 fallback = messages.IMAGE_PROMPT_ONLY
-                observation = "Image prompt-only partial success response assembled."
-            state["assistant_message"] = self._compose(state, fallback, observation)
+                detail = "Nur Bildprompt — Teilerfolg."
+            state["assistant_message"] = self._compose(state, fallback, detail)
         elif intent == "text_and_image":
             if text_ok and image_ok:
                 fallback = messages.COMBINED_SUCCESS
-                observation = "Combined success response assembled."
+                detail = "Text und Bild erfolgreich kombiniert."
             else:
                 state["status"] = "partial_success"
                 fallback = messages.partial_message(text_ok, image_ok, image_prompt_only)
-                observation = "Combined partial response assembled."
-            state["assistant_message"] = self._compose(state, fallback, observation)
+                detail = "Kombinierte Teilantwort."
+            state["assistant_message"] = self._compose(state, fallback, detail)
         else:
             fallback = messages.WORKFLOW_UNCLEAR
-            observation = "Fallback response assembled."
-            state["assistant_message"] = self._compose(state, fallback, observation)
+            detail = "Fallback-Antwort."
+            state["assistant_message"] = self._compose(state, fallback, detail)
 
-        self.recorder.step(
+        self.recorder.record(
             state,
-            "assemble_response_node",
-            "Final chat response assembled from actual graph artifacts.",
-            "assemble_response",
-            observation,
-            state.get("status", "success"),
+            TaoEvent(
+                phase="assemble",
+                node="assemble_response_node",
+                agent="assemble_response_node",
+                status=state.get("status", "success"),
+                intent=intent,
+                facts={"detail": detail},
+            ),
         )
         return state
 
@@ -127,12 +136,11 @@ class ResponseNodes:
             f"text_chars={text_len}; image_url={image.get('image_url')}; "
             f"used_agents={state.get('used_agents')}"
         )
-        return brief_llm.compose_manager_reply(
-            hf=brief_llm.try_hf(self.deps.hf_factory),
+        return post_data_llm.compose_manager_reply(
+            hf=post_data_llm.try_hf(self.deps.hf_factory),
             fallback=fallback,
             situation=situation,
             user_message=state["user_message"],
             post=state.get("post"),
-            brief_updates=state.get("brief_updates"),
             artifact_summary=artifact_summary,
         )

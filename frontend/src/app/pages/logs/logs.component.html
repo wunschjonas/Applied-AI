@@ -71,7 +71,7 @@
         <div class="log-footer">
           <span class="log-agent">{{ log.agent }}</span>
           <span class="log-run-id" title="Run ID: {{ log.run_id }}">run: {{ log.run_id | slice:0:8 }}…</span>
-          <span class="log-meta">{{ log.timestamp | date: 'dd.MM.yyyy, HH:mm:ss' }}</span>
+          <span class="log-meta">{{ log.timestamp | date: 'dd.MM.yyyy, HH:mm:ss' : 'Europe/Berlin' }}</span>
           <span class="log-duration">{{ log.duration_ms }} ms</span>
         </div>
 

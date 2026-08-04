@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable
+from typing import Any, Callable
 
 from app.agents.manager_agent import ManagerIntentClassifier
 from app.graphs.state import ManagerChatState
+from app.graphs.support.tao_composer import TaoEvent, TaoTriple, compose
 from app.services.chat_service import ChatService
 from app.services.huggingface_service import HuggingFaceService
 from app.services.image_storage_service import ImageStorageService
@@ -31,17 +32,24 @@ class StepRecorder:
     def __init__(self, deps: GraphDependencies):
         self.deps = deps
 
-    def step(
+    def record(
         self,
         state: ManagerChatState,
-        agent: str,
-        thought: str,
-        action: str,
-        observation: str,
-        status_value: str = "success",
-    ) -> None:
-        step = self.deps.trace_service.add_step(state["trace"], agent, thought, action, observation, status_value)
+        event: TaoEvent,
+    ) -> TaoTriple:
+        """Compose TAO text from workflow facts and append a trace step."""
+        triple = compose(event)
+        agent = event.agent or event.node
+        step = self.deps.trace_service.add_step(
+            state["trace"],
+            agent,
+            triple.thought,
+            triple.action,
+            triple.observation,
+            event.status,
+        )
         state["trace_steps"].append(step)
+        return triple
 
     def log(
         self,
@@ -55,7 +63,14 @@ class StepRecorder:
         thought: str | None = None,
         observation: str | None = None,
         output_summary: str | None = None,
+        event: TaoEvent | None = None,
     ) -> None:
+        if event is not None:
+            triple = compose(event)
+            thought = triple.thought
+            observation = triple.observation
+            if action == "manager_chat":
+                action = triple.action
         self.deps.log_service.add_log(
             agent=agent,
             action=action,
@@ -73,3 +88,22 @@ class StepRecorder:
     @staticmethod
     def elapsed_ms(start: datetime) -> int:
         return int((datetime.utcnow() - start).total_seconds() * 1000)
+
+
+def record_trace_event(
+    trace_service: TraceService,
+    trace: dict[str, Any],
+    event: TaoEvent,
+) -> TaoTriple:
+    """Record a composed TAO step outside the LangGraph StepRecorder (direct agents)."""
+    triple = compose(event)
+    agent = event.agent or event.node
+    trace_service.add_step(
+        trace,
+        agent,
+        triple.thought,
+        triple.action,
+        triple.observation,
+        event.status,
+    )
+    return triple
