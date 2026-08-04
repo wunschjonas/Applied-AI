@@ -502,7 +502,13 @@ class ManagerToolDispatcher:
         effects: dict[str, Any],
     ) -> tuple[str, str, dict[str, Any]]:
         post = state.get("post") or {}
-        missing = post_fields.missing_required_fields(post) if post else ["topic", "platform", "target_audience", "tone_of_voice"]
+        intent = state.get("intent")
+        if post:
+            missing = post_fields.missing_fields_for_intent(post, intent)
+        else:
+            missing = ["topic", "platform", "target_audience", "tone_of_voice"]
+            if intent in {"image_only", "text_and_image"}:
+                missing.append("image_context")
         effects["post_data_checked"] = True
         effects["post_data_missing"] = missing
         effects["post_data_complete"] = not bool(missing)

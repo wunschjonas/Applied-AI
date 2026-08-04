@@ -73,6 +73,12 @@ class FakeHF:
                 "tool_calls": [{"id": f"call_{name}_{len(self.tool_rounds)}", "name": name, "arguments": arguments}],
             }
 
+        # ImageAgent / single-tool Steckbrief read (do not steal manager multi-tool rounds)
+        if available == {"get_post_data"}:
+            if not getattr(self, "_post_data_read", False):
+                self._post_data_read = True
+                return _call("get_post_data", {})
+
         # Explicit store request
         if any(k in user_bits for k in ("merk dir", "speicher", "remember", "save this", "store this")):
             if not getattr(self, "_store_used", False) and "memory_store" in available:
@@ -249,6 +255,7 @@ def seed_post(graph: ManagerChatGraph, post_id: str, **fields) -> dict:
         "target_audience": None,
         "tone_of_voice": None,
         "additional_context": None,
+        "image_context": None,
         "preview": None,
     }
     post.update(fields)

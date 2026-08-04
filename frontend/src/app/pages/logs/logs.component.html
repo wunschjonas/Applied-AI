@@ -33,16 +33,34 @@
 
         <div class="log-header">
           <div class="log-header-left">
-            <span class="log-step">{{ log.step }}</span>
+            <div class="log-field">
+              <span class="log-field-label">Schritt:</span>
+              <span class="log-step">{{ log.step }}</span>
+            </div>
             @if (log.tool_called) {
-              <span class="tool-badge" [class.hf]="log.tool_called === 'huggingface_generate'" [class.mcp]="log.tool_called.startsWith('mcp_')">
-                &#9874; {{ log.tool_called }}
-              </span>
+              <div class="log-field">
+                <span class="log-field-label">Tool:</span>
+                <span
+                  class="tool-badge"
+                  [class.hf]="log.tool_called === 'huggingface_generate' || log.tool_called.startsWith('huggingface_')"
+                  [class.mcp]="log.tool_called.startsWith('mcp_')"
+                >
+                  {{ log.tool_called }}
+                </span>
+              </div>
             }
           </div>
-          <span class="log-status" [class.success]="log.status === 'success'" [class.error]="log.status === 'error'" [class.skipped]="log.status === 'skipped'">
-            {{ log.status }}
-          </span>
+          <div class="log-field log-field--status">
+            <span class="log-field-label">Status:</span>
+            <span
+              class="log-status"
+              [class.success]="log.status === 'success'"
+              [class.error]="log.status === 'error'"
+              [class.skipped]="log.status === 'skipped'"
+            >
+              {{ log.status }}
+            </span>
+          </div>
         </div>
 
         <div class="log-tao">
@@ -62,17 +80,35 @@
         </div>
 
         <div class="log-body">
-          <span class="log-summary">{{ log.input_summary }}</span>
+          <div class="log-field log-field--block">
+            <span class="log-field-label">Eingabe:</span>
+            <span class="log-summary">{{ log.input_summary }}</span>
+          </div>
           @if (log.output_summary) {
-            <span class="log-output">&#8594; {{ log.output_summary }}</span>
+            <div class="log-field log-field--block">
+              <span class="log-field-label">Ausgabe:</span>
+              <span class="log-output">{{ log.output_summary }}</span>
+            </div>
           }
         </div>
 
         <div class="log-footer">
-          <span class="log-agent">{{ log.agent }}</span>
-          <span class="log-run-id" title="Run ID: {{ log.run_id }}">run: {{ log.run_id | slice:0:8 }}…</span>
-          <span class="log-meta">{{ log.timestamp | date: 'dd.MM.yyyy, HH:mm:ss' : 'Europe/Berlin' }}</span>
-          <span class="log-duration">{{ log.duration_ms }} ms</span>
+          <div class="log-field">
+            <span class="log-field-label">Agent:</span>
+            <span class="log-agent">{{ log.agent }}</span>
+          </div>
+          <div class="log-field">
+            <span class="log-field-label">Lauf-ID:</span>
+            <span class="log-run-id" title="Run ID: {{ log.run_id }}">{{ log.run_id | slice:0:8 }}…</span>
+          </div>
+          <div class="log-field">
+            <span class="log-field-label">Zeit:</span>
+            <span class="log-meta">{{ log.timestamp | date: 'dd.MM.yyyy, HH:mm:ss' : 'Europe/Berlin' }}</span>
+          </div>
+          <div class="log-field">
+            <span class="log-field-label">Dauer:</span>
+            <span class="log-duration">{{ log.duration_ms }} ms</span>
+          </div>
         </div>
 
       </li>

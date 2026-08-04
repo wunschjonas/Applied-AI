@@ -171,3 +171,35 @@ def test_web_error_observation_then_memory_fallback_path(tmp_path: Path):
         for s in web_steps
     )
     assert result.get("trace_id")
+
+
+def test_forced_memory_store_when_hf_tools_fail(tmp_path: Path):
+    """When HF tool-calling fails, memory_store still runs via forced fallback."""
+
+    class BrokenToolsHF(FakeHF):
+        def chat_with_tools(self, messages, tools, max_tokens: int = 400, temperature: float = 0.2) -> dict:
+            raise RuntimeError(
+                "HuggingFace tool request failed: BadRequestError: Bad request"
+            )
+
+    hf = BrokenToolsHF()
+    rag = FakeRAG("")
+    graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=rag)
+    seed_post(graph, "post-forced-store")  # incomplete Steckbrief on purpose
+
+    result = graph.run(
+        "Merk dir: Spanien hat die WM 2026 gewonnen",
+        "post-forced-store",
+    )
+    trace = graph.trace_service.get_trace(result["trace_id"])
+    actions = [step.get("action") or "" for step in trace["steps"]]
+
+    assert any("memory_store" in a for a in actions)
+    assert rag.stored
+    assert any("Spanien" in content and "2026" in content for content, _ in rag.stored)
+    assert any(step.get("agent") == "memory_store_ack_node" for step in trace["steps"])
+
+    message = (result.get("assistant_message") or "").lower()
+    assert "gespeichert" in message or "gemerkt" in message or "rag" in message
+    assert "worum soll der post" not in message
+    assert result.get("followup_question") in (None, "")

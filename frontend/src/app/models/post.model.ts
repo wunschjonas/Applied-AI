@@ -19,6 +19,7 @@ export interface CreatePostRequest {
   target_audience: string;
   tone_of_voice: string;
   additional_context?: string;
+  image_context?: string;
 }
 
 export interface UpdatePostRequest {
@@ -28,6 +29,7 @@ export interface UpdatePostRequest {
   target_audience?: string;
   tone_of_voice?: string;
   additional_context?: string;
+  image_context?: string;
 }
 
 export type PostStatus = 'draft' | 'processing' | 'preview_ready' | 'error';
@@ -50,6 +52,7 @@ export interface Post {
   target_audience?: string | null;
   tone_of_voice?: string | null;
   additional_context?: string | null;
+  image_context?: string | null;
   preview?: PostPreview | null;
   missing_fields?: string[];
 }

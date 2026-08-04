@@ -4,15 +4,24 @@ import re
 from typing import Any
 
 REQUIRED_FIELDS = ("topic", "platform", "target_audience", "tone_of_voice")
-OPTIONAL_FIELDS: tuple[str, ...] = ()
+OPTIONAL_FIELDS: tuple[str, ...] = ("image_context",)
 POST_DATA_FIELDS = REQUIRED_FIELDS + OPTIONAL_FIELDS
-FREE_TEXT_FIELDS = ("topic", "platform", "target_audience", "tone_of_voice", "additional_context")
+IMAGE_INTENT_EXTRA_FIELDS = ("image_context",)
+FREE_TEXT_FIELDS = (
+    "topic",
+    "platform",
+    "target_audience",
+    "tone_of_voice",
+    "additional_context",
+    "image_context",
+)
 
 FIELD_QUESTIONS = {
     "topic": "Worum soll der Post inhaltlich gehen?",
     "platform": "Fuer welche Plattform ist der Post gedacht? LinkedIn, Instagram, X, Blog, TikTok oder Facebook?",
     "target_audience": "Wen willst du damit ansprechen?",
     "tone_of_voice": "Welche Tonalitaet passt? Zum Beispiel professionell, locker oder humorvoll.",
+    "image_context": "Was soll auf dem Bild zu sehen sein? Beschreibe Motiv, Personen und Hintergrund.",
 }
 
 PLATFORM_ALIASES = {
@@ -71,6 +80,13 @@ TONE_PATTERNS = (
     r"tonalität\s*(?:ist|:)?\s*(.{3,120}?)(?:[.!?\n]|$)",
     r"\btone\s*(?:of voice\s*)?(?:is|:)?\s*(.{3,120}?)(?:[.!?\n]|$)",
 )
+IMAGE_CONTEXT_PATTERNS = (
+    r"(?:im\s+)?bildmotiv\s*(?:soll(?:te)?|ist|:)\s*(.{10,500})",
+    r"bildmotiv\s*:\s*(.{10,500})",
+    r"auf\s+dem\s+bild\s+soll(?:en|te)?\s*(.{10,500})",
+    r"im\s+bild\s+soll(?:en|te)?\s*(.{10,500})",
+    r"image\s*(?:motif|context)\s*(?:should(?:\s+be)?|:)?\s*(.{10,500})",
+)
 
 FIELD_MAX_LENGTH = {
     "topic": 200,
@@ -78,6 +94,7 @@ FIELD_MAX_LENGTH = {
     "tone_of_voice": 120,
     "platform": 40,
     "additional_context": 1000,
+    "image_context": 500,
 }
 FIELD_MIN_LENGTH = 3
 
@@ -197,6 +214,27 @@ WEB_INQUIRY_PATTERNS = (
 def wants_generation(message: str) -> bool:
     normalized = message.lower()
     return any(marker in normalized for marker in GENERATE_MARKERS)
+
+
+def is_image_motif_briefing(message: str) -> bool:
+    """True when the user describes/fills Bildmotiv without asking to generate."""
+    if wants_generation(message):
+        return False
+    lowered = (message or "").strip().lower()
+    if not lowered:
+        return False
+    return any(
+        marker in lowered
+        for marker in (
+            "bildmotiv",
+            "bild motiv",
+            "image motif",
+            "image_context",
+            "image context",
+            "auf dem bild soll",
+            "im bild soll",
+        )
+    )
 
 
 def is_question_message(message: str) -> bool:
@@ -386,6 +424,20 @@ def extract_fields(message: str, post: dict[str, Any]) -> dict[str, Any]:
     if audience and not post.get("target_audience"):
         updates["target_audience"] = audience[: FIELD_MAX_LENGTH["target_audience"]]
 
+    image_motif = _first_match(message, IMAGE_CONTEXT_PATTERNS)
+    if image_motif and not post.get("image_context"):
+        updates["image_context"] = image_motif[: FIELD_MAX_LENGTH["image_context"]]
+    elif is_image_motif_briefing(message) and not post.get("image_context") and "image_context" not in updates:
+        # Whole message is the motif description (e.g. multi-sentence "Im Bildmotiv …").
+        cleaned = re.sub(
+            r"^(?:im\s+)?bildmotiv\s*(?:soll(?:te)?|ist|:)\s*",
+            "",
+            message.strip(),
+            flags=re.IGNORECASE,
+        ).strip()
+        if len(cleaned) >= FIELD_MIN_LENGTH:
+            updates["image_context"] = cleaned[: FIELD_MAX_LENGTH["image_context"]]
+
     # Awaited free-text answers fill the field the manager just asked for.
     if awaiting in FREE_TEXT_FIELDS and awaiting not in updates and not wants_generation(message):
         # Prefer not to overwrite a just-detected platform/tone with the whole message
@@ -409,10 +461,30 @@ def missing_required_fields(post: dict[str, Any]) -> list[str]:
     return [field for field in REQUIRED_FIELDS if not post.get(field)]
 
 
-def next_question(post: dict[str, Any]) -> tuple[str, str] | None:
+def missing_fields_for_intent(post: dict[str, Any], intent: str | None = None) -> list[str]:
+    """Required Steckbrief fields, plus image_context for image generation intents."""
+    missing = missing_required_fields(post)
+    if intent in {"image_only", "text_and_image"}:
+        for field in IMAGE_INTENT_EXTRA_FIELDS:
+            if not post.get(field) and field not in missing:
+                missing.append(field)
+    return missing
+
+
+def next_question(post: dict[str, Any], intent: str | None = None) -> tuple[str, str] | None:
     """Return the next field to ask for plus its question text."""
-    for field in missing_fields(post):
-        return field, FIELD_QUESTIONS[field]
+    if intent in {"image_only", "text_and_image"}:
+        ordered = missing_fields_for_intent(post, intent)
+    elif intent == "text_only":
+        ordered = missing_required_fields(post)
+    else:
+        ordered = missing_required_fields(post)
+        if not ordered:
+            ordered = [field for field in OPTIONAL_FIELDS if not post.get(field)]
+    for field in ordered:
+        question = FIELD_QUESTIONS.get(field)
+        if question:
+            return field, question
     return None
 
 
@@ -429,6 +501,8 @@ def brief_context(post: dict[str, Any]) -> dict[str, Any]:
         context["topic"] = post["topic"]
     if post.get("additional_context"):
         context["additional_context"] = post["additional_context"]
+    if post.get("image_context"):
+        context["image_context"] = post["image_context"]
     return context
 
 

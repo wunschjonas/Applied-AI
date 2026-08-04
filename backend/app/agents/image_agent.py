@@ -6,6 +6,8 @@ from typing import Any
 from PIL import Image
 
 from app.agents.base_agent import BaseAgent
+from app.graphs.support.manager_tools import GET_POST_DATA_TOOL, ManagerToolDispatcher
+from app.graphs.support import post_fields
 from app.services.image_storage_service import ImageStorageService
 
 
@@ -70,6 +72,7 @@ class ImageAgent(BaseAgent):
         source_image: bytes | None = None,
         current_image: bytes | None = None,
         strength: float = 0.7,
+        post_repository: Any | None = None,
     ) -> dict[str, Any]:
         """Generate a new image from text and optional visual inputs.
 
@@ -79,6 +82,18 @@ class ImageAgent(BaseAgent):
         """
         if current_image is None and post_id:
             current_image = self.image_storage.read_post_image(post_id)
+
+        context = self._enrich_context_from_post(
+            context=context,
+            post_id=post_id,
+            post_repository=post_repository,
+            trace=trace,
+        )
+        tools_called = []
+        if isinstance(context, dict):
+            tools_called = list(context.pop("tools_called", []) or [])
+            if context.get("platform") and not platform:
+                platform = str(context["platform"])
 
         prompt_task = task
         if validation_feedback:
@@ -92,6 +107,8 @@ class ImageAgent(BaseAgent):
             context=context,
             rag_context=rag_context,
         )
+        if tools_called:
+            artifact["tools_called"] = tools_called
 
         prompt = artifact.get("image_prompt", "")
         negative_prompt = artifact.get("negative_prompt_optional")
@@ -223,6 +240,145 @@ class ImageAgent(BaseAgent):
         width = max(1, int(image.width * (height / image.height)))
         return image.resize((width, height), Image.Resampling.LANCZOS)
 
+    def _enrich_context_from_post(
+        self,
+        *,
+        context: str | dict[str, Any] | None,
+        post_id: str | None,
+        post_repository: Any | None,
+        trace: dict,
+    ) -> dict[str, Any]:
+        """Load Steckbrief from posts.json and optionally via get_post_data tool."""
+        merged: dict[str, Any] = {}
+        if isinstance(context, dict):
+            merged.update({k: v for k, v in context.items() if v})
+        elif isinstance(context, str) and context.strip():
+            merged["request_context"] = context.strip()
+
+        post = None
+        if post_repository is not None and post_id:
+            try:
+                post = post_repository.get(post_id)
+            except Exception:
+                post = None
+        if post:
+            for key in (
+                "topic",
+                "platform",
+                "target_audience",
+                "tone_of_voice",
+                "additional_context",
+                "image_context",
+            ):
+                if post.get(key) and key not in merged:
+                    merged[key] = post[key]
+
+        tool_summary = self._call_get_post_data_tool(
+            post_id=post_id,
+            post=post,
+            post_repository=post_repository,
+            trace=trace,
+        )
+        if tool_summary:
+            merged["post_steckbrief"] = tool_summary
+            artifact_tools = merged.setdefault("tools_called", [])
+            if isinstance(artifact_tools, list) and "get_post_data" not in artifact_tools:
+                artifact_tools.append("get_post_data")
+
+        return merged
+
+    def _call_get_post_data_tool(
+        self,
+        *,
+        post_id: str | None,
+        post: dict[str, Any] | None,
+        post_repository: Any | None,
+        trace: dict,
+    ) -> str | None:
+        """Ask the LLM to call get_post_data; always dispatch if chosen (or force once)."""
+        dispatcher = ManagerToolDispatcher(
+            rag_service=None,
+            post_repository=post_repository,
+            web_search=None,
+        )
+        state = {"post_id": post_id, "post": post}
+
+        try:
+            result = self.hf.chat_with_tools(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are the ImageAgent tool planner. "
+                            "Call get_post_data exactly once to read the marketing post Steckbrief "
+                            "(topic, platform, audience, tone, image_context) from storage."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Load the Steckbrief for post_id={post_id or 'unknown'} "
+                            "with get_post_data before generating the image."
+                        ),
+                    },
+                ],
+                tools=[GET_POST_DATA_TOOL],
+                max_tokens=200,
+                temperature=0.1,
+            )
+        except Exception as exc:
+            self.record(
+                trace,
+                "image_tool_get_post_data",
+                status="skipped",
+                error=f"{type(exc).__name__}: {exc}",
+            )
+            # Deterministic fallback observation from local post
+            if post:
+                summary = post_fields.post_status_summary(post)
+                self.record(
+                    trace,
+                    "image_tool_get_post_data",
+                    status="success",
+                    tool_name="get_post_data",
+                    detail="fallback_from_repository",
+                )
+                return summary
+            return None
+
+        tool_calls = result.get("tool_calls") or []
+        called = False
+        observation = None
+        for call in tool_calls:
+            name = call.get("name") or ""
+            if name != "get_post_data":
+                continue
+            called = True
+            observation, status, effects = dispatcher.dispatch(
+                "get_post_data",
+                call.get("arguments") or {},
+                state,
+            )
+            self.record(
+                trace,
+                "image_tool_get_post_data",
+                status=status,
+                tool_name="get_post_data",
+                detail=(effects.get("post_data_summary") or observation or "")[:240],
+            )
+            break
+
+        if not called and post:
+            observation, status, effects = dispatcher.dispatch("get_post_data", {}, state)
+            self.record(
+                trace,
+                "image_tool_get_post_data",
+                status=status,
+                tool_name="get_post_data",
+                detail="forced_dispatch;" + ((effects.get("post_data_summary") or "")[:200]),
+            )
+        return observation
+
     def _build_prompt(
         self,
         task: str,
@@ -232,6 +388,9 @@ class ImageAgent(BaseAgent):
         rag_context: str | None = None,
     ) -> str:
         context_text = self._context_to_text(context)
+        image_motif = ""
+        if isinstance(context, dict) and context.get("image_context"):
+            image_motif = f"\n- Image motif (image_context): {context['image_context']}"
         memory_section = f"\n- Memory context: {rag_context}" if rag_context else ""
         return f"""
 Create an image generation prompt for this marketing task:
@@ -240,10 +399,11 @@ Create an image generation prompt for this marketing task:
 Details:
 - Platform: {platform or "unspecified"}
 - Visual style: {visual_style or "choose an appropriate style"}
-- Context: {context_text}{memory_section}
+- Context: {context_text}{image_motif}{memory_section}
 
 Rules:
 - The visual must match the current post topic from the task/brief.
+- Prefer image_context / Bildmotiv when provided — that is the intended scene.
 - Use Memory context only when it clearly relates to that topic; ignore unrelated memories.
 - Do not mix in motifs from off-topic memory.
 The prompt should describe subject, composition, lighting, colors, mood, and any platform-specific framing.

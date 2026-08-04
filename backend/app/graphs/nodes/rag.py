@@ -7,8 +7,17 @@ from typing import Any
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
 from app.graphs.support.post_data_llm import try_hf
-from app.graphs.support.manager_tools import MANAGER_TOOLS, ManagerToolDispatcher
-from app.graphs.support.post_fields import is_memory_inquiry, memory_search_query
+from app.graphs.support.manager_tools import (
+    MANAGER_TOOLS,
+    ManagerToolDispatcher,
+    resolve_memory_store_content,
+    suggest_memory_tags,
+)
+from app.graphs.support.post_fields import (
+    is_memory_inquiry,
+    is_memory_store_request,
+    memory_search_query,
+)
 from app.graphs.support.tao_composer import TaoEvent
 from app.services.web_search_service import search_web, web_search_enabled
 
@@ -69,6 +78,8 @@ class RagNodes:
 
         hf = try_hf(self.deps.hf_factory)
         if hf is None:
+            if self._wants_memory_store(state):
+                return self._forced_memory_store(state, started_at)
             if state.get("intent") == "memory_inquiry" or is_memory_inquiry(state["user_message"]):
                 return self._forced_memory_search(state, started_at)
             return self._keyword_fallback(state, started_at, reason="HF unavailable for tool calling")
@@ -196,6 +207,8 @@ class RagNodes:
         except Exception as exc:
             warning = f"Tool-calling loop failed safely: {type(exc).__name__}: {exc}"
             state["warnings"].append(warning)
+            if self._wants_memory_store(state):
+                return self._forced_memory_store(state, started_at)
             if state.get("intent") == "memory_inquiry" or is_memory_inquiry(state["user_message"]):
                 return self._forced_memory_search(state, started_at)
             return self._keyword_fallback(state, started_at, reason=warning)
@@ -222,6 +235,53 @@ class RagNodes:
             state["stored_preview"] = str(effects["stored_preview"])
         if effects.get("stored_tags"):
             state["stored_tags"] = list(effects["stored_tags"])
+
+    @staticmethod
+    def _wants_memory_store(state: ManagerChatState) -> bool:
+        return state.get("intent") == "memory_store" or is_memory_store_request(state["user_message"])
+
+    def _forced_memory_store(self, state: ManagerChatState, started_at: datetime) -> ManagerChatState:
+        """Fallback when HF tools unavailable for an explicit memory-store request."""
+        content = resolve_memory_store_content(
+            str(state.get("user_message") or ""),
+            user_message=state.get("user_message"),
+            chat=state.get("chat"),
+        )
+        tags = suggest_memory_tags(content)
+        observation, status, effects = self.dispatcher.dispatch(
+            "memory_store",
+            {"content": content, "tags": tags},
+            state,
+        )
+        self._apply_effects(state, effects)
+        state.setdefault("tools_called", []).append("memory_store")
+
+        event = TaoEvent(
+            phase="manager_tool",
+            node="rag_react_node",
+            agent="rag_react_node",
+            status=status,
+            intent=state.get("intent"),
+            facts={
+                "rag_mode": "forced",
+                "tool_name": "memory_store",
+                "rag_summary": observation,
+                "stored_preview": effects.get("stored_preview") or state.get("stored_preview"),
+                "stored_tags": effects.get("stored_tags") or state.get("stored_tags"),
+            },
+        )
+        self.recorder.record(state, event)
+        self.recorder.log(
+            state,
+            agent="manager_agent",
+            status="success" if status == "success" else "skipped",
+            step="manager_react_forced",
+            started_at=started_at,
+            tool_called="memory_store",
+            event=event,
+            output_summary=observation[:300],
+        )
+        return state
 
     def _forced_memory_search(self, state: ManagerChatState, started_at: datetime) -> ManagerChatState:
         """Fallback when HF tools unavailable for memory Q&A."""

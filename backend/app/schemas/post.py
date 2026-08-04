@@ -38,6 +38,7 @@ class PostCreate(BaseModel):
     target_audience: constr(min_length=3, max_length=300)
     tone_of_voice: constr(min_length=3, max_length=120)
     additional_context: str | None = Field(default=None, max_length=1000)
+    image_context: str | None = Field(default=None, max_length=500)
 
 
 class PostUpdate(BaseModel):
@@ -47,6 +48,7 @@ class PostUpdate(BaseModel):
     target_audience: constr(min_length=3, max_length=300) | None = None
     tone_of_voice: constr(min_length=3, max_length=120) | None = None
     additional_context: str | None = Field(default=None, max_length=1000)
+    image_context: str | None = Field(default=None, max_length=500)
 
 
 class PostPreview(BaseModel):
@@ -67,5 +69,6 @@ class PostResponse(BaseModel):
     target_audience: str | None = None
     tone_of_voice: str | None = None
     additional_context: str | None = None
+    image_context: str | None = None
     preview: PostPreview | None = None
     missing_fields: list[str] = Field(default_factory=list)

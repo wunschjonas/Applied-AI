@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
+from app.graphs.support import post_fields
 from app.graphs.support.tao_composer import TaoEvent
 
 INTENT_ROUTES = {
@@ -51,7 +52,8 @@ class GraphRouters:
         """Ask for Steckbrief fields before generating.
 
         Primary signal: check_post_data_completeness tool result.
-        Safety-net: post_data_blocking from collect_post_data if tools skipped completeness.
+        Safety-net: blocking fields if tools skipped completeness.
+        explicit_generate must NOT bypass incomplete required/image fields.
         """
         if state.get("intent") in {
             "memory_inquiry",
@@ -63,15 +65,19 @@ class GraphRouters:
         if state.get("intent") not in {"text_only", "image_only", "text_and_image"}:
             return False
 
-        # Tool result wins over explicit_generate — incomplete brief must be clarified.
+        blocking = post_fields.missing_fields_for_intent(
+            state.get("post") or {},
+            state.get("intent"),
+        )
+        if blocking:
+            state["post_data_blocking"] = list(blocking)
+
+        # Tool result wins — incomplete brief must be clarified.
         if state.get("post_data_incomplete_from_tool"):
             return True
 
-        if state.get("explicit_generate"):
-            return False
-
         # Safety-net when LLM skipped check_post_data_completeness
-        if state.get("post") and state.get("post_data_blocking") and not state.get("post_data_checked"):
+        if state.get("post") and blocking and not state.get("post_data_checked"):
             state["tool_safety_blocked"] = True
             self.recorder.record(
                 state,
@@ -83,7 +89,7 @@ class GraphRouters:
                     intent=state.get("intent"),
                     facts={
                         "detail": "Safety: Steckbrief unvollständig, Generierung blockiert (Completeness-Tool übersprungen).",
-                        "post_data_missing": state.get("post_data_blocking"),
+                        "post_data_missing": blocking,
                     },
                 ),
             )
@@ -92,7 +98,11 @@ class GraphRouters:
         if state.get("post_data_checked") and state.get("post_data_complete") is False:
             return True
 
-        return False
+        # Only allow explicit generate when nothing required is still open.
+        if state.get("explicit_generate") and not blocking:
+            return False
+
+        return bool(blocking)
 
     def after_text_router(self, state: ManagerChatState) -> str:
         return "image_agent_node" if state["intent"] == "text_and_image" else "validation_node"

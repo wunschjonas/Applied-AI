@@ -27,7 +27,10 @@ class PlanningNodes:
 
     def classify_intent_node(self, state: ManagerChatState) -> ManagerChatState:
         started_at = datetime.utcnow()
-        intent = self.deps.intent_classifier.classify_intent(state["user_message"])
+        intent = self.deps.intent_classifier.classify_intent(
+            state["user_message"],
+            post=state.get("post"),
+        )
         state["intent"] = intent.label
         status = "needs_input" if intent.needs_clarification else "success"
 

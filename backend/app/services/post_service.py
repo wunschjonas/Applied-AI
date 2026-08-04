@@ -31,6 +31,7 @@ class PostService:
             "target_audience": None,
             "tone_of_voice": None,
             "additional_context": None,
+            "image_context": None,
             "preview": None,
             AWAITING_FIELD_KEY: "topic",
         }
@@ -163,6 +164,7 @@ class PostService:
             "target_audience",
             "tone_of_voice",
             "additional_context",
+            "image_context",
             "preview",
         }
         payload = {k: v for k, v in post.items() if k in allowed}

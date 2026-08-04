@@ -76,7 +76,7 @@ class PostSyncNodes:
 
     def context_question_node(self, state: ManagerChatState) -> ManagerChatState:
         started_at = datetime.utcnow()
-        question = post_fields.next_question(state["post"] or {})
+        question = post_fields.next_question(state["post"] or {}, state.get("intent"))
         field, question_text = question if question else ("topic", post_fields.FIELD_QUESTIONS["topic"])
 
         fallback = messages.context_question(state["post_data_updates"], question_text)
@@ -166,6 +166,7 @@ class PostSyncNodes:
         if state.get("intent") in {
             "clarification_needed",
             "memory_inquiry",
+            "memory_store",
             "post_status_inquiry",
             "web_inquiry",
         }:
@@ -177,7 +178,7 @@ class PostSyncNodes:
         if "web_search" in (state.get("tools_called") or []) and state.get("web_context"):
             return
 
-        question = post_fields.next_question(state["post"] or {})
+        question = post_fields.next_question(state["post"] or {}, state.get("intent"))
         if not question:
             self._set_awaiting_field(state["post_id"], None)
             return

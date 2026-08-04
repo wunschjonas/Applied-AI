@@ -202,6 +202,7 @@ class AgentService:
                 visual_style=visual_style,
                 context=context,
                 post_id=post_id,
+                post_repository=self.post_repository,
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
@@ -417,11 +418,16 @@ class AgentService:
                 trace=trace,
                 platform=post.get("platform"),
                 visual_style=None,
-                context=post.get("additional_context"),
+                context={
+                    "additional_context": post.get("additional_context"),
+                    "image_context": post.get("image_context"),
+                    "topic": post.get("topic"),
+                },
                 post_id=post_id,
                 source_image=source_image,
                 current_image=current_image,
                 strength=strength,
+                post_repository=self.post_repository,
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"

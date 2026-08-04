@@ -35,7 +35,6 @@ export class LogsComponent implements OnInit {
     ]).subscribe(([manager, text, image]: LogsResponse[]) => {
       this.logs = [...manager.logs, ...text.logs, ...image.logs]
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      console.log('[All Logs]', this.logs);
       this.isLoading = false;
     });
   }
@@ -45,7 +44,6 @@ export class LogsComponent implements OnInit {
     this.isLoading = true;
     this.logService.getManagerLogs().subscribe((response: LogsResponse) => {
       this.logs = response.logs;
-      console.log('[Manager Logs]', response);
       this.isLoading = false;
     });
   }
@@ -55,7 +53,6 @@ export class LogsComponent implements OnInit {
     this.isLoading = true;
     this.logService.getTextLogs().subscribe((response: LogsResponse) => {
       this.logs = response.logs;
-      console.log('[Text Logs]', response);
       this.isLoading = false;
     });
   }
@@ -65,7 +62,6 @@ export class LogsComponent implements OnInit {
     this.isLoading = true;
     this.logService.getImageLogs().subscribe((response: LogsResponse) => {
       this.logs = response.logs;
-      console.log('[Image Logs]', response);
       this.isLoading = false;
     });
   }

@@ -86,10 +86,11 @@ class SpecialistNodes:
                 trace=state["trace"],
                 platform=assignment.get("platform", state.get("platform")),
                 visual_style=assignment.get("visual_style", context_value(context, "visual_style")),
-                context=context,
+                context=context if context is not None else state.get("post"),
                 rag_context=self._combined_knowledge(state),
                 validation_feedback=state.get("validation_feedback", {}).get("image"),
                 post_id=state["post_id"],
+                post_repository=self.deps.post_repository,
             )
         except Exception as exc:
             self._record_failure(state, "image", started_at, state["image_retry_count"], exc)
@@ -108,6 +109,7 @@ class SpecialistNodes:
                 "retry_count": state["image_retry_count"],
                 "image_mode": result.get("generation_mode") or "text_to_image",
                 "image_filename": result.get("image_filename"),
+                "tools_called": result.get("tools_called"),
                 "detail": self._image_summary(result),
             },
         )
@@ -123,6 +125,27 @@ class SpecialistNodes:
             event=event,
             output_summary=self._image_summary(result),
         )
+        if "get_post_data" in (result.get("tools_called") or []):
+            self.recorder.log(
+                state,
+                agent="image_agent",
+                status="success",
+                step="get_post_data",
+                started_at=started_at,
+                tool_called="get_post_data",
+                event=TaoEvent(
+                    phase="delegate_image",
+                    node="image_agent_node",
+                    agent="image_agent_node",
+                    status="success",
+                    intent=state.get("intent"),
+                    facts={
+                        "tool_name": "get_post_data",
+                        "detail": "ImageAgent las Steckbrief aus posts.json.",
+                    },
+                ),
+                output_summary="get_post_data",
+            )
         return state
 
     def clarification_node(self, state: ManagerChatState) -> ManagerChatState:

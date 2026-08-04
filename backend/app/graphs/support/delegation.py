@@ -92,6 +92,9 @@ def build_brief_section(context: str | dict[str, Any] | None) -> str:
     additional_context = context_value(context, "additional_context")
     if additional_context:
         lines.append(f"- Zusatzkontext: {additional_context}")
+    image_context = context_value(context, "image_context")
+    if image_context:
+        lines.append(f"- Bildmotiv: {image_context}")
     if not lines:
         return ""
     return "\n" + POST_BRIEF_LABEL + "\n" + "\n".join(lines)

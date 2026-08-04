@@ -26,6 +26,7 @@ FIELD_LABELS = {
     "target_audience": "Zielgruppe",
     "tone_of_voice": "Tonalitaet",
     "additional_context": "Zusatzkontext",
+    "image_context": "Bildmotiv",
 }
 
 
