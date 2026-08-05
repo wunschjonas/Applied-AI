@@ -507,8 +507,10 @@ class ManagerToolDispatcher:
             missing = post_fields.missing_fields_for_intent(post, intent)
         else:
             missing = ["topic", "platform", "target_audience", "tone_of_voice"]
+            if intent in {"text_only", "text_and_image"}:
+                missing.extend(["text_context", "text_length"])
             if intent in {"image_only", "text_and_image"}:
-                missing.append("image_context")
+                missing.extend(["image_context", "image_style"])
         effects["post_data_checked"] = True
         effects["post_data_missing"] = missing
         effects["post_data_complete"] = not bool(missing)

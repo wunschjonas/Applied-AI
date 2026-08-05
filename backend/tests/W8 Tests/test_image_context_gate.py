@@ -9,20 +9,36 @@ from app.graphs.support.post_fields import (
 from helpers import FakeHF, FakeRAG, build_graph, seed_post
 
 
-def test_missing_fields_for_intent_requires_image_context():
+def test_missing_fields_for_intent_requires_text_and_image_extras():
     post = {
         "topic": "Nationalmannschaft",
         "platform": "linkedin",
         "target_audience": "Fans",
         "tone_of_voice": "stolz",
     }
-    assert "image_context" not in missing_fields_for_intent(post, "text_only")
-    assert "image_context" in missing_fields_for_intent(post, "image_only")
-    assert "image_context" in missing_fields_for_intent(post, "text_and_image")
+    text_missing = missing_fields_for_intent(post, "text_only")
+    assert "text_context" in text_missing
+    assert "text_length" in text_missing
+    assert "image_context" not in text_missing
+
+    image_missing = missing_fields_for_intent(post, "image_only")
+    assert "image_context" in image_missing
+    assert "image_style" in image_missing
+    assert "text_context" not in image_missing
+
+    both = missing_fields_for_intent(post, "text_and_image")
+    assert "text_context" in both
+    assert "text_length" in both
+    assert "image_context" in both
+    assert "image_style" in both
 
     field, question = next_question(post, "text_and_image")
-    assert field == "image_context"
-    assert "Bild" in question or "bild" in question.lower()
+    assert field == "text_context"
+    assert "Text" in question or "text" in question.lower() or "sagen" in question.lower()
+
+    field_img, question_img = next_question(post, "image_only")
+    assert field_img == "image_context"
+    assert "Bild" in question_img or "bild" in question_img.lower()
 
 
 def test_generate_with_only_topic_is_blocked(tmp_path: Path):
@@ -76,6 +92,41 @@ def test_image_intent_blocks_without_image_context(tmp_path: Path):
     assert "bild" in message or "motiv" in message
 
 
+def test_image_intent_blocks_without_image_style(tmp_path: Path):
+    hf = FakeHF()
+    graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=FakeRAG(""))
+    seed_post(
+        graph,
+        "post-no-style",
+        topic="Deutsche Nationalmannschaft",
+        platform="LinkedIn",
+        target_audience="Fußballfans",
+        tone_of_voice="stolz",
+        image_context="Zwei Spieler und Flaggen",
+    )
+    result = graph.run("Erstelle bitte nur ein Bild dazu.", "post-no-style")
+    assert "ImageAgent" not in (result.get("used_agents") or [])
+    message = (result.get("assistant_message") or "").lower()
+    assert "stil" in message or "style" in message or "bild" in message
+
+
+def test_text_intent_blocks_without_text_context(tmp_path: Path):
+    hf = FakeHF()
+    graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=FakeRAG(""))
+    seed_post(
+        graph,
+        "post-no-text-ctx",
+        topic="Deutsche Nationalmannschaft",
+        platform="LinkedIn",
+        target_audience="Fußballfans",
+        tone_of_voice="stolz",
+    )
+    result = graph.run("Schreibe bitte einen LinkedIn Post dazu.", "post-no-text-ctx")
+    assert "TextAgent" not in (result.get("used_agents") or [])
+    message = (result.get("assistant_message") or "").lower()
+    assert any(token in message for token in ("text", "kontext", "laenge", "länge", "sagen", "lang"))
+
+
 def test_image_agent_calls_get_post_data(tmp_path: Path):
     hf = FakeHF()
     graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=FakeRAG(""))
@@ -87,6 +138,7 @@ def test_image_agent_calls_get_post_data(tmp_path: Path):
         target_audience="Fußballfans",
         tone_of_voice="stolz",
         image_context="Deutscher Spieler, Flaggen von Kanada Mexiko USA im Hintergrund",
+        image_style="fotorealistisch",
     )
     result = graph.run("Erstelle bitte nur ein Bild dazu.", "post-img-tool")
     assert "ImageAgent" in (result.get("used_agents") or [])
@@ -176,6 +228,7 @@ def test_keyword_only_graph_does_not_run_image_agent(tmp_path: Path):
         target_audience="Fans",
         tone_of_voice="stolz",
         image_context="Zwei Spieler, Flaggen im Hintergrund",
+        image_style="fotorealistisch",
     )
     result = graph.run("Ein Bild mit den WM-Gewinnern.", "post-ask-first")
     assert "ImageAgent" not in (result.get("used_agents") or [])

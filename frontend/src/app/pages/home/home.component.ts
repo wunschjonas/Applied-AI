@@ -18,8 +18,10 @@ const FIELD_LABELS: Record<string, string> = {
   platform: 'Plattform',
   target_audience: 'Zielgruppe',
   tone_of_voice: 'Tonalität',
-  additional_context: 'Zusatzkontext',
+  text_context: 'Textkontext',
+  text_length: 'Textlänge',
   image_context: 'Bildmotiv',
+  image_style: 'Bildstil',
 };
 
 @Component({
@@ -143,7 +145,10 @@ export class HomeComponent implements OnInit {
       'platform',
       'target_audience',
       'tone_of_voice',
+      'text_context',
+      'text_length',
       'image_context',
+      'image_style',
     ];
     return fields.filter((field) => !post[field]);
   }

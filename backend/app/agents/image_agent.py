@@ -94,6 +94,10 @@ class ImageAgent(BaseAgent):
             tools_called = list(context.pop("tools_called", []) or [])
             if context.get("platform") and not platform:
                 platform = str(context["platform"])
+            if not visual_style:
+                visual_style = context.get("image_style") or context.get("visual_style")
+                if visual_style:
+                    visual_style = str(visual_style)
 
         prompt_task = task
         if validation_feedback:
@@ -267,11 +271,15 @@ class ImageAgent(BaseAgent):
                 "platform",
                 "target_audience",
                 "tone_of_voice",
-                "additional_context",
+                "text_context",
+                "text_length",
                 "image_context",
+                "image_style",
             ):
                 if post.get(key) and key not in merged:
                     merged[key] = post[key]
+            if post.get("image_style") and not merged.get("visual_style"):
+                merged["visual_style"] = post["image_style"]
 
         tool_summary = self._call_get_post_data_tool(
             post_id=post_id,
@@ -311,7 +319,8 @@ class ImageAgent(BaseAgent):
                         "content": (
                             "You are the ImageAgent tool planner. "
                             "Call get_post_data exactly once to read the marketing post Steckbrief "
-                            "(topic, platform, audience, tone, image_context) from storage."
+                            "(topic, platform, audience, tone, text_context, text_length, "
+                            "image_context, image_style) from storage."
                         ),
                     },
                     {
@@ -389,21 +398,36 @@ class ImageAgent(BaseAgent):
     ) -> str:
         context_text = self._context_to_text(context)
         image_motif = ""
-        if isinstance(context, dict) and context.get("image_context"):
-            image_motif = f"\n- Image motif (image_context): {context['image_context']}"
+        tone = None
+        style_from_context = None
+        if isinstance(context, dict):
+            if context.get("image_context"):
+                image_motif = f"\n- Image motif (image_context): {context['image_context']}"
+            style_from_context = context.get("image_style") or context.get("visual_style")
+            tone = context.get("tone") or context.get("tone_of_voice")
+        effective_style = visual_style or style_from_context
+        tone_line = f"\n- Mood / tone of voice: {tone}" if tone else ""
         memory_section = f"\n- Memory context: {rag_context}" if rag_context else ""
+        tone_rule = ""
+        if tone:
+            tone_rule = (
+                "\n- Match the emotional tone of the marketing copy "
+                "(e.g. proud/stolz → heroic; casual/locker → light, friendly; "
+                "professional → clean, polished) while respecting image_style."
+            )
         return f"""
 Create an image generation prompt for this marketing task:
 {task}
 
 Details:
 - Platform: {platform or "unspecified"}
-- Visual style: {visual_style or "choose an appropriate style"}
+- Visual style: {effective_style or "choose an appropriate style"}{tone_line}
 - Context: {context_text}{image_motif}{memory_section}
 
 Rules:
 - The visual must match the current post topic from the task/brief.
 - Prefer image_context / Bildmotiv when provided — that is the intended scene.
+- Prefer image_style / Bildstil when provided — that is the intended look.{tone_rule}
 - Use Memory context only when it clearly relates to that topic; ignore unrelated memories.
 - Do not mix in motifs from off-topic memory.
 The prompt should describe subject, composition, lighting, colors, mood, and any platform-specific framing.

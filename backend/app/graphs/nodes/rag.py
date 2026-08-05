@@ -418,7 +418,10 @@ class RagNodes:
             "platform": post.get("platform"),
             "target_audience": post.get("target_audience"),
             "tone_of_voice": post.get("tone_of_voice"),
-            "additional_context": post.get("additional_context"),
+            "text_context": post.get("text_context"),
+            "text_length": post.get("text_length"),
+            "image_context": post.get("image_context"),
+            "image_style": post.get("image_style"),
         }
         intent = state.get("intent") or "unknown"
         missing = state.get("post_data_blocking") or []

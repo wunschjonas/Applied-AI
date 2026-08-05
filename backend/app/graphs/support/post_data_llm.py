@@ -12,20 +12,26 @@ POST_DATA_KEYS = (
     "platform",
     "target_audience",
     "tone_of_voice",
-    "additional_context",
+    "text_context",
+    "text_length",
     "image_context",
+    "image_style",
 )
 
 EXTRACT_SYSTEM = (
     "You extract marketing post Steckbrief fields from a German or English chat message. "
     "Return ONLY a JSON object with any of these optional keys: "
-    "topic, platform, target_audience, tone_of_voice, additional_context, image_context. "
+    "topic, platform, target_audience, tone_of_voice, text_context, text_length, "
+    "image_context, image_style. "
     "Use free-form values when the user states them (e.g. tone_of_voice may be "
     "'angeberisch'). For platform ONLY use one of: linkedin, instagram, x, blog, "
     "tiktok, facebook — never invent platform from unrelated questions. "
-    "Put the marketing subject in topic. Put visual motif / what should appear in the "
-    "image into image_context (people, objects, background, flags, setting) — do not "
-    "merge image motif into topic when both are stated. "
+    "Put the marketing subject in topic. Put what the marketing text should say in "
+    "text_context. Put desired text length in text_length (e.g. kurz/mittel/lang). "
+    "Put visual motif / what should appear in the image into image_context "
+    "(people, objects, background, flags, setting). Put visual style into image_style "
+    "(e.g. fotorealistisch, illustration). Do not merge image motif into topic when both "
+    "are stated. "
     "If the user asks about memory/RAG/Gedaechtnis content, return {}. "
     "If the user asks to search the web/internet or about current news/events/trends "
     "(without asking to write a marketing post), return {}. "
@@ -114,7 +120,7 @@ def _clean_llm_updates(data: dict[str, Any], post: dict[str, Any]) -> dict[str, 
         max_len = post_fields.FIELD_MAX_LENGTH.get(key, 300)
         value = value[:max_len]
         current = post.get(key)
-        if key in ("topic", "target_audience", "additional_context") and current:
+        if key in ("topic", "target_audience", "text_context") and current:
             continue
         if value != current:
             updates[key] = value

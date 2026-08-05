@@ -17,7 +17,11 @@ def test_image_agent_uses_reference_image_for_img2img(tmp_path: Path):
             "status": "preview_ready",
             "topic": "KI-Agenten",
             "platform": "instagram",
-            "additional_context": None,
+            "tone_of_voice": "professionell",
+            "text_context": None,
+            "text_length": None,
+            "image_context": None,
+            "image_style": None,
             "preview": {
                 "generated_text": "Marketing-Text zum Bild.",
                 "image_prompt_optional": "Ein alter Bildprompt.",

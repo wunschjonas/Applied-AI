@@ -18,8 +18,10 @@ export interface CreatePostRequest {
   platform: string;
   target_audience: string;
   tone_of_voice: string;
-  additional_context?: string;
+  text_context?: string;
+  text_length?: string;
   image_context?: string;
+  image_style?: string;
 }
 
 export interface UpdatePostRequest {
@@ -28,8 +30,10 @@ export interface UpdatePostRequest {
   platform?: string;
   target_audience?: string;
   tone_of_voice?: string;
-  additional_context?: string;
+  text_context?: string;
+  text_length?: string;
   image_context?: string;
+  image_style?: string;
 }
 
 export type PostStatus = 'draft' | 'processing' | 'preview_ready' | 'error';
@@ -51,8 +55,10 @@ export interface Post {
   platform?: string | null;
   target_audience?: string | null;
   tone_of_voice?: string | null;
-  additional_context?: string | null;
+  text_context?: string | null;
+  text_length?: string | null;
   image_context?: string | null;
+  image_style?: string | null;
   preview?: PostPreview | null;
   missing_fields?: string[];
 }

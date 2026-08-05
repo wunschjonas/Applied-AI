@@ -254,8 +254,10 @@ def seed_post(graph: ManagerChatGraph, post_id: str, **fields) -> dict:
         "platform": None,
         "target_audience": None,
         "tone_of_voice": None,
-        "additional_context": None,
+        "text_context": None,
+        "text_length": None,
         "image_context": None,
+        "image_style": None,
         "preview": None,
     }
     post.update(fields)

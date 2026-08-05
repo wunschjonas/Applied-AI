@@ -17,6 +17,8 @@ def test_different_inputs_produce_different_tool_actions(tmp_path: Path):
             platform="LinkedIn",
             target_audience="CMOs",
             tone_of_voice="professionell",
+            text_context="KI-Agenten fuer Marketing-Workflows und Brand Guidelines.",
+            text_length="mittel",
         )
         result = graph.run(message, post_id)
         trace = graph.trace_service.get_trace(result["trace_id"])
@@ -151,6 +153,8 @@ def test_web_error_observation_then_memory_fallback_path(tmp_path: Path):
         platform="LinkedIn",
         target_audience="CMOs",
         tone_of_voice="professionell",
+        text_context="Aktuelle KI Trends fuer Marketing.",
+        text_length="mittel",
     )
     # Force web first via FakeHF keywords, then completeness/memory on later rounds
     result = graph.run(

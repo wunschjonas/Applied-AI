@@ -4,16 +4,19 @@ import re
 from typing import Any
 
 REQUIRED_FIELDS = ("topic", "platform", "target_audience", "tone_of_voice")
-OPTIONAL_FIELDS: tuple[str, ...] = ("image_context",)
+TEXT_INTENT_EXTRA_FIELDS = ("text_context", "text_length")
+IMAGE_INTENT_EXTRA_FIELDS = ("image_context", "image_style")
+OPTIONAL_FIELDS: tuple[str, ...] = TEXT_INTENT_EXTRA_FIELDS + IMAGE_INTENT_EXTRA_FIELDS
 POST_DATA_FIELDS = REQUIRED_FIELDS + OPTIONAL_FIELDS
-IMAGE_INTENT_EXTRA_FIELDS = ("image_context",)
 FREE_TEXT_FIELDS = (
     "topic",
     "platform",
     "target_audience",
     "tone_of_voice",
-    "additional_context",
+    "text_context",
+    "text_length",
     "image_context",
+    "image_style",
 )
 
 FIELD_QUESTIONS = {
@@ -21,7 +24,10 @@ FIELD_QUESTIONS = {
     "platform": "Fuer welche Plattform ist der Post gedacht? LinkedIn, Instagram, X, Blog, TikTok oder Facebook?",
     "target_audience": "Wen willst du damit ansprechen?",
     "tone_of_voice": "Welche Tonalitaet passt? Zum Beispiel professionell, locker oder humorvoll.",
+    "text_context": "Was soll der Text inhaltlich sagen oder abdecken? Kernbotschaft und wichtige Punkte.",
+    "text_length": "Wie lang soll der Text sein? Zum Beispiel kurz, mittel oder lang.",
     "image_context": "Was soll auf dem Bild zu sehen sein? Beschreibe Motiv, Personen und Hintergrund.",
+    "image_style": "Welcher Bildstil passt? Zum Beispiel fotorealistisch, Illustration oder clean commercial.",
 }
 
 PLATFORM_ALIASES = {
@@ -83,9 +89,27 @@ TONE_PATTERNS = (
 IMAGE_CONTEXT_PATTERNS = (
     r"(?:im\s+)?bildmotiv\s*(?:soll(?:te)?|ist|:)\s*(.{10,500})",
     r"bildmotiv\s*:\s*(.{10,500})",
+    r"image\s*context\s*:\s*(.{10,500})",
     r"auf\s+dem\s+bild\s+soll(?:en|te)?\s*(.{10,500})",
     r"im\s+bild\s+soll(?:en|te)?\s*(.{10,500})",
     r"image\s*(?:motif|context)\s*(?:should(?:\s+be)?|:)?\s*(.{10,500})",
+)
+TEXT_CONTEXT_PATTERNS = (
+    r"text\s*context\s*:\s*(.{10,1000})",
+    r"textkontext\s*:\s*(.{10,1000})",
+    r"(?:im\s+)?text\s+(?:soll(?:te)?|geht\s+es\s+um)\s*(.{10,1000})",
+    r"kernbotschaft\s*(?:ist|:)?\s*(.{10,1000})",
+)
+TEXT_LENGTH_PATTERNS = (
+    r"text\s*length\s*:\s*(.{3,40})",
+    r"textl(?:ä|ae|a)nge\s*(?:ist|:)?\s*(.{3,40})",
+    r"(?:text\s+)?(?:soll\s+)?(.{0,10}?\b(?:kurz|mittel|lang)\b.{0,10})",
+)
+IMAGE_STYLE_PATTERNS = (
+    r"image\s*style\s*:\s*(.{3,120})",
+    r"bildstil\s*(?:ist|:)?\s*(.{3,120})",
+    r"visual\s*style\s*:\s*(.{3,120})",
+    r"(?:stil|style)\s*(?:soll(?:te)?|ist|:)\s*(.{3,120})",
 )
 
 FIELD_MAX_LENGTH = {
@@ -93,12 +117,36 @@ FIELD_MAX_LENGTH = {
     "target_audience": 300,
     "tone_of_voice": 120,
     "platform": 40,
-    "additional_context": 1000,
+    "text_context": 1000,
+    "text_length": 40,
     "image_context": 500,
+    "image_style": 120,
 }
 FIELD_MIN_LENGTH = 3
 
 AWAITING_FIELD_KEY = "awaiting_field"
+
+# Maps free-form text_length answers to hard prompt guidance for TextAgent.
+TEXT_LENGTH_GUIDANCE = {
+    "short": "Write approximately 40-80 words in 1-2 short paragraphs.",
+    "medium": "Write approximately 80-150 words in 2-3 paragraphs.",
+    "long": "Write approximately 150-250 words in 3-4 paragraphs.",
+}
+
+
+def normalize_text_length_guidance(text_length: str | None) -> str | None:
+    """Turn kurz/mittel/lang (and EN aliases) into a concrete length rule for prompts."""
+    raw = (text_length or "").strip()
+    if not raw:
+        return None
+    lowered = raw.casefold()
+    if any(token in lowered for token in ("kurz", "short", "knapp", "brief")):
+        return TEXT_LENGTH_GUIDANCE["short"]
+    if any(token in lowered for token in ("mittel", "medium", "normal", "standard")):
+        return TEXT_LENGTH_GUIDANCE["medium"]
+    if any(token in lowered for token in ("lang", "long", "ausfuehrlich", "ausführlich", "detailed")):
+        return TEXT_LENGTH_GUIDANCE["long"]
+    return f"Approximate this requested length: {raw}."
 
 
 MEMORY_INQUIRY_MARKERS = (
@@ -424,6 +472,14 @@ def extract_fields(message: str, post: dict[str, Any]) -> dict[str, Any]:
     if audience and not post.get("target_audience"):
         updates["target_audience"] = audience[: FIELD_MAX_LENGTH["target_audience"]]
 
+    text_ctx = _first_match(message, TEXT_CONTEXT_PATTERNS)
+    if text_ctx and not post.get("text_context"):
+        updates["text_context"] = text_ctx[: FIELD_MAX_LENGTH["text_context"]]
+
+    text_len = _first_match(message, TEXT_LENGTH_PATTERNS)
+    if text_len and not post.get("text_length"):
+        updates["text_length"] = text_len[: FIELD_MAX_LENGTH["text_length"]]
+
     image_motif = _first_match(message, IMAGE_CONTEXT_PATTERNS)
     if image_motif and not post.get("image_context"):
         updates["image_context"] = image_motif[: FIELD_MAX_LENGTH["image_context"]]
@@ -437,6 +493,10 @@ def extract_fields(message: str, post: dict[str, Any]) -> dict[str, Any]:
         ).strip()
         if len(cleaned) >= FIELD_MIN_LENGTH:
             updates["image_context"] = cleaned[: FIELD_MAX_LENGTH["image_context"]]
+
+    image_style = _first_match(message, IMAGE_STYLE_PATTERNS)
+    if image_style and not post.get("image_style"):
+        updates["image_style"] = image_style[: FIELD_MAX_LENGTH["image_style"]]
 
     # Awaited free-text answers fill the field the manager just asked for.
     if awaiting in FREE_TEXT_FIELDS and awaiting not in updates and not wants_generation(message):
@@ -462,8 +522,12 @@ def missing_required_fields(post: dict[str, Any]) -> list[str]:
 
 
 def missing_fields_for_intent(post: dict[str, Any], intent: str | None = None) -> list[str]:
-    """Required Steckbrief fields, plus image_context for image generation intents."""
+    """Required Steckbrief fields plus intent-specific text/image extras."""
     missing = missing_required_fields(post)
+    if intent in {"text_only", "text_and_image"}:
+        for field in TEXT_INTENT_EXTRA_FIELDS:
+            if not post.get(field) and field not in missing:
+                missing.append(field)
     if intent in {"image_only", "text_and_image"}:
         for field in IMAGE_INTENT_EXTRA_FIELDS:
             if not post.get(field) and field not in missing:
@@ -473,10 +537,8 @@ def missing_fields_for_intent(post: dict[str, Any], intent: str | None = None) -
 
 def next_question(post: dict[str, Any], intent: str | None = None) -> tuple[str, str] | None:
     """Return the next field to ask for plus its question text."""
-    if intent in {"image_only", "text_and_image"}:
+    if intent in {"text_only", "image_only", "text_and_image"}:
         ordered = missing_fields_for_intent(post, intent)
-    elif intent == "text_only":
-        ordered = missing_required_fields(post)
     else:
         ordered = missing_required_fields(post)
         if not ordered:
@@ -499,10 +561,15 @@ def brief_context(post: dict[str, Any]) -> dict[str, Any]:
         context["target_audience"] = post["target_audience"]
     if post.get("topic"):
         context["topic"] = post["topic"]
-    if post.get("additional_context"):
-        context["additional_context"] = post["additional_context"]
+    if post.get("text_context"):
+        context["text_context"] = post["text_context"]
+    if post.get("text_length"):
+        context["text_length"] = post["text_length"]
     if post.get("image_context"):
         context["image_context"] = post["image_context"]
+    if post.get("image_style"):
+        context["image_style"] = post["image_style"]
+        context["visual_style"] = post["image_style"]
     return context
 
 
@@ -523,8 +590,6 @@ def post_status_summary(post: dict[str, Any]) -> str:
         label = FIELD_LABELS.get(field, field)
         value = post.get(field)
         lines.append(f"{label}: {value if value else 'offen'}")
-    if post.get("additional_context"):
-        lines.append(f"Zusatzkontext: {post['additional_context']}")
 
     preview = post.get("preview") or {}
     if isinstance(preview, dict):

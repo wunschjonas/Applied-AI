@@ -134,19 +134,27 @@ def test_dispatch_brief_tools():
         "platform": "linkedin",
         "target_audience": "B",
         "tone_of_voice": "C",
+        "text_context": "Kernbotschaft",
+        "text_length": "kurz",
+        "image_context": "Motiv",
+        "image_style": "foto",
     }
-    obs, status, effects = d.dispatch("check_post_data_completeness", {}, {"post": complete_post})
+    obs, status, effects = d.dispatch(
+        "check_post_data_completeness",
+        {},
+        {"post": complete_post, "intent": "text_and_image"},
+    )
     assert status == "success"
     assert effects.get("post_data_complete") is True
 
     obs2, status2, effects2 = d.dispatch(
         "check_post_data_completeness",
         {},
-        {"post": {"topic": "A"}},
+        {"post": {"topic": "A"}, "intent": "text_only"},
     )
     assert status2 == "warning"
     assert effects2.get("post_data_complete") is False
-    assert effects2.get("post_data_missing")
+    assert "text_context" in (effects2.get("post_data_missing") or [])
 
     obs3, status3, _ = d.dispatch("get_post_data", {}, {"post_id": "p1", "post": None})
     assert status3 == "success"

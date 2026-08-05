@@ -299,7 +299,13 @@ class AgentService:
                 platform=post.get("platform"),
                 tone=post.get("tone_of_voice") or "professional",
                 target_audience=post.get("target_audience"),
-                context=post.get("additional_context"),
+                text_context=post.get("text_context"),
+                text_length=post.get("text_length"),
+                context={
+                    "text_context": post.get("text_context"),
+                    "text_length": post.get("text_length"),
+                    "topic": post.get("topic"),
+                },
             )
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
@@ -417,10 +423,12 @@ class AgentService:
                 task=task,
                 trace=trace,
                 platform=post.get("platform"),
-                visual_style=None,
+                visual_style=post.get("image_style"),
                 context={
-                    "additional_context": post.get("additional_context"),
+                    "text_context": post.get("text_context"),
+                    "text_length": post.get("text_length"),
                     "image_context": post.get("image_context"),
+                    "image_style": post.get("image_style"),
                     "topic": post.get("topic"),
                 },
                 post_id=post_id,

@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from app.agents.base_agent import BaseAgent
+from app.graphs.support.post_fields import normalize_text_length_guidance
 
 
 class TextAgent(BaseAgent):
@@ -16,6 +17,8 @@ class TextAgent(BaseAgent):
         platform: str | None = "linkedin",
         tone: str | None = "professional",
         target_audience: str | None = None,
+        text_context: str | None = None,
+        text_length: str | None = None,
         context: str | dict[str, Any] | None = None,
         rag_context: str | None = None,
         validation_feedback: str | None = None,
@@ -27,7 +30,21 @@ class TextAgent(BaseAgent):
             tone=tone,
         )
 
-        prompt = self._build_prompt(task, platform, tone, target_audience, context, rag_context, validation_feedback)
+        if isinstance(context, dict):
+            text_context = text_context or context.get("text_context")
+            text_length = text_length or context.get("text_length")
+
+        prompt = self._build_prompt(
+            task,
+            platform,
+            tone,
+            target_audience,
+            text_context,
+            text_length,
+            context,
+            rag_context,
+            validation_feedback,
+        )
         self.record(
             trace,
             "text_call_model",
@@ -67,6 +84,8 @@ class TextAgent(BaseAgent):
         platform: str | None,
         tone: str | None,
         target_audience: str | None,
+        text_context: str | None,
+        text_length: str | None,
         context: str | dict[str, Any] | None,
         rag_context: str | None = None,
         validation_feedback: str | None = None,
@@ -74,6 +93,9 @@ class TextAgent(BaseAgent):
         context_text = self._context_to_text(context)
         memory_section = f"\n- Memory context: {rag_context}" if rag_context else ""
         feedback_section = f"\n- Validation feedback to fix: {validation_feedback}" if validation_feedback else ""
+        length_guidance = normalize_text_length_guidance(text_length)
+        length_detail = text_length or "unspecified"
+        length_rule = f"\n- Length requirement (mandatory): {length_guidance}" if length_guidance else ""
         return f"""
 Create marketing text for this task:
 {task}
@@ -82,11 +104,14 @@ Details:
 - Platform: {platform or "unspecified"}
 - Tone: {tone or "professional"}
 - Target audience: {target_audience or "unspecified"}
+- Text focus (text_context): {text_context or "unspecified"}
+- Text length request: {length_detail}
 - Context: {context_text}{memory_section}{feedback_section}
 
 Rules:
 - Stay on the current post topic from the task/brief.
-- Use Memory context only when it clearly relates to that topic; ignore off-topic memory.
+- Cover the text_context / key message when provided.
+- Use Memory context only when it clearly relates to that topic; ignore off-topic memory.{length_rule}
 Include a clear CTA when useful.
 Include 3 to 6 relevant hashtags if the platform supports hashtags.
 Do not mention that you are an AI.

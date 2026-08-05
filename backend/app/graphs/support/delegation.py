@@ -83,18 +83,35 @@ def build_execution_plan(
     }
 
 
-def build_brief_section(context: str | dict[str, Any] | None) -> str:
-    """Topic and extra context from the post, which the agents cannot infer from their own arguments."""
+def build_brief_section(
+    context: str | dict[str, Any] | None,
+    *,
+    for_agent: str = "text",
+) -> str:
+    """Steckbrief lines for one specialist — text vs image to avoid prompt noise."""
     lines = []
     topic = context_value(context, "topic")
     if topic:
         lines.append(f"- Thema des Posts: {topic}")
-    additional_context = context_value(context, "additional_context")
-    if additional_context:
-        lines.append(f"- Zusatzkontext: {additional_context}")
-    image_context = context_value(context, "image_context")
-    if image_context:
-        lines.append(f"- Bildmotiv: {image_context}")
+
+    if for_agent == "image":
+        image_context = context_value(context, "image_context")
+        if image_context:
+            lines.append(f"- Bildmotiv: {image_context}")
+        image_style = context_value(context, "image_style") or context_value(context, "visual_style")
+        if image_style:
+            lines.append(f"- Bildstil: {image_style}")
+        tone = context_value(context, "tone")
+        if tone:
+            lines.append(f"- Tonalitaet / Mood: {tone}")
+    else:
+        text_context = context_value(context, "text_context")
+        if text_context:
+            lines.append(f"- Textkontext: {text_context}")
+        text_length = context_value(context, "text_length")
+        if text_length:
+            lines.append(f"- Textlaenge: {text_length}")
+
     if not lines:
         return ""
     return "\n" + POST_BRIEF_LABEL + "\n" + "\n".join(lines)
@@ -107,21 +124,26 @@ def build_assignments(
     platform: str | None,
 ) -> dict[str, dict[str, Any]]:
     assignments: dict[str, dict[str, Any]] = {}
-    brief_section = build_brief_section(context)
 
     if intent in TEXT_INTENTS:
+        text_brief = build_brief_section(context, for_agent="text")
         assignments["text"] = {
-            "task": f"{TEXT_BRIEF_HEADLINE}\nNutzeranfrage: {message}{brief_section}",
+            "task": f"{TEXT_BRIEF_HEADLINE}\nNutzeranfrage: {message}{text_brief}",
             "platform": platform,
             "tone": context_value(context, "tone", "professional"),
             "target_audience": context_value(context, "target_audience"),
+            "text_context": context_value(context, "text_context"),
+            "text_length": context_value(context, "text_length"),
         }
 
     if intent in IMAGE_INTENTS:
+        image_brief = build_brief_section(context, for_agent="image")
         assignments["image"] = {
-            "task": f"{IMAGE_BRIEF_HEADLINE}\nNutzeranfrage: {message}{brief_section}",
+            "task": f"{IMAGE_BRIEF_HEADLINE}\nNutzeranfrage: {message}{image_brief}",
             "platform": platform,
-            "visual_style": context_value(context, "visual_style"),
+            "visual_style": context_value(context, "image_style")
+            or context_value(context, "visual_style"),
+            "tone": context_value(context, "tone"),
         }
 
     return assignments

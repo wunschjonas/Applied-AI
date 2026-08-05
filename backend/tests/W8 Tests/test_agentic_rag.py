@@ -16,6 +16,8 @@ def test_react_rag_calls_memory_search_tool(tmp_path: Path):
         platform="LinkedIn",
         target_audience="CMOs",
         tone_of_voice="professionell",
+        text_context="KI-Agenten und Brand Guidelines aus dem PDF.",
+        text_length="mittel",
     )
 
     result = graph.run(

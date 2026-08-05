@@ -29,6 +29,8 @@ class SpecialistNodes:
                 platform=assignment.get("platform", state.get("platform")),
                 tone=assignment.get("tone", context_value(context, "tone", "professional")),
                 target_audience=assignment.get("target_audience", context_value(context, "target_audience")),
+                text_context=assignment.get("text_context", context_value(context, "text_context")),
+                text_length=assignment.get("text_length", context_value(context, "text_length")),
                 context=context,
                 rag_context=self._combined_knowledge(state),
                 validation_feedback=state.get("validation_feedback", {}).get("text"),
@@ -76,6 +78,18 @@ class SpecialistNodes:
             assignment.get("task") or state["user_message"],
             marketing_text,
         )
+        image_context: dict[str, Any] = {}
+        if isinstance(context, dict):
+            image_context.update({k: v for k, v in context.items() if v})
+        elif state.get("post") and isinstance(state["post"], dict):
+            image_context.update({k: v for k, v in state["post"].items() if v})
+        tone = (
+            assignment.get("tone")
+            or context_value(context, "tone")
+            or (state.get("post") or {}).get("tone_of_voice")
+        )
+        if tone:
+            image_context["tone"] = tone
         try:
             result = ImageAgent(
                 self.deps.hf_factory(),
@@ -86,7 +100,7 @@ class SpecialistNodes:
                 trace=state["trace"],
                 platform=assignment.get("platform", state.get("platform")),
                 visual_style=assignment.get("visual_style", context_value(context, "visual_style")),
-                context=context if context is not None else state.get("post"),
+                context=image_context or None,
                 rag_context=self._combined_knowledge(state),
                 validation_feedback=state.get("validation_feedback", {}).get("image"),
                 post_id=state["post_id"],

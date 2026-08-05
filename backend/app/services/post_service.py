@@ -30,8 +30,10 @@ class PostService:
             "platform": None,
             "target_audience": None,
             "tone_of_voice": None,
-            "additional_context": None,
+            "text_context": None,
+            "text_length": None,
             "image_context": None,
+            "image_style": None,
             "preview": None,
             AWAITING_FIELD_KEY: "topic",
         }
@@ -110,7 +112,10 @@ class PostService:
                 f"Create a {post['platform']} post about {post['topic']}",
                 f"for {post['target_audience']}" if post.get("target_audience") else "",
                 f"in a {post['tone_of_voice']} tone." if post.get("tone_of_voice") else ".",
-                post.get("additional_context") or "",
+                f"Text focus: {post['text_context']}." if post.get("text_context") else "",
+                f"Text length: {post['text_length']}." if post.get("text_length") else "",
+                f"Image motif: {post['image_context']}." if post.get("image_context") else "",
+                f"Image style: {post['image_style']}." if post.get("image_style") else "",
             ]
             message = " ".join(p for p in parts if p).strip()
 
@@ -120,6 +125,10 @@ class PostService:
                 context={
                     "tone": post.get("tone_of_voice"),
                     "target_audience": post.get("target_audience"),
+                    "text_context": post.get("text_context"),
+                    "text_length": post.get("text_length"),
+                    "image_context": post.get("image_context"),
+                    "image_style": post.get("image_style"),
                 },
             )
 
@@ -163,8 +172,10 @@ class PostService:
             "platform",
             "target_audience",
             "tone_of_voice",
-            "additional_context",
+            "text_context",
+            "text_length",
             "image_context",
+            "image_style",
             "preview",
         }
         payload = {k: v for k, v in post.items() if k in allowed}

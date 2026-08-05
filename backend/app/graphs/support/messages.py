@@ -25,8 +25,10 @@ FIELD_LABELS = {
     "platform": "Plattform",
     "target_audience": "Zielgruppe",
     "tone_of_voice": "Tonalitaet",
-    "additional_context": "Zusatzkontext",
+    "text_context": "Textkontext",
+    "text_length": "Textlaenge",
     "image_context": "Bildmotiv",
+    "image_style": "Bildstil",
 }
 
 
