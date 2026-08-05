@@ -1,0 +1,52 @@
+name: Backend CI
+
+"on":
+  push:
+    branches:
+      - main
+      - development
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+      - development
+
+jobs:
+  backend-ci:
+    name: Backend tests and Docker build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      HF_TOKEN: ci-fake-token
+      HF_MODEL_ID: ci-fake-text-model
+      HF_IMAGE_MODEL_ID: ci-fake-image-model
+      MCP_MEMORY_URL: http://127.0.0.1:8765/mcp
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run W8 backend tests
+        run: python -m pytest "tests/W8 Tests/" -q
+
+      - name: Verify FastAPI app import
+        run: python -c "from app.main import app"
+
+      - name: Build backend Docker image
+        run: docker build -t applied-ai-backend:ci .
