@@ -5,6 +5,7 @@ from app.graphs.state import ManagerChatState
 from app.graphs.support import post_data_llm, messages
 from app.graphs.support.tao_composer import TaoEvent
 from app.graphs.support.validation import ArtifactValidator
+from app.metrics import inc_manager_validation
 
 VALIDATION_STATUS = {
     "valid": "success",
@@ -42,6 +43,7 @@ class ResponseNodes:
             state["image_retry_count"] = state["image_retry_count"] + 1
         if result in VALIDATION_STATUS:
             state["status"] = VALIDATION_STATUS[result]
+        inc_manager_validation(result)
 
         self.recorder.record(
             state,

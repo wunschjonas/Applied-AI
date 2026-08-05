@@ -8,6 +8,7 @@ from app.graphs.state import ManagerChatState
 from app.graphs.support import post_fields
 from app.graphs.support.delegation import build_execution_plan
 from app.graphs.support.tao_composer import TaoEvent
+from app.metrics import inc_manager_chat_intent
 
 ROUTE_TARGETS = {
     "text_only": "TextAgent",
@@ -33,6 +34,7 @@ class PlanningNodes:
         )
         state["intent"] = intent.label
         status = "needs_input" if intent.needs_clarification else "success"
+        inc_manager_chat_intent(intent.label)
 
         event = TaoEvent(
             phase="classify_intent",

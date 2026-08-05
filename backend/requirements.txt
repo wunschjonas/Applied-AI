@@ -12,3 +12,5 @@ pypdf
 python-multipart
 ddgs
 pytest
+prometheus-client
+prometheus-fastapi-instrumentator

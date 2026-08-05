@@ -14,6 +14,7 @@ from app.graphs.nodes.response import ResponseNodes
 from app.graphs.nodes.specialists import SpecialistNodes
 from app.graphs.routers import GraphRouters
 from app.graphs.state import ManagerChatState
+from app.metrics import inc_manager_chat_request
 from app.services.chat_service import ChatService
 from app.services.huggingface_service import HuggingFaceService
 from app.services.image_storage_service import ImageStorageService
@@ -78,6 +79,7 @@ class ManagerChatGraph:
                 "context": context,
             }
         )
+        inc_manager_chat_request(final_state.get("status") or "success")
         return {
             "chat_id": final_state["chat_id"],
             "assistant_message": final_state["assistant_message"],

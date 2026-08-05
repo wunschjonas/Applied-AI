@@ -10,6 +10,7 @@ from app.graphs.state import ManagerChatState
 from app.graphs.support import post_data_llm, messages, post_fields
 from app.graphs.support.delegation import context_value, image_task_with_marketing_text
 from app.graphs.support.tao_composer import TaoEvent
+from app.metrics import inc_manager_specialist
 from app.services.rag_service import filter_rag_context
 
 
@@ -42,6 +43,7 @@ class SpecialistNodes:
         state["generated_artifacts"]["text"] = result
         self._remember_agent(state, "TextAgent")
         self._save_specialist_chat(state, "text_agent", "Text artifact generated.", "text")
+        inc_manager_specialist("text", "success")
         event = TaoEvent(
             phase="delegate_text",
             node="text_agent_node",
@@ -113,6 +115,7 @@ class SpecialistNodes:
         state["generated_artifacts"]["image"] = result
         self._remember_agent(state, "ImageAgent")
         status = "partial_success" if result.get("partial_success") else "success"
+        inc_manager_specialist("image", status)
         event = TaoEvent(
             phase="delegate_image",
             node="image_agent_node",
@@ -480,6 +483,7 @@ class SpecialistNodes:
         is_text = artifact_type == "text"
         node = f"{artifact_type}_agent_node"
         phase = "delegate_text" if is_text else "delegate_image"
+        inc_manager_specialist(artifact_type, "error")
 
         event = TaoEvent(
             phase=phase,

@@ -14,6 +14,7 @@ from app.graphs.support import messages
 from app.graphs.support.post_data_llm import compose_specialist_reply
 from app.graphs.support.delegation import build_image_refine_task, build_text_refine_task
 from app.graphs.support.tao_composer import TaoEvent, compose
+from app.metrics import inc_manager_chat_request
 from app.services.chat_service import ChatService
 from app.services.huggingface_service import HuggingFaceService
 from app.services.log_service import LogService
@@ -47,6 +48,7 @@ class AgentService:
             )
             return graph.run(message=message, post_id=post_id, context=context)
         except Exception as exc:
+            inc_manager_chat_request("exception")
             raise self._to_http_error(exc) from exc
 
     def generate_text(
