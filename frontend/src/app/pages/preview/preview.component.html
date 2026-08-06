@@ -26,12 +26,6 @@
               <span class="preview-placeholder">Noch kein Bild generiert</span>
             }
           </div>
-          @if (artifactFacade.imagePrompt()) {
-            <details class="prompt-details">
-              <summary>Bildprompt anzeigen</summary>
-              <p>{{ artifactFacade.imagePrompt() }}</p>
-            </details>
-          }
         </section>
 
         <section class="preview-copy">

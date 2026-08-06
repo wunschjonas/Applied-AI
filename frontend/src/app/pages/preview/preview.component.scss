@@ -123,25 +123,6 @@
   font-style: italic;
 }
 
-.prompt-details {
-  flex-shrink: 0;
-  font-size: 0.85rem;
-  color: #6b7a8d;
-
-  summary {
-    cursor: pointer;
-    font-weight: 600;
-    color: #34506b;
-  }
-
-  p {
-    margin: 0.5rem 0 0;
-    line-height: 1.5;
-    max-height: 5rem;
-    overflow-y: auto;
-  }
-}
-
 .hashtag-bar {
   display: flex;
   flex-wrap: wrap;

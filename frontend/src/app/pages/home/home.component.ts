@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
@@ -13,7 +13,24 @@ import { ChatSender } from '../../models/chat.model';
 import { Post } from '../../models/post.model';
 import { httpErrorDetail } from '../../core/http-error';
 
-const FIELD_LABELS: Record<string, string> = {
+const GENERAL_FIELD_KEYS = [
+  'topic',
+  'platform',
+  'target_audience',
+  'tone_of_voice',
+] as const;
+
+const TEXT_FIELD_KEYS = ['text_context', 'text_length'] as const;
+
+const IMAGE_FIELD_KEYS = ['image_context', 'image_style'] as const;
+
+const FIELD_KEYS = [
+  ...GENERAL_FIELD_KEYS,
+  ...TEXT_FIELD_KEYS,
+  ...IMAGE_FIELD_KEYS,
+] as const;
+
+const FIELD_LABELS: Record<(typeof FIELD_KEYS)[number], string> = {
   topic: 'Thema',
   platform: 'Plattform',
   target_audience: 'Zielgruppe',
@@ -23,6 +40,19 @@ const FIELD_LABELS: Record<string, string> = {
   image_context: 'Bildmotiv',
   image_style: 'Bildstil',
 };
+
+export interface PostFieldRow {
+  key: (typeof FIELD_KEYS)[number];
+  label: string;
+  filled: boolean;
+  value: string;
+}
+
+export interface PostFieldGroup {
+  id: 'general' | 'text' | 'image';
+  title: string;
+  rows: PostFieldRow[];
+}
 
 @Component({
   selector: 'app-home',
@@ -50,11 +80,34 @@ export class HomeComponent implements OnInit {
   public allPosts = signal<Post[]>([]);
   public isLoadingPosts = signal(false);
   public chatError = signal('');
+  public selectedPost = signal<Post | null>(null);
+
+  public fieldGroups = computed<PostFieldGroup[]>(() => {
+    const post = this.selectedPost();
+    const toRows = (keys: readonly (typeof FIELD_KEYS)[number][]): PostFieldRow[] =>
+      keys.map((key) => {
+        const raw = post?.[key];
+        const value = typeof raw === 'string' ? raw.trim() : '';
+        return {
+          key,
+          label: FIELD_LABELS[key],
+          filled: value.length > 0,
+          value,
+        };
+      });
+
+    return [
+      { id: 'general', title: 'Allgemein', rows: toRows(GENERAL_FIELD_KEYS) },
+      { id: 'text', title: 'Text', rows: toRows(TEXT_FIELD_KEYS) },
+      { id: 'image', title: 'Bild', rows: toRows(IMAGE_FIELD_KEYS) },
+    ];
+  });
 
   public ngOnInit(): void {
     this.loadPosts();
     const postId = this.postFacade.currentPostId();
     if (postId) {
+      this.refreshSelectedPost(postId);
       this.loadManagerChatHistory(postId);
       this.artifactSync.loadForPost(postId);
     }
@@ -63,13 +116,26 @@ export class HomeComponent implements OnInit {
   public loadPosts(): void {
     this.isLoadingPosts.set(true);
     this.postService.getAllPosts().subscribe({
-      next: (posts) => this.allPosts.set(posts),
+      next: (posts) => {
+        this.allPosts.set(posts);
+        const currentId = this.postFacade.currentPostId();
+        if (currentId) {
+          const match = posts.find((post) => post.id === currentId) ?? null;
+          this.selectedPost.set(match);
+          if (match) {
+            this.artifactFacade.updateMissingFields(
+              match.missing_fields ?? this.missingFieldsFromPost(match),
+            );
+          }
+        }
+      },
       error: (err) => console.error('[Home] Failed to load posts:', err),
       complete: () => this.isLoadingPosts.set(false),
     });
   }
 
   public selectPost(post: Post): void {
+    this.selectedPost.set(post);
     this.postFacade.updateCurrentPost({
       post_id: post.id,
       title: post.title,
@@ -95,6 +161,7 @@ export class HomeComponent implements OnInit {
     this.postService.deletePost(postId).subscribe({
       next: () => {
         this.postFacade.updateCurrentPost(null);
+        this.selectedPost.set(null);
         this.chatFacade.updateMainAgentChat([]);
         this.chatFacade.updateTextAgentChat([]);
         this.chatFacade.updateImageAgentChat([]);
@@ -118,6 +185,14 @@ export class HomeComponent implements OnInit {
       next: (response) => {
         console.log('[Home] Response:', response);
         this.postFacade.updateCurrentPost(response);
+        this.selectedPost.set({
+          id: response.post_id,
+          title: response.title,
+          status: 'draft',
+          missing_fields:
+            response.missing_fields ??
+            ['topic', 'platform', 'target_audience', 'tone_of_voice'],
+        });
         const welcome = response.welcome_message?.trim();
         this.chatFacade.updateMainAgentChat(
           welcome ? [{ sender: ChatSender.Agent, text: welcome }] : [],
@@ -155,9 +230,8 @@ export class HomeComponent implements OnInit {
         ]);
         this.artifactFacade.applyArtifacts(response.generated_artifacts);
         this.artifactFacade.updateMissingFields(response.missing_fields);
-        if (response.post_updates && Object.keys(response.post_updates).length) {
-          this.loadPosts();
-        }
+        this.refreshSelectedPost(postId);
+        this.loadPosts();
       },
       complete: () => this.chatFacade.updateIsMainAgentWorking(false),
       error: (err) => {
@@ -167,22 +241,20 @@ export class HomeComponent implements OnInit {
     });
   }
 
-  public fieldLabel(field: string): string {
-    return FIELD_LABELS[field] ?? field;
+  private refreshSelectedPost(postId: string): void {
+    this.postService.getPost(postId).subscribe({
+      next: (post) => {
+        this.selectedPost.set(post);
+        this.artifactFacade.updateMissingFields(
+          post.missing_fields ?? this.missingFieldsFromPost(post),
+        );
+      },
+      error: (err) => console.error('[Home] Failed to refresh selected post:', err),
+    });
   }
 
   private missingFieldsFromPost(post: Post): string[] {
-    const fields: (keyof Post)[] = [
-      'topic',
-      'platform',
-      'target_audience',
-      'tone_of_voice',
-      'text_context',
-      'text_length',
-      'image_context',
-      'image_style',
-    ];
-    return fields.filter((field) => !post[field]);
+    return FIELD_KEYS.filter((field) => !post[field]);
   }
 
   private loadManagerChatHistory(postId: string): void {
