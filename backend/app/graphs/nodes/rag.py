@@ -25,26 +25,28 @@ from app.services.web_search_service import search_web, web_search_enabled
 MAX_TOOL_ROUNDS = 3
 
 REACT_SYSTEM_PROMPT = """You are the tool planner for a marketing multi-agent system.
-You choose zero or more tools, then stop when you have enough context.
+You choose zero or more tools based on the classified Intent, then stop when you have enough context.
 
 Tools:
 - check_post_data_completeness: BEFORE text/image generation, check required post Steckbrief fields.
 - get_post_data: read current post Steckbrief/preview.
 - memory_search: search internal brand/project memory (on-topic only).
-- memory_list: overview of stored memory; use for "what do you know" or empty search.
-- memory_store: save a durable fact ONLY if the user asks to remember/save something.
+- memory_list: overview of stored memory; use for memory_inquiry overview / empty search.
+- memory_store: save a durable fact ONLY for memory_store intent.
   If they say "speicher den Fakt" / "store this" without repeating it, set content to the
   PREVIOUS user message (the actual fact). Never store the store-command text itself.
-- web_search: current public facts, news, trends, or events not in project memory.
+- web_search: public facts for web_inquiry, or optional briefing context for generation intents.
 
-Rules:
-- Factual / knowledge questions (e.g. "do you know who…", "who won…") without a generate-post request:
-  call memory_search first with topical keywords. If empty, call web_search with topical keywords.
-- Explicit web/internet search requests: call web_search (keywords from the full question).
-- Generation intents that need timely world knowledge: web_search first; completeness only if generating this turn.
-- Do NOT call check_post_data_completeness when answering a knowledge/research question (no post generation).
+Rules (follow Intent from the user prompt):
+- Intent clarification_needed / field briefing: call NO tools (especially not web_search / memory_*).
+- Intent web_inquiry: call web_search with topical keywords from the question.
+- Intent memory_inquiry: call memory_search (then memory_list if empty); do not web_search first.
+- Intent memory_store: call memory_store only.
+- Intent post_status_inquiry: call get_post_data if needed; no web_search.
+- Intent text_only / image_only / text_and_image: check_post_data_completeness first;
+  optional web_search only when the generate request clearly needs timely public facts
+  (results are briefing context — generation intent stays).
 - Tool queries must be topical keywords (topic + year + event), NEVER a lone pronoun like "wer"/"was"/"wie".
-- Internal brand facts / PDFs: memory_*; public timely facts: web_search.
 - If a tool fails or returns empty, try a different tool or reformulate the query once.
 - Do not dump chain-of-thought; keep tool arguments short.
 - At most a few useful tool calls; then stop (no more tools)."""
@@ -72,9 +74,23 @@ class RagNodes:
         state["post_data_incomplete_from_tool"] = False
         state["tool_safety_blocked"] = False
 
-        if state.get("intent") == "post_status_inquiry":
-            # Still allow optional brief read via tools when HF available.
-            pass
+        # Steckbrief / clarification turns must not run research tools.
+        if state.get("intent") == "clarification_needed":
+            event = TaoEvent(
+                phase="manager_tool",
+                node="rag_react_node",
+                agent="rag_react_node",
+                status="skipped",
+                intent=state.get("intent"),
+                facts={
+                    "rag_mode": "skip",
+                    "skipped": True,
+                    "detail": "Intent clarification_needed — keine Tools.",
+                    "tools_called": [],
+                },
+            )
+            self.recorder.record(state, event)
+            return state
 
         hf = try_hf(self.deps.hf_factory)
         if hf is None:

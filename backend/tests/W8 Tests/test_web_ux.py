@@ -4,6 +4,9 @@ from pathlib import Path
 
 from helpers import FakeHF, FakeRAG, build_graph, seed_post
 
+from app.agents.manager_agent import ManagerIntentClassifier
+from app.graphs.support.post_fields import is_web_inquiry, looks_like_field_briefing
+
 
 BRIEF_NUDGE_MARKERS = (
     "zielgruppe",
@@ -22,6 +25,23 @@ def _stub_web(graph) -> None:
     graph.rag_nodes.dispatcher.web_search = (
         lambda q, max_results=3: "1. Fake KI-Trend 2026: Agenten automatisieren Kampagnenplanung."
     )
+
+
+def test_steckbrief_fill_with_aktuelle_saison_is_not_web_inquiry():
+    """Field briefing mentioning 'aktuelle Saison' must not trigger web search UX."""
+    message = (
+        "Thema ist die Formel 1. Plattform ist LinkedIn, Zielgruppe sind Motorsportfans, "
+        "Tonalität ist verspielt, Textcontext: Ein Formel-1-Experte berichtet ausführlich "
+        "über die aktuelle Saison, die Teams, Fahrer, Strategien und technische Entwicklungen."
+    )
+    assert looks_like_field_briefing(message)
+    assert not is_web_inquiry(message)
+    intent = ManagerIntentClassifier().classify_intent(message)
+    assert intent.label == "clarification_needed"
+
+    # Real research questions still classify as web.
+    assert is_web_inquiry("Was sind aktuelle KI Trends heute?")
+    assert ManagerIntentClassifier().classify_intent("Was sind aktuelle KI Trends heute?").label == "web_inquiry"
 
 
 def test_pure_web_inquiry_returns_search_only(tmp_path: Path):

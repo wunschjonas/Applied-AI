@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
+from typing import Callable
 
+from app.graphs.support import post_data_llm
 from app.graphs.support.post_fields import (
     AWAITING_FIELD_KEY,
     FREE_TEXT_FIELDS,
@@ -11,8 +12,10 @@ from app.graphs.support.post_fields import (
     is_memory_store_request,
     is_post_status_inquiry,
     is_web_inquiry,
+    looks_like_field_briefing,
     wants_generation,
 )
+from app.services.huggingface_service import HuggingFaceService
 
 
 @dataclass(frozen=True)
@@ -25,7 +28,79 @@ class AgentIntent:
     observation: str
 
 
+_INTENT_META: dict[str, tuple[bool, bool, bool, str]] = {
+    # use_text, use_image, needs_clarification, observation
+    "post_status_inquiry": (
+        False,
+        False,
+        False,
+        "Post status inquiry selected. Answer from posts.json / state.post.",
+    ),
+    "memory_store": (
+        False,
+        False,
+        False,
+        "Memory store selected. Persist fact via memory_store, then confirm.",
+    ),
+    "memory_inquiry": (
+        False,
+        False,
+        False,
+        "Memory inquiry selected. Answer from memory_search / memory_list.",
+    ),
+    "web_inquiry": (
+        False,
+        False,
+        False,
+        "Web inquiry selected. Answer from web_search results only.",
+    ),
+    "clarification_needed": (
+        False,
+        False,
+        True,
+        "Collect post data or clarify; do not run TextAgent/ImageAgent yet.",
+    ),
+    "image_only": (
+        False,
+        True,
+        False,
+        "ImageAgent selected. TextAgent skipped because the user asked for only the image.",
+    ),
+    "text_only": (
+        True,
+        False,
+        False,
+        "TextAgent selected. ImageAgent skipped because the user asked for only text.",
+    ),
+    "text_and_image": (
+        True,
+        True,
+        False,
+        "TextAgent and ImageAgent selected.",
+    ),
+}
+
+
+def _intent(
+    label: str,
+    decision: str,
+    *,
+    observation: str | None = None,
+) -> AgentIntent:
+    use_text, use_image, needs_clarification, default_obs = _INTENT_META[label]
+    return AgentIntent(
+        use_text=use_text,
+        use_image=use_image,
+        needs_clarification=needs_clarification,
+        label=label,
+        decision=decision,
+        observation=observation or default_obs,
+    )
+
+
 class ManagerIntentClassifier:
+    """LLM-first intent; slim explicit-phrase fallback when HF is unavailable."""
+
     image_only_phrases = {
         "nur bild",
         "nur das bild",
@@ -45,189 +120,98 @@ class ManagerIntentClassifier:
         "text only",
         "only text",
     }
-    text_keywords = {
-        "caption",
-        "hashtags",
-        "hashtag",
-        "description",
-        "text",
-        "copy",
-        "cta",
-        "tweet",
-        "blog",
-        "write",
-        "writing",
-        "beschreibung",
-        "untertitel",
-        "post text",
-        "post",
-        "social media post",
-        "social media text",
-        "linkedin post",
-        "instagram caption",
-        "linkedin",
-    }
-    image_keywords = {
-        "image",
-        "visual",
-        "picture",
-        "graphic",
-        "design",
-        "thumbnail",
-        "banner",
-        "photo",
-        "prompt",
-        "bild",
-        "bildprompt",
-        "bildidee",
-        "grafik",
-        "visuell",
-        "visualisierung",
-    }
 
-    def classify_intent(self, message: str, post: dict | None = None) -> AgentIntent:
+    def __init__(
+        self,
+        hf_factory: Callable[[], HuggingFaceService] | None = None,
+    ):
+        self.hf_factory = hf_factory
+
+    def classify_intent(
+        self,
+        message: str,
+        post: dict | None = None,
+        hf: HuggingFaceService | None = None,
+    ) -> AgentIntent:
+        service = hf
+        if service is None and self.hf_factory is not None:
+            service = post_data_llm.try_hf(self.hf_factory)
+
+        llm = post_data_llm.classify_manager_intent_with_llm(
+            hf=service,
+            user_message=message,
+            post=post,
+        )
+        if llm is not None:
+            label = llm["label"]
+            if label in _INTENT_META:
+                return _intent(label, f"LLM: {llm['decision']}")
+
+        return self._fallback_classify(message, post)
+
+    def _fallback_classify(self, message: str, post: dict | None = None) -> AgentIntent:
+        """Deterministic fallback: only explicit action phrases, no topical buzzwords."""
         normalized = message.lower()
         awaiting = (post or {}).get(AWAITING_FIELD_KEY)
 
-        # Current-post status questions win over generic knowledge / keyword matches.
         if is_post_status_inquiry(message):
-            return AgentIntent(
-                use_text=False,
-                use_image=False,
-                needs_clarification=False,
-                label="post_status_inquiry",
-                decision="Detected a question about the current post's stored data.",
-                observation="Post status inquiry selected. Answer from posts.json / state.post.",
+            return _intent(
+                "post_status_inquiry",
+                "Fallback: explicit question about the current post's stored data.",
             )
 
-        # Explicit store requests must not be treated as memory Q&A.
         if is_memory_store_request(message):
-            return AgentIntent(
-                use_text=False,
-                use_image=False,
-                needs_clarification=False,
-                label="memory_store",
-                decision="Detected an explicit request to store a fact in RAG/memory.",
-                observation="Memory store selected. Persist fact via memory_store, then confirm.",
+            return _intent(
+                "memory_store",
+                "Fallback: explicit request to store a fact in RAG/memory.",
             )
 
-        # Ask-about-memory must win over generic "bild"/"image" keyword matches.
         if is_memory_inquiry(message):
-            return AgentIntent(
-                use_text=False,
-                use_image=False,
-                needs_clarification=False,
-                label="memory_inquiry",
-                decision="Detected a question about stored RAG/memory content.",
-                observation="Memory inquiry selected. Answer from memory_search / memory_list.",
+            return _intent(
+                "memory_inquiry",
+                "Fallback: explicit question about stored RAG/memory content.",
             )
 
-        # Pure web/current-events questions (not "schreibe einen Post …").
-        if is_web_inquiry(message) and not wants_generation(message):
-            return AgentIntent(
-                use_text=False,
-                use_image=False,
-                needs_clarification=False,
-                label="web_inquiry",
-                decision="Detected a question about current public/web information.",
-                observation="Web inquiry selected. Answer from web_search results only.",
-            )
-
-        # Filling Steckbrief (esp. Bildmotiv) must not trigger ImageAgent via "bild*".
         if not wants_generation(message) and (
             is_image_motif_briefing(message)
             or awaiting in FREE_TEXT_FIELDS
+            or looks_like_field_briefing(message)
         ):
-            return AgentIntent(
-                use_text=False,
-                use_image=False,
-                needs_clarification=True,
-                label="clarification_needed",
-                decision="Detected Steckbrief field update without generation request.",
+            return _intent(
+                "clarification_needed",
+                "Fallback: Steckbrief field update without generation request.",
                 observation="Collect post data only; do not run TextAgent/ImageAgent.",
             )
 
+        if is_web_inquiry(message) and not wants_generation(message):
+            return _intent(
+                "web_inquiry",
+                "Fallback: explicit web/internet search request.",
+            )
+
         if self._contains_any(normalized, self.image_only_phrases):
-            return AgentIntent(
-                use_text=False,
-                use_image=True,
-                needs_clarification=False,
-                label="image_only",
-                decision="Detected explicit image-only intent.",
-                observation="ImageAgent selected. TextAgent skipped because the user asked for only the image.",
+            return _intent(
+                "image_only",
+                "Fallback: explicit image-only request.",
             )
 
         if self._contains_any(normalized, self.text_only_phrases):
-            return AgentIntent(
-                use_text=True,
-                use_image=False,
-                needs_clarification=False,
-                label="text_only",
-                decision="Detected explicit text-only intent.",
-                observation="TextAgent selected. ImageAgent skipped because the user asked for only text.",
+            return _intent(
+                "text_only",
+                "Fallback: explicit text-only request.",
             )
 
-        use_text = self._contains_any(normalized, self.text_keywords)
-        use_image = self._contains_image_keyword(normalized)
-
-        # Keyword hits alone are ambiguous — confirm before TextAgent/ImageAgent.
-        # Explicit generate verbs (erstell/schreib/…) or nur-text/nur-bild phrases proceed.
-        if (use_text or use_image) and not wants_generation(message):
-            return AgentIntent(
-                use_text=False,
-                use_image=False,
-                needs_clarification=True,
-                label="clarification_needed",
-                decision="Detected text/image keywords without an explicit generate request.",
-                observation="Ask whether to create text, image, or both before running agents.",
+        if wants_generation(message):
+            return _intent(
+                "text_and_image",
+                "Fallback: explicit generate verb — default to text and image.",
             )
 
-        if use_text and use_image:
-            return AgentIntent(
-                use_text=True,
-                use_image=True,
-                needs_clarification=False,
-                label="text_and_image",
-                decision="Detected both text and image intent.",
-                observation="TextAgent and ImageAgent selected.",
-            )
-        if use_text:
-            return AgentIntent(
-                use_text=True,
-                use_image=False,
-                needs_clarification=False,
-                label="text_only",
-                decision="Detected text generation intent.",
-                observation="TextAgent selected.",
-            )
-        if use_image:
-            return AgentIntent(
-                use_text=False,
-                use_image=True,
-                needs_clarification=False,
-                label="image_only",
-                decision="Detected image generation intent.",
-                observation="ImageAgent selected.",
-            )
-
-        return AgentIntent(
-            use_text=False,
-            use_image=False,
-            needs_clarification=True,
-            label="clarification_needed",
-            decision="No clear text or image intent detected.",
+        return _intent(
+            "clarification_needed",
+            "Fallback: no clear action phrase detected.",
             observation="Clarification is required before selecting an agent.",
         )
 
     def _contains_any(self, normalized_message: str, candidates: set[str]) -> bool:
         return any(candidate in normalized_message for candidate in candidates)
-
-    def _contains_image_keyword(self, normalized_message: str) -> bool:
-        """Match image keywords; keep 'bild' as a whole word so 'bildmotiv' does not count."""
-        for candidate in self.image_keywords:
-            if candidate == "bild":
-                if re.search(r"(?<!\w)bild(?!\w)", normalized_message):
-                    return True
-            elif candidate in normalized_message:
-                return True
-        return False

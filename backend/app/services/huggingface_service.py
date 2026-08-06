@@ -47,10 +47,27 @@ class HuggingFaceService:
             timeout=image_timeout,
         )
 
-    def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = 700) -> str:
-        return self.generate_text(system_prompt=system_prompt, user_prompt=user_prompt, max_tokens=max_tokens)
+    def generate(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 700,
+        temperature: float = 0.7,
+    ) -> str:
+        return self.generate_text(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
 
-    def generate_text(self, system_prompt: str, user_prompt: str, max_tokens: int = 700) -> str:
+    def generate_text(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 700,
+        temperature: float = 0.7,
+    ) -> str:
         try:
             response = self.client.chat_completion(
                 model=self.hf_model_id,
@@ -59,7 +76,7 @@ class HuggingFaceService:
                     {"role": "user", "content": user_prompt},
                 ],
                 max_tokens=max_tokens,
-                temperature=0.7,
+                temperature=temperature,
             )
         except Exception as exc:
             raise RuntimeError(f"HuggingFace request failed: {type(exc).__name__}: {exc}") from exc

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.graphs.support.post_fields import platform_display
+
 CLARIFICATION_REQUEST = (
     "Soll ich Marketing-Text, einen Bildprompt mit Bildgenerierung oder beides erstellen? "
     "Nenne gern auch Plattform, Zielgruppe und Tonalitaet."
@@ -15,6 +17,19 @@ NO_ARTIFACTS = "Der Agenten-Workflow konnte keine vollstaendigen Artefakte erzeu
 TEXT_REFINED = "Ich habe den Marketing-Text neu erstellt und in der Post-Vorschau gespeichert."
 IMAGE_REFINED = "Ich habe das Bild neu generiert und in der Post-Vorschau aktualisiert."
 IMAGE_REFINE_PROMPT_ONLY = "Der neue Bildprompt steht, die Bildgenerierung ist jedoch fehlgeschlagen."
+
+TEXT_GENERATED = (
+    "Ich habe mit den Infos aus dem Post einen Text erstellt. "
+    "Wie findest du ihn? Was möchtest du ändern?"
+)
+IMAGE_GENERATED = (
+    "Ich habe mit den Infos aus dem Post ein Bild erstellt. "
+    "Wie findest du es? Was möchtest du ändern?"
+)
+IMAGE_GENERATED_PROMPT_ONLY = (
+    "Der Bildprompt steht, die eigentliche Bildgenerierung ist jedoch fehlgeschlagen. "
+    "Soll ich es noch einmal versuchen?"
+)
 
 POST_DATA_QUESTION_INTRO = "Damit der Post passt, brauche ich noch etwas Kontext."
 POST_DATA_SAVED_PREFIX = "Notiert:"
@@ -35,7 +50,10 @@ FIELD_LABELS = {
 def saved_fields_sentence(updates: dict[str, object]) -> str:
     if not updates:
         return ""
-    parts = [f"{FIELD_LABELS.get(field, field)} = {value}" for field, value in updates.items()]
+    parts = []
+    for field, value in updates.items():
+        display = platform_display(str(value)) if field == "platform" else value
+        parts.append(f"{FIELD_LABELS.get(field, field)} = {display}")
     return f"{POST_DATA_SAVED_PREFIX} {', '.join(parts)}."
 
 

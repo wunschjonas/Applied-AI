@@ -37,9 +37,25 @@ const FIELD_LABELS: Record<(typeof FIELD_KEYS)[number], string> = {
   tone_of_voice: 'Tonalität',
   text_context: 'Textkontext',
   text_length: 'Textlänge',
-  image_context: 'Bildmotiv',
+  image_context: 'Bildkontext',
   image_style: 'Bildstil',
 };
+
+const PLATFORM_DISPLAY: Record<string, string> = {
+  linkedin: 'LinkedIn',
+  instagram: 'Instagram',
+  x: 'X',
+  blog: 'Blog',
+  tiktok: 'TikTok',
+  facebook: 'Facebook',
+};
+
+function formatFieldValue(key: string, value: string): string {
+  if (key === 'platform') {
+    return PLATFORM_DISPLAY[value.toLowerCase()] ?? value;
+  }
+  return value;
+}
 
 export interface PostFieldRow {
   key: (typeof FIELD_KEYS)[number];
@@ -87,12 +103,12 @@ export class HomeComponent implements OnInit {
     const toRows = (keys: readonly (typeof FIELD_KEYS)[number][]): PostFieldRow[] =>
       keys.map((key) => {
         const raw = post?.[key];
-        const value = typeof raw === 'string' ? raw.trim() : '';
+        const trimmed = typeof raw === 'string' ? raw.trim() : '';
         return {
           key,
           label: FIELD_LABELS[key],
-          filled: value.length > 0,
-          value,
+          filled: trimmed.length > 0,
+          value: formatFieldValue(key, trimmed),
         };
       });
 

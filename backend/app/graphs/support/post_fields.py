@@ -43,6 +43,23 @@ PLATFORM_ALIASES = {
     "fb": "facebook",
 }
 
+# Canonical storage stays lowercase; display labels for UI / chat acks.
+PLATFORM_LABELS = {
+    "linkedin": "LinkedIn",
+    "instagram": "Instagram",
+    "x": "X",
+    "blog": "Blog",
+    "tiktok": "TikTok",
+    "facebook": "Facebook",
+}
+
+
+def platform_display(value: str | None) -> str:
+    if not value:
+        return ""
+    key = str(value).strip().lower()
+    return PLATFORM_LABELS.get(key, str(value).strip())
+
 TONE_ALIASES = {
     "professionell": "professionell",
     "professional": "professionell",
@@ -98,7 +115,20 @@ TEXT_CONTEXT_PATTERNS = (
     r"text\s*context\s*:\s*(.{10,1000})",
     r"textkontext\s*:\s*(.{10,1000})",
     r"(?:im\s+)?text\s+(?:soll(?:te)?|geht\s+es\s+um)\s*(.{10,1000})",
+    r"der\s+text\s+soll\s+(?:zus(?:ä|ae)tzlich\s+)?(.{10,1000})",
     r"kernbotschaft\s*(?:ist|:)?\s*(.{10,1000})",
+)
+
+TEXT_CONTEXT_APPEND_MARKERS = (
+    "zusätzlich",
+    "zusaetzlich",
+    "außerdem",
+    "ausserdem",
+    "darüber hinaus",
+    "daruber hinaus",
+    "auch noch",
+    "ergänz",
+    "erganz",
 )
 TEXT_LENGTH_PATTERNS = (
     r"text\s*length\s*:\s*(.{3,40})",
@@ -149,42 +179,35 @@ def normalize_text_length_guidance(text_length: str | None) -> str | None:
     return f"Approximate this requested length: {raw}."
 
 
+# Explicit memory/RAG questions only — no vague "hast du infos" / lone "memory".
 MEMORY_INQUIRY_MARKERS = (
-    "gedächtnis",
-    "gedachtnis",
-    "gedaechtnis",
-    "memory",
-    "knowledge base",
     "im rag",
     "dein rag",
     "deinem rag",
     "vom rag",
     "aus dem rag",
     "zum rag",
-    "unsere daten",
-    "was steht in",
-    "hast du im",
-    "gespeichert",
-    "hochgeladen",
+    "im gedächtnis",
+    "im gedachtnis",
+    "im gedaechtnis",
+    "aus dem gedächtnis",
+    "aus dem gedachtnis",
+    "aus dem gedaechtnis",
     "was weißt du über",
     "was weisst du ueber",
     "was weisst du über",
-    "kennst du details",
-    "kennst du etwas",
-    "hast du infos",
-    "gibt es infos",
+    "was weißt du zu",
+    "was weisst du zu",
 )
 
 MEMORY_INQUIRY_PATTERNS = (
     r"\b(?:im|aus dem|vom|zum)\s+rag\b",
+    r"\b(?:im|aus dem)\s+ged(?:ä|ae|a)?chtnis\b",
     r"\brag\b.{0,40}\b(?:zu|über|ueber|zum thema)\b",
-    r"\b(?:zu|über|ueber|zum thema)\b.{0,80}\b(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory)\b",
-    r"\b(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory)\b.{0,80}\b(?:zu|über|ueber|thema)\b",
-    r"was\s+(?:steht|wei[sß]t|findest).{0,40}\b(?:rag|gedächtnis|gedachtnis|gedaechtnis|memory|daten)\b",
+    r"\b(?:zu|über|ueber|zum thema)\b.{0,80}\b(?:rag|gedächtnis|gedachtnis|gedaechtnis)\b",
+    r"\b(?:rag|gedächtnis|gedachtnis|gedaechtnis)\b.{0,80}\b(?:zu|über|ueber|thema)\b",
+    r"was\s+(?:steht|wei[sß]t|findest).{0,40}\b(?:rag|gedächtnis|gedachtnis|gedaechtnis)\b",
     r"was\s+wei[sß]t\s+du\s+(?:über|ueber|zu|zur|zum|zum thema)\b",
-    r"kennst\s+du\s+(?:details|etwas|infos)\s+(?:zu|zur|zum|über|ueber|zum thema)\b",
-    r"was\s+kannst\s+du\s+mir\s+(?:über|ueber|zu|zur|zum)\b",
-    r"(?:hast|gibt)\s+(?:du\s+)?infos?\s+(?:zu|zur|zum|über|ueber)\b",
 )
 
 MEMORY_QUERY_PATTERNS = (
@@ -228,15 +251,8 @@ POST_STATUS_PATTERNS = (
     r"zeig(?:\s+mir)?\s+den\s+(?:brief|post)\b",
 )
 
+# Explicit web/internet search only — never topical words like aktuell/heute/trend/news.
 WEB_INQUIRY_MARKERS = (
-    "aktuell",
-    "heutige",
-    "heute",
-    "trend",
-    "trends",
-    "nachrichten",
-    "news",
-    "recherchier",
     "im web",
     "im internet",
     "suche im web",
@@ -245,17 +261,33 @@ WEB_INQUIRY_MARKERS = (
     "such im internet",
     "websearch",
     "web search",
-    "was passiert",
-    "aktueller stand der",
-    "neuigkeiten",
+    "recherchiere im",
+    "recherchier im",
+    "recherchiere online",
+    "recherchier online",
+    "googlen",
 )
 
 WEB_INQUIRY_PATTERNS = (
-    r"\b(?:aktuell(?:e|er|en|es)?|heutige[rnsm]?)\b.{0,40}\b(?:trend|news|nachricht|lage|stand)\b",
-    r"\b(?:trend|nachrichten|news)\b",
     r"\b(?:recherchier|googlen|suche?)\b.{0,30}\b(?:web|internet|online)\b",
     r"\b(?:im|aufs?)\s+(?:web|internet)\b",
-    r"was\s+passiert\s+(?:gerade|heute|aktuell)\b",
+    r"\b(?:websearch|web\s+search)\b",
+)
+
+# Labels that strongly signal "fill Steckbrief fields", not a research question.
+FIELD_BRIEFING_MARKERS = (
+    "thema",
+    "plattform",
+    "zielgruppe",
+    "tonalit",
+    "textcontext",
+    "text context",
+    "text_context",
+    "bildmotiv",
+    "bildstil",
+    "textlänge",
+    "textlaenge",
+    "text length",
 )
 
 
@@ -353,9 +385,23 @@ def is_memory_inquiry(message: str) -> bool:
     return any(re.search(pattern, normalized) for pattern in MEMORY_INQUIRY_PATTERNS)
 
 
+def looks_like_field_briefing(message: str) -> bool:
+    """True when the message is clearly filling Steckbrief fields (labels / assignments)."""
+    if wants_generation(message) or is_question_message(message):
+        return False
+    normalized = (message or "").lower()
+    if not normalized.strip():
+        return False
+    hits = sum(1 for marker in FIELD_BRIEFING_MARKERS if marker in normalized)
+    return hits >= 2
+
+
 def is_web_inquiry(message: str) -> bool:
     """True when the user wants public/current web facts (not memory, not post status)."""
     if is_post_status_inquiry(message) or is_memory_inquiry(message):
+        return False
+    # Steckbrief fill-ins must not be treated as research ("aktuelle Saison" ≠ web search).
+    if looks_like_field_briefing(message):
         return False
     normalized = message.lower()
     if any(marker in normalized for marker in WEB_INQUIRY_MARKERS):
@@ -473,8 +519,17 @@ def extract_fields(message: str, post: dict[str, Any]) -> dict[str, Any]:
         updates["target_audience"] = audience[: FIELD_MAX_LENGTH["target_audience"]]
 
     text_ctx = _first_match(message, TEXT_CONTEXT_PATTERNS)
-    if text_ctx and not post.get("text_context"):
-        updates["text_context"] = text_ctx[: FIELD_MAX_LENGTH["text_context"]]
+    if text_ctx:
+        current_ctx = str(post.get("text_context") or "").strip()
+        if not current_ctx:
+            updates["text_context"] = text_ctx[: FIELD_MAX_LENGTH["text_context"]]
+        elif any(marker in message.lower() for marker in TEXT_CONTEXT_APPEND_MARKERS):
+            if text_ctx not in current_ctx and current_ctx[:80] not in text_ctx:
+                merged = f"{current_ctx.rstrip()} {text_ctx.strip()}".strip()
+            else:
+                merged = text_ctx if current_ctx[:80] in text_ctx else current_ctx
+            if merged != current_ctx:
+                updates["text_context"] = merged[: FIELD_MAX_LENGTH["text_context"]]
 
     text_len = _first_match(message, TEXT_LENGTH_PATTERNS)
     if text_len and not post.get("text_length"):

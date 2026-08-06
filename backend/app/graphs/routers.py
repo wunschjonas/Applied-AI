@@ -34,17 +34,8 @@ class GraphRouters:
         else:
             blocked = self._needs_post_data_first(state)
             if intent in GENERATION_INTENTS and not blocked:
-                # A requested generation must not be swallowed by a tool hit —
-                # rag_context / web_context stay available as briefing material.
+                # Generation wins; rag_context / web_context stay as briefing material.
                 target = INTENT_ROUTES[intent]
-            # Tool hits only win over clarification / post-data gate.
-            elif "web_search" in tools and state.get("web_context"):
-                target = "web_answer_node"
-            elif (
-                ("memory_search" in tools or "memory_list" in tools)
-                and state.get("rag_context")
-            ):
-                target = "memory_answer_node"
             elif intent == "web_inquiry":
                 target = "web_answer_node"
             elif intent == "memory_store":
@@ -56,6 +47,7 @@ class GraphRouters:
             elif blocked:
                 target = "context_question_node"
             else:
+                # clarification_needed and unknown → clarification; tool hits must not override.
                 target = INTENT_ROUTES.get(intent, "clarification_node")
 
         if target == "context_question_node" and state.get("tool_safety_blocked"):

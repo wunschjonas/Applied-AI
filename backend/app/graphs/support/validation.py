@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from app.graphs.support.delegation import IMAGE_INTENTS, TEXT_INTENTS
+from app.graphs.support.language import contains_non_german_script
 from app.services.image_storage_service import ImageStorageService
 
 HASHTAG_PLATFORMS = frozenset({"linkedin", "instagram", "x"})
@@ -100,12 +101,19 @@ class ArtifactValidator:
                 issues.append("generated_text too short")
             if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in META_PREAMBLE_PATTERNS):
                 issues.append("generated_text contains meta preamble or code fences")
+            if contains_non_german_script(text):
+                issues.append(
+                    "generated_text must be German only (no Chinese or other non-Latin scripts)"
+                )
         if "hashtags" not in artifact:
             issues.append("hashtags field missing")
-        elif platform and platform.lower() in HASHTAG_PLATFORMS:
+        else:
             hashtags = artifact.get("hashtags") or []
-            if len(hashtags) < MIN_HASHTAGS:
-                issues.append(f"need at least {MIN_HASHTAGS} hashtags for {platform}")
+            if any(contains_non_german_script(str(tag)) for tag in hashtags):
+                issues.append("hashtags must use Latin/German letters only (no Chinese)")
+            elif platform and platform.lower() in HASHTAG_PLATFORMS:
+                if len(hashtags) < MIN_HASHTAGS:
+                    issues.append(f"need at least {MIN_HASHTAGS} hashtags for {platform}")
         return issues
 
     def validate_image(self, artifact: dict[str, Any] | None) -> list[str]:

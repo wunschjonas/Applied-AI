@@ -44,7 +44,7 @@ class ManagerChatGraph:
         self.log_service = log_service or LogService()
         self.image_storage = image_storage or ImageStorageService()
         self.post_repository = post_repository or PostRepository()
-        self.intent_classifier = ManagerIntentClassifier()
+        self.intent_classifier = ManagerIntentClassifier(hf_factory=self.hf_factory)
 
         self.deps = GraphDependencies(
             chat_service=self.chat_service,

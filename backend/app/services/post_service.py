@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import uuid4
 
@@ -16,6 +17,8 @@ from app.services.image_storage_service import ImageStorageService
 from app.services.log_service import LogService
 from app.services.post_repository import PostRepository
 from app.services.trace_service import TraceService
+
+logger = logging.getLogger(__name__)
 
 
 class PostService:
@@ -102,10 +105,17 @@ class PostService:
     def delete_post(self, post_id: str) -> None:
         if not self.store.delete(post_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
-        self.chat_service.delete_chats_for_post(post_id)
-        LogService().delete_by_post_id(post_id)
-        TraceService().delete_by_post_id(post_id)
-        ImageStorageService().delete_post_image(post_id)
+        # Post is already gone — cascade must not turn a successful delete into 500.
+        for cleanup in (
+            lambda: self.chat_service.delete_chats_for_post(post_id),
+            lambda: LogService().delete_by_post_id(post_id),
+            lambda: TraceService().delete_by_post_id(post_id),
+            lambda: ImageStorageService().delete_post_image(post_id),
+        ):
+            try:
+                cleanup()
+            except Exception:
+                logger.exception("Cascade cleanup failed while deleting post %s", post_id)
 
     def generate_preview(self, post_id: str) -> PostResponse:
         post = self.store.get(post_id)

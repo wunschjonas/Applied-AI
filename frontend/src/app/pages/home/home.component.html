@@ -121,7 +121,14 @@
                           </span>
                         </div>
                         @if (row.filled) {
-                          <p class="field-row__value">{{ row.value }}</p>
+                          <p
+                            class="field-row__value"
+                            [class.field-row__value--scroll]="
+                              row.key === 'text_context' || row.key === 'image_context'
+                            "
+                          >
+                            {{ row.value }}
+                          </p>
                         }
                       </li>
                     }

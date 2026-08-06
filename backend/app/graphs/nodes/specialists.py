@@ -42,7 +42,21 @@ class SpecialistNodes:
 
         state["generated_artifacts"]["text"] = result
         self._remember_agent(state, "TextAgent")
-        self._save_specialist_chat(state, "text_agent", "Text artifact generated.", "text")
+        self._ack_specialist_chat(
+            state,
+            agent="text_agent",
+            role="text",
+            fallback=messages.TEXT_GENERATED,
+            situation=(
+                "First text generation from a manager delegation. "
+                "The marketing text was created and saved to the post preview."
+            ),
+            artifact_summary=(
+                f"{len(result.get('generated_text', ''))} chars, "
+                f"{len(result.get('hashtags', []))} hashtags"
+            ),
+            retry_count=state["text_retry_count"],
+        )
         inc_manager_specialist("text", "success")
         event = TaoEvent(
             phase="delegate_text",
@@ -130,7 +144,26 @@ class SpecialistNodes:
                 "detail": self._image_summary(result),
             },
         )
-        self._save_specialist_chat(state, "image_agent", "Image artifact generated.", "image")
+        self._ack_specialist_chat(
+            state,
+            agent="image_agent",
+            role="image",
+            fallback=(
+                messages.IMAGE_GENERATED_PROMPT_ONLY
+                if result.get("partial_success") or not result.get("image_url")
+                else messages.IMAGE_GENERATED
+            ),
+            situation=(
+                "First image generation from a manager delegation failed after the prompt was created."
+                if result.get("partial_success") or not result.get("image_url")
+                else (
+                    "First image generation from a manager delegation. "
+                    "The image was created and saved to the post preview."
+                )
+            ),
+            artifact_summary=self._image_summary(result),
+            retry_count=state["image_retry_count"],
+        )
         self.recorder.record(state, event)
         self.recorder.log(
             state,
@@ -484,16 +517,39 @@ class SpecialistNodes:
             output_summary=error,
         )
 
-    def _save_specialist_chat(
+    def _ack_specialist_chat(
         self,
         state: ManagerChatState,
+        *,
         agent: str,
-        assistant_message: str,
-        artifact_type: str,
+        role: str,
+        fallback: str,
+        situation: str,
+        artifact_summary: str,
+        retry_count: int,
     ) -> None:
+        """Persist a dynamic AGENT ack only — never mirror the manager user message."""
         chat = self.deps.chat_service.get_or_create_chat(state["post_id"], agent=agent)
-        self.deps.chat_service.add_message(chat, "USER", state["user_message"])
-        self.deps.chat_service.add_message(chat, "AGENT", assistant_message)
+        has_agent_msg = any(
+            str(m.get("role") or "").upper() == "AGENT"
+            for m in (chat.get("messages") or [])
+        )
+        # Skip duplicate acks on validation retries, but always ack if chat is still empty.
+        if retry_count > 0 and has_agent_msg:
+            return
+
+        hf = post_data_llm.try_hf(self.deps.hf_factory)
+        reply = post_data_llm.compose_specialist_reply(
+            role=role,
+            hf=hf,
+            fallback=fallback,
+            situation=situation,
+            user_message=state["user_message"],
+            post=state.get("post"),
+            artifact_summary=artifact_summary,
+            first_generation=True,
+        )
+        self.deps.chat_service.add_message(chat, "AGENT", reply)
 
     def _remember_agent(self, state: ManagerChatState, agent: str) -> None:
         if agent not in state["used_agents"]:

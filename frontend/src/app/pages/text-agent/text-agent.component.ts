@@ -1,4 +1,7 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
 import { PostContextComponent } from '../../components/post-context/post-context.component';
@@ -23,10 +26,23 @@ export class TextAgentComponent implements OnInit {
   public artifactFacade = inject(ArtifactFacade);
   private readonly textAgentService = inject(TextAgentService);
   private readonly artifactSync = inject(ArtifactSyncService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   public chatError = signal('');
 
   public ngOnInit(): void {
+    this.reloadChat();
+    this.router.events
+      .pipe(
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+        filter(() => this.router.url.includes('/text_agent')),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => this.reloadChat());
+  }
+
+  private reloadChat(): void {
     const postId = this.postFacade.currentPostId();
     if (!postId) return;
 

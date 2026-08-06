@@ -7,6 +7,7 @@ from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
 from app.graphs.support import post_fields
 from app.graphs.support.delegation import build_execution_plan
+from app.graphs.support.post_data_llm import try_hf
 from app.graphs.support.tao_composer import TaoEvent
 from app.metrics import inc_manager_chat_intent
 
@@ -41,6 +42,7 @@ class PlanningNodes:
         intent = self.deps.intent_classifier.classify_intent(
             state["user_message"],
             post=state.get("post"),
+            hf=try_hf(self.deps.hf_factory),
         )
         state["intent"] = intent.label
         auto_started = False
