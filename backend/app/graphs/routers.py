@@ -17,6 +17,8 @@ INTENT_ROUTES = {
     "post_status_inquiry": "post_status_node",
 }
 
+GENERATION_INTENTS = frozenset({"text_only", "image_only", "text_and_image"})
+
 
 class GraphRouters:
     def __init__(self, deps: GraphDependencies):
@@ -25,31 +27,58 @@ class GraphRouters:
 
     def intent_router(self, state: ManagerChatState) -> str:
         tools = state.get("tools_called") or []
+        intent = state.get("intent")
         # Successful store wins — never answer as an empty memory search.
         if "memory_store" in tools and state.get("stored_preview"):
             target = "memory_store_ack_node"
-        # Tool hits win over clarification / post-data gate (LLM chose the tool).
-        elif "web_search" in tools and state.get("web_context"):
-            target = "web_answer_node"
-        elif (
-            ("memory_search" in tools or "memory_list" in tools)
-            and state.get("rag_context")
-        ):
-            target = "memory_answer_node"
-        elif state.get("intent") == "web_inquiry":
-            target = "web_answer_node"
-        elif state.get("intent") == "memory_store":
-            target = "memory_store_ack_node"
-        elif state.get("intent") == "memory_inquiry":
-            target = "memory_answer_node"
-        elif state.get("intent") == "post_status_inquiry":
-            target = "post_status_node"
-        elif self._needs_post_data_first(state):
-            target = "context_question_node"
         else:
-            target = INTENT_ROUTES.get(state["intent"], "clarification_node")
+            blocked = self._needs_post_data_first(state)
+            if intent in GENERATION_INTENTS and not blocked:
+                # A requested generation must not be swallowed by a tool hit —
+                # rag_context / web_context stay available as briefing material.
+                target = INTENT_ROUTES[intent]
+            # Tool hits only win over clarification / post-data gate.
+            elif "web_search" in tools and state.get("web_context"):
+                target = "web_answer_node"
+            elif (
+                ("memory_search" in tools or "memory_list" in tools)
+                and state.get("rag_context")
+            ):
+                target = "memory_answer_node"
+            elif intent == "web_inquiry":
+                target = "web_answer_node"
+            elif intent == "memory_store":
+                target = "memory_store_ack_node"
+            elif intent == "memory_inquiry":
+                target = "memory_answer_node"
+            elif intent == "post_status_inquiry":
+                target = "post_status_node"
+            elif blocked:
+                target = "context_question_node"
+            else:
+                target = INTENT_ROUTES.get(intent, "clarification_node")
+
+        if target == "context_question_node" and state.get("tool_safety_blocked"):
+            self._record_post_data_safety(state)
         inc_manager_chat_route(target)
         return target
+
+    def _record_post_data_safety(self, state: ManagerChatState) -> None:
+        blocking = state.get("post_data_blocking") or []
+        self.recorder.record(
+            state,
+            TaoEvent(
+                phase="post_data_safety",
+                node="route_by_intent",
+                agent="route_by_intent",
+                status="needs_input",
+                intent=state.get("intent"),
+                facts={
+                    "detail": "Safety: Steckbrief unvollständig, Generierung blockiert (Completeness-Tool übersprungen).",
+                    "post_data_missing": list(blocking),
+                },
+            ),
+        )
 
     def _needs_post_data_first(self, state: ManagerChatState) -> bool:
         """Ask for Steckbrief fields before generating.
@@ -58,14 +87,7 @@ class GraphRouters:
         Safety-net: blocking fields if tools skipped completeness.
         explicit_generate must NOT bypass incomplete required/image fields.
         """
-        if state.get("intent") in {
-            "memory_inquiry",
-            "memory_store",
-            "post_status_inquiry",
-            "web_inquiry",
-        }:
-            return False
-        if state.get("intent") not in {"text_only", "image_only", "text_and_image"}:
+        if state.get("intent") not in GENERATION_INTENTS:
             return False
 
         blocking = post_fields.missing_fields_for_intent(
@@ -82,20 +104,6 @@ class GraphRouters:
         # Safety-net when LLM skipped check_post_data_completeness
         if state.get("post") and blocking and not state.get("post_data_checked"):
             state["tool_safety_blocked"] = True
-            self.recorder.record(
-                state,
-                TaoEvent(
-                    phase="post_data_safety",
-                    node="route_by_intent",
-                    agent="route_by_intent",
-                    status="needs_input",
-                    intent=state.get("intent"),
-                    facts={
-                        "detail": "Safety: Steckbrief unvollständig, Generierung blockiert (Completeness-Tool übersprungen).",
-                        "post_data_missing": blocking,
-                    },
-                ),
-            )
             return True
 
         if state.get("post_data_checked") and state.get("post_data_complete") is False:

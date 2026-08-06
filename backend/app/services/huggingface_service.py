@@ -24,6 +24,8 @@ class HuggingFaceService:
         hf_image_model_id: str | None = None,
         hf_caption_model_id: str | None = None,
         hf_image_to_image_model_id: str | None = None,
+        timeout: float = 60.0,
+        image_timeout: float = 180.0,
     ):
         if not hf_token:
             raise ValueError("HF_TOKEN is missing. Configure it in backend/.env before calling an agent.")
@@ -34,10 +36,16 @@ class HuggingFaceService:
         self.hf_image_to_image_model_id = (
             hf_image_to_image_model_id or "stabilityai/stable-diffusion-xl-base-1.0"
         )
-        # Default client: chat / text-to-image / img2img (provider auto).
-        self.client = InferenceClient(token=hf_token)
+        # Chat / tool calling (provider auto).
+        self.client = InferenceClient(token=hf_token, timeout=timeout)
+        # Image generation gets its own client — it needs a longer timeout than chat.
+        self.image_client = InferenceClient(token=hf_token, timeout=image_timeout)
         # Captioning must pin hf-inference — image_to_text is not on fal/replicate/etc.
-        self.caption_client = InferenceClient(token=hf_token, provider="hf-inference")
+        self.caption_client = InferenceClient(
+            token=hf_token,
+            provider="hf-inference",
+            timeout=image_timeout,
+        )
 
     def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = 700) -> str:
         return self.generate_text(system_prompt=system_prompt, user_prompt=user_prompt, max_tokens=max_tokens)
@@ -181,7 +189,7 @@ class HuggingFaceService:
             kwargs: dict[str, Any] = {"model": self.hf_image_model_id}
             if negative_prompt:
                 kwargs["negative_prompt"] = negative_prompt
-            image = self.client.text_to_image(prompt, **kwargs)
+            image = self.image_client.text_to_image(prompt, **kwargs)
         except Exception as exc:
             raise self._image_error(exc, mode="text-to-image") from exc
 
@@ -220,7 +228,7 @@ class HuggingFaceService:
             if negative_prompt:
                 call_kwargs["negative_prompt"] = negative_prompt
             try:
-                image = self.client.image_to_image(source, **call_kwargs)
+                image = self.image_client.image_to_image(source, **call_kwargs)
                 return self._image_response_to_png_bytes(image)
             except Exception as exc:
                 errors.append(f"{type(exc).__name__}: {exc}")

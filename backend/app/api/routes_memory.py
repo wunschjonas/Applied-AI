@@ -252,6 +252,8 @@ def _caption_image(data: bytes) -> str:
         hf_model_id=settings.hf_model_id,
         hf_image_model_id=settings.hf_image_model_id,
         hf_caption_model_id=settings.hf_caption_model_id,
+        timeout=settings.hf_timeout_seconds,
+        image_timeout=settings.hf_image_timeout_seconds,
     )
     return hf.describe_image(data)
 

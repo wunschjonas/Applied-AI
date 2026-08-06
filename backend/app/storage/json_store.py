@@ -1,19 +1,40 @@
 from __future__ import annotations
 
 import json
+import logging
+from datetime import datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
+# One lock per file, shared by every JSONStore pointing at it. Services are
+# instantiated per route and per agent, so an instance-level lock would let
+# concurrent requests (FastAPI runs sync endpoints in a threadpool) overwrite
+# each other's read-modify-write cycles.
+_LOCKS: dict[Path, RLock] = {}
+_LOCKS_GUARD = RLock()
+
+
+def _lock_for(path: Path) -> RLock:
+    with _LOCKS_GUARD:
+        lock = _LOCKS.get(path)
+        if lock is None:
+            lock = RLock()
+            _LOCKS[path] = lock
+        return lock
+
 
 class JSONStore:
     def __init__(self, file_path: str | Path):
-        self.path = Path(file_path)
+        self.path = Path(file_path).resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.lock = RLock()
+        self.lock = _lock_for(self.path)
 
-        if not self.path.exists():
-            self._write([])
+        with self.lock:
+            if not self.path.exists():
+                self._write([])
 
     def _read(self) -> list[dict[str, Any]]:
         """Read without locking — callers must already hold self.lock."""
@@ -25,8 +46,20 @@ class JSONStore:
                 data = json.load(file)
                 return data if isinstance(data, list) else []
         except json.JSONDecodeError:
+            self._quarantine()
             self._write([])
             return []
+
+    def _quarantine(self) -> None:
+        """Keep a corrupted file around instead of silently discarding its data."""
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup = self.path.with_suffix(f"{self.path.suffix}.corrupt-{stamp}")
+        try:
+            self.path.replace(backup)
+        except OSError:
+            logger.exception("Could not quarantine corrupted store %s", self.path)
+        else:
+            logger.error("Corrupted JSON store %s — moved to %s", self.path, backup)
 
     def _write(self, data: list[dict[str, Any]]) -> None:
         """Write without locking — callers must already hold self.lock."""

@@ -292,6 +292,8 @@ class AgentService:
             hf_image_model_id=settings.hf_image_model_id,
             hf_caption_model_id=settings.hf_caption_model_id,
             hf_image_to_image_model_id=settings.hf_image_to_image_model_id,
+            timeout=settings.hf_timeout_seconds,
+            image_timeout=settings.hf_image_timeout_seconds,
         )
 
     def _to_http_error(self, exc: Exception) -> HTTPException:

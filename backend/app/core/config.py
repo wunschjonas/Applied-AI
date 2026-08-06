@@ -18,6 +18,10 @@ class Settings(BaseSettings):
         default="Salesforce/blip-image-captioning-base",
         alias="HF_CAPTION_MODEL_ID",
     )
+    # Without a timeout a hanging inference call blocks a worker thread and the
+    # whole manager graph run. Image models need noticeably longer than chat.
+    hf_timeout_seconds: float = Field(default=60.0, alias="HF_TIMEOUT_SECONDS")
+    hf_image_timeout_seconds: float = Field(default=180.0, alias="HF_IMAGE_TIMEOUT_SECONDS")
 
     mcp_memory_url: str = Field(default="http://localhost:8765/mcp", alias="MCP_MEMORY_URL")
     tao_verbose: bool = Field(default=True, alias="TAO_VERBOSE")
