@@ -22,7 +22,7 @@ todos:
     status: pending
   - id: frontend-config
     content: "Frontend-Konfiguration entkoppeln: memory.service.ts auf api.config.ts umstellen, Angular environments einführen und BACKEND_URL nutzen (oder aus compose entfernen)"
-    status: pending
+    status: completed
   - id: git-hygiene
     content: .gitignore erweitern, getrackte .pyc/Storage/Bilder per git rm --cached entfernen, .dockerignore anlegen
     status: pending

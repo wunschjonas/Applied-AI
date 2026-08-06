@@ -30,7 +30,17 @@ Weitere APIs: Posts-CRUD, Text-/Image-Agent-Chat, Memory Store/Search/Upload, Lo
 ## Voraussetzungen
 
 - Docker + Docker Compose **oder** Python 3.12+, Node/npm
-- HuggingFace-Token in `backend/.env` (siehe [`backend/.env.example`](backend/.env.example))
+- **Pflicht:** `backend/.env` mit gültigem `HF_TOKEN` — ohne diese Datei bricht `docker compose up` ab (`env_file`)
+
+```bash
+# Linux/macOS
+cp backend/.env.example backend/.env
+
+# Windows (PowerShell / cmd)
+copy backend\.env.example backend\.env
+```
+
+Token eintragen (siehe [`backend/.env.example`](backend/.env.example)):
 
 ```env
 HF_TOKEN=hf_...
@@ -47,8 +57,7 @@ Compose setzt `MCP_MEMORY_URL=http://memory:8765/mcp` automatisch.
 ## Start mit Docker
 
 ```bash
-# aus dem Projektroot
-cp backend/.env.example backend/.env   # Token eintragen
+# aus dem Projektroot — .env muss schon existieren (siehe oben)
 docker compose up --build
 ```
 
@@ -77,7 +86,8 @@ cd backend
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-# backend/.env mit HF_TOKEN anlegen
+# für Tests: pip install -r requirements-dev.txt
+# backend/.env mit HF_TOKEN anlegen (siehe Voraussetzungen)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
@@ -89,19 +99,29 @@ npm install
 npm start
 ```
 
-Frontend erwartet das Backend unter `http://localhost:8080` ([`frontend/src/app/core/api.config.ts`](frontend/src/app/core/api.config.ts)).
+Frontend spricht das Backend unter `http://localhost:8080` an ([`frontend/src/environments/`](frontend/src/environments/), über [`api.config.ts`](frontend/src/app/core/api.config.ts)).
 
 ## Tests & CI
 
 ```bash
 cd backend
+pip install -r requirements-dev.txt
 python -m pytest "tests/W8 Tests" -q
 ```
 
 GitHub Actions: [`.github/workflows/backend-ci.yml`](.github/workflows/backend-ci.yml) — W8-Suite + Docker-Build (Fake-`HF_TOKEN`, kein Secret nötig).
 
-## Monitoring
+## Troubleshooting (Clean Install)
 
+| Symptom | Ursache | Fix |
+|---------|---------|-----|
+| `docker compose up` bricht sofort ab | `backend/.env` fehlt | `.env.example` kopieren und `HF_TOKEN` setzen |
+| Agent-Calls / Preview schlagen fehl | Platzhalter-Token in `.env` | Echten HuggingFace-Token eintragen |
+| `npm install` Peer-Dependency-Fehler | Angular CLI ≠ Angular Core | `@angular/cli` muss zu Angular 19 passen (`^19.1.x`) |
+| Health `degraded`, Memory down | MCP-Container nicht erreichbar | `docker compose up memory` bzw. ganzes Compose |
+| Frontend kann Backend nicht erreichen | falsche API-URL | Default ist `http://localhost:8080` in `src/environments/` |
+
+## Monitoring
 - **`GET /health`** — `status` (`ok`/`degraded`), `components` (storage, memory, huggingface-configured, web_search); HTTP immer 200
 - **`GET /metrics`** — Prometheus (HTTP-Instrumentator + Custom Counter `manager_chat_*`, `manager_specialist_*`, `manager_validation_*`)
 

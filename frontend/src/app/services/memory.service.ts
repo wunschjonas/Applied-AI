@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { API_BASE_URL } from '../core/api.config';
 
 export interface MemoryStoreResponse {
   status: string;
@@ -38,7 +39,7 @@ export interface MemoryDeleteResponse {
 })
 export class MemoryService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:8080';
+  private readonly baseUrl = API_BASE_URL;
 
   store(content: string, tags: string[]): Observable<MemoryStoreResponse> {
     return this.http.post<MemoryStoreResponse>(`${this.baseUrl}/api/memory/store`, {

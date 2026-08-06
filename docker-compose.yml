@@ -46,8 +46,8 @@ services:
     ports:
       - '4200:4200'
     restart: unless-stopped
-    environment:
-      - BACKEND_URL=http://localhost:8080
+    # Browser calls the host-mapped backend; URL is baked into the Angular build
+    # (src/environments). No runtime BACKEND_URL injection.
 
 volumes:
   memory_data:

@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+tests/
+docs/
+backend_cmds.txt
+*.md
+app/storage/data/
+app/storage/generated_images/
+app/storage/uploads/

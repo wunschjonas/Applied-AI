@@ -1,4 +1,6 @@
-export const API_BASE_URL = 'http://localhost:8080';
+import { environment } from '../../environments/environment';
+
+export const API_BASE_URL = environment.apiBaseUrl;
 
 /** The backend returns image URLs relative to its own root, e.g. /generated-images/<post_id>.png */
 export function toAbsoluteApiUrl(path: string | null | undefined): string | null {

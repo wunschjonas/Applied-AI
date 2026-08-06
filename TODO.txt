@@ -16,7 +16,6 @@ UI bisschen verschönern
 
 Wie gibt man ab?
 
-Automatische Text und Bild generierung wenn alle Felder gefüllt sind
 
 PDf im Rag
 
@@ -24,4 +23,5 @@ PDf im Rag
 Thema ist Aliens im Urwald, Plattform instagram, Zielgruppe Verschwörungstheoretiker, Tonalität ernst, Textkontext ein Überlebeneder berichtet über eine Begegnung mit den Aliens, Textlänge sehr kurz, Bildmotiv ein verängstigter Überlebender im Camp, Bildstil fotorealistisch
    
 
-   Clean instal und run läuft nicht
+Clean install und run — P1/P2: .env-Pflicht, Angular CLI 19, pinned deps, gitignore
+Chtats von Bild und Text
