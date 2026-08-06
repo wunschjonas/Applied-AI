@@ -1,6 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatPanelComponent } from '../../components/chat-panel/chat-panel.component';
 import { PostContextComponent } from '../../components/post-context/post-context.component';
@@ -33,7 +32,6 @@ const FIELD_LABELS: Record<string, string> = {
     ChatPanelComponent,
     PostContextComponent,
     FormsModule,
-    RouterLink,
   ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
@@ -48,6 +46,7 @@ export class HomeComponent implements OnInit {
 
   public postTitle = signal('');
   public isCreating = signal(false);
+  public isDeleting = signal(false);
   public allPosts = signal<Post[]>([]);
   public isLoadingPosts = signal(false);
   public chatError = signal('');
@@ -81,6 +80,33 @@ export class HomeComponent implements OnInit {
     this.artifactFacade.updateMissingFields(
       post.missing_fields ?? this.missingFieldsFromPost(post),
     );
+  }
+
+  public deleteSelectedPost(): void {
+    const post = this.postFacade.currentPost();
+    const postId = post?.post_id;
+    if (!postId || this.isDeleting()) return;
+
+    const title = post?.title?.trim() || postId;
+    if (!confirm(`Post „${title}“ wirklich löschen?`)) return;
+
+    this.isDeleting.set(true);
+    this.chatError.set('');
+    this.postService.deletePost(postId).subscribe({
+      next: () => {
+        this.postFacade.updateCurrentPost(null);
+        this.chatFacade.updateMainAgentChat([]);
+        this.chatFacade.updateTextAgentChat([]);
+        this.chatFacade.updateImageAgentChat([]);
+        this.artifactFacade.reset();
+        this.loadPosts();
+      },
+      error: (err) => {
+        this.chatError.set(httpErrorDetail(err, 'Post konnte nicht gelöscht werden.'));
+        this.isDeleting.set(false);
+      },
+      complete: () => this.isDeleting.set(false),
+    });
   }
 
   public createPost(): void {

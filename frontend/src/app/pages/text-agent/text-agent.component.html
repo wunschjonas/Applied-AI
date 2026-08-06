@@ -12,11 +12,6 @@
           Wähle zuerst auf der Manager-Agent-Seite einen Post aus, damit
           Änderungen gespeichert werden können.
         </p>
-      } @else {
-        <p class="agent-hint">
-          Schreibe hier kleine Änderungen am Text. Der Agent erzeugt ihn neu und
-          aktualisiert die Post-Vorschau.
-        </p>
       }
 
       <div class="main-split">
@@ -28,9 +23,6 @@
               <span class="preview-placeholder">Noch kein Text generiert</span>
             }
           </div>
-          @if (artifactFacade.hashtags().length) {
-            <p class="hashtag-row">{{ artifactFacade.hashtags().join(" ") }}</p>
-          }
         </div>
 
         <div class="main-split__chat">

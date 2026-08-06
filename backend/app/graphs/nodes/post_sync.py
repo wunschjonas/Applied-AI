@@ -26,6 +26,7 @@ class PostSyncNodes:
             state["post_data_updates"] = {}
             state["post_data_missing"] = []
             state["post_data_blocking"] = []
+            state["brief_just_completed"] = False
             event = TaoEvent(
                 phase="collect_post_data",
                 node="collect_post_data_node",
@@ -36,6 +37,7 @@ class PostSyncNodes:
             self.recorder.record(state, event)
             return state
 
+        missing_before = post_fields.missing_fields(post)
         hf = post_data_llm.try_hf(self.deps.hf_factory)
         updates = post_data_llm.extract_post_data_with_llm(state["user_message"], post, hf)
         if updates:
@@ -45,6 +47,7 @@ class PostSyncNodes:
         state["post_data_updates"] = updates
         state["post_data_missing"] = post_fields.missing_fields(post)
         state["post_data_blocking"] = post_fields.missing_required_fields(post)
+        state["brief_just_completed"] = bool(missing_before) and not state["post_data_missing"]
 
         if not state.get("platform"):
             state["platform"] = post.get("platform")
@@ -60,6 +63,7 @@ class PostSyncNodes:
                 "missing": state["post_data_missing"],
                 "post_data_summary": post_fields.post_data_summary(post),
                 "explicit_generate": state["explicit_generate"],
+                "brief_just_completed": state["brief_just_completed"],
             },
         )
         self.recorder.record(state, event)

@@ -369,7 +369,7 @@ class AgentService:
                 f"{len(generated_text)} chars, {len(result.get('hashtags', []))} hashtags"
             ),
         )
-        reply = f"{ack}\n\n{generated_text}"
+        reply = ack
         self.chat_service.add_message(chat, role="AGENT", content=reply)
         done = compose(
             TaoEvent(
@@ -505,7 +505,7 @@ class AgentService:
                     f"image_url={result.get('image_url')}"
                 ),
             )
-            reply = f"{ack}\n\nBildprompt:\n{result.get('image_prompt', '')}"
+            reply = ack
         else:
             err = result.get("image_error") or "unbekannter Fehler"
             ack = compose_specialist_reply(
@@ -520,11 +520,7 @@ class AgentService:
                 post=post,
                 artifact_summary=f"image_error={err}",
             )
-            reply = (
-                f"{ack}\n"
-                f"Fehler: {err}\n\n"
-                f"Bildprompt:\n{result.get('image_prompt', '')}"
-            )
+            reply = f"{ack}\nFehler: {err}"
         self.chat_service.add_message(chat, role="AGENT", content=reply)
         summary = (
             f"image_url={result.get('image_url')}; mode={result.get('generation_mode')}; "

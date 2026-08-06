@@ -20,6 +20,16 @@ ROUTE_TARGETS = {
     "clarification_needed": "Klärungsfrage",
 }
 
+# When the Steckbrief just became complete, do not auto-generate over these intents.
+_SKIP_AUTO_GENERATE_INTENTS = frozenset(
+    {
+        "memory_inquiry",
+        "memory_store",
+        "web_inquiry",
+        "post_status_inquiry",
+    }
+)
+
 
 class PlanningNodes:
     def __init__(self, deps: GraphDependencies):
@@ -33,16 +43,29 @@ class PlanningNodes:
             post=state.get("post"),
         )
         state["intent"] = intent.label
-        status = "needs_input" if intent.needs_clarification else "success"
-        inc_manager_chat_intent(intent.label)
+        auto_started = False
+        if (
+            state.get("brief_just_completed")
+            and intent.label not in _SKIP_AUTO_GENERATE_INTENTS
+        ):
+            state["intent"] = "text_and_image"
+            state["explicit_generate"] = True
+            auto_started = True
+        status = "needs_input" if intent.needs_clarification and not auto_started else "success"
+        inc_manager_chat_intent(state["intent"])
 
         event = TaoEvent(
             phase="classify_intent",
             node="classify_intent_node",
             agent="classify_intent_node",
             status=status,
-            intent=intent.label,
-            facts={"decision": intent.decision, "detail": intent.observation},
+            intent=state["intent"],
+            facts={
+                "decision": intent.decision,
+                "detail": intent.observation,
+                "classified_intent": intent.label,
+                "auto_generate": auto_started,
+            },
         )
         self.recorder.record(state, event)
         self.recorder.log(
@@ -52,7 +75,7 @@ class PlanningNodes:
             step="classify_intent",
             started_at=started_at,
             event=event,
-            output_summary=f"Intent: {intent.label}",
+            output_summary=f"Intent: {state['intent']}",
         )
         return state
 

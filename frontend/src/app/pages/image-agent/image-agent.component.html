@@ -12,11 +12,6 @@
           Wähle zuerst auf der Manager-Agent-Seite einen Post aus, damit das Bild
           gespeichert werden kann.
         </p>
-      } @else {
-        <p class="agent-hint">
-          Beschreibe Änderungen am Motiv per Chat. Liegt schon ein Post-Bild vor,
-          wird es weiterentwickelt; sonst entsteht ein neues Bild.
-        </p>
       }
 
       <div class="main-split">
@@ -28,15 +23,19 @@
               <span class="preview-placeholder">Noch kein Bild generiert</span>
             }
           </div>
-          @if (artifactFacade.imagePrompt()) {
-            <p class="prompt-row">
-              <strong>Aktueller Bildprompt:</strong>
-              {{ artifactFacade.imagePrompt() }}
-            </p>
-          }
-          @if (artifactFacade.generationMode()) {
-            <p class="mode-badge">Modus: {{ artifactFacade.generationMode() }}</p>
-          }
+          <div class="prompt-box">
+            <div class="prompt-box__header">
+              <strong>Bildprompt</strong>
+              @if (artifactFacade.generationMode()) {
+                <span class="mode-badge">Modus: {{ artifactFacade.generationMode() }}</span>
+              }
+            </div>
+            @if (artifactFacade.imagePrompt()) {
+              <p class="prompt-box__text">{{ artifactFacade.imagePrompt() }}</p>
+            } @else {
+              <span class="preview-placeholder">Noch kein Bildprompt</span>
+            }
+          </div>
         </div>
 
         <div class="main-split__chat">

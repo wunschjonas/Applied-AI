@@ -32,6 +32,7 @@ class ManagerChatState(TypedDict, total=False):
     post_data_missing: list[str]
     post_data_blocking: list[str]
     explicit_generate: bool
+    brief_just_completed: bool
     followup_question: str | None
     # Manager ReAct tool side-effects
     tools_called: list[str]

@@ -1,0 +1,27 @@
+W2 noch machen Multimodale Eingabe
+
+Tests drüberschauen W8
+
+Bewertung mit Projekt abgleichen
+
+README verfassen
+
+Nachweis P1 - P5
+kleine Nachweise von W1 - W14
+
+Fakeveröffentlichung
+
+W12 - W14
+UI bisschen verschönern
+
+Wie gibt man ab?
+
+Automatische Text und Bild generierung wenn alle Felder gefüllt sind
+
+PDf im Rag
+
+
+Thema ist Aliens im Urwald, Plattform instagram, Zielgruppe Verschwörungstheoretiker, Tonalität ernst, Textkontext ein Überlebeneder berichtet über eine Begegnung mit den Aliens, Textlänge sehr kurz, Bildmotiv ein verängstigter Überlebender im Camp, Bildstil fotorealistisch
+   
+
+   Clean instal und run läuft nicht

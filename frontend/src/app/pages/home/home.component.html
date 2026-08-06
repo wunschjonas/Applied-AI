@@ -5,15 +5,6 @@
     <div class="agent-stage">
       <header class="page-header">
         <h1>Manager Agent</h1>
-        <a
-          class="preview-btn"
-          routerLink="/preview"
-          [class.preview-btn--disabled]="!postFacade.currentPostId()"
-          [attr.aria-disabled]="!postFacade.currentPostId()"
-          (click)="!postFacade.currentPostId() && $event.preventDefault()"
-        >
-          Zur Preview
-        </a>
       </header>
 
       <div class="toolbar">
@@ -30,32 +21,43 @@
               &#x21bb;
             </button>
           </label>
-          <select
-            id="postSelect"
-            class="post-select"
-            [disabled]="isLoadingPosts() || allPosts().length === 0"
-            (change)="
-              selectPost(allPosts()[$any($event.target).selectedIndex - 1])
-            "
-          >
-            <option value="" disabled [selected]="!postFacade.currentPostId()">
-              {{
-                isLoadingPosts()
-                  ? "Lädt..."
-                  : allPosts().length === 0
-                    ? "Keine Posts vorhanden"
-                    : "Post wählen..."
-              }}
-            </option>
-            @for (post of allPosts(); track post.id) {
-              <option
-                [value]="post.id"
-                [selected]="postFacade.currentPostId() === post.id"
-              >
-                {{ post.title }}
+          <div class="toolbar__select-row">
+            <select
+              id="postSelect"
+              class="post-select"
+              [disabled]="isLoadingPosts() || allPosts().length === 0"
+              (change)="
+                selectPost(allPosts()[$any($event.target).selectedIndex - 1])
+              "
+            >
+              <option value="" disabled [selected]="!postFacade.currentPostId()">
+                {{
+                  isLoadingPosts()
+                    ? "Lädt..."
+                    : allPosts().length === 0
+                      ? "Keine Posts vorhanden"
+                      : "Post wählen..."
+                }}
               </option>
-            }
-          </select>
+              @for (post of allPosts(); track post.id) {
+                <option
+                  [value]="post.id"
+                  [selected]="postFacade.currentPostId() === post.id"
+                >
+                  {{ post.title }}
+                </option>
+              }
+            </select>
+            <button
+              type="button"
+              class="delete-btn"
+              [disabled]="!postFacade.currentPostId() || isDeleting()"
+              (click)="deleteSelectedPost()"
+              title="Ausgewählten Post löschen"
+            >
+              {{ isDeleting() ? "Lösche..." : "Löschen" }}
+            </button>
+          </div>
         </div>
 
         <div class="toolbar__create">

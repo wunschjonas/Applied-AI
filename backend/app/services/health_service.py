@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import socket
 from pathlib import Path
 from typing import Any
-
-import httpx
+from urllib.parse import urlparse
 
 from app.core.config import settings
 
@@ -41,22 +41,33 @@ def _check_storage() -> dict[str, Any]:
 
 
 def _check_memory() -> dict[str, Any]:
+    """Probe MCP reachability via TCP only — avoids streamable-HTTP 406 spam on GET."""
     url = str(settings.mcp_memory_url).rstrip("/")
+    parsed = urlparse(url)
+    host = parsed.hostname or "localhost"
+    if parsed.port is not None:
+        port = parsed.port
+    elif parsed.scheme == "https":
+        port = 443
+    else:
+        port = 80
+
     try:
-        with httpx.Client(timeout=MEMORY_CHECK_TIMEOUT_SECONDS) as client:
-            # MCP streamable HTTP often rejects plain GET; any response (even 4xx/405)
-            # means the process is reachable. Connection errors mean down.
-            response = client.get(url)
-            return _component(
-                "up",
-                url=url,
-                http_status=response.status_code,
-                detail="memory endpoint reachable",
-            )
-    except httpx.HTTPError as exc:
+        with socket.create_connection((host, port), timeout=MEMORY_CHECK_TIMEOUT_SECONDS):
+            pass
+        return _component(
+            "up",
+            url=url,
+            host=host,
+            port=port,
+            detail="memory host reachable (tcp)",
+        )
+    except OSError as exc:
         return _component(
             "down",
             url=url,
+            host=host,
+            port=port,
             detail=f"{type(exc).__name__}: {exc}",
         )
 

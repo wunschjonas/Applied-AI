@@ -51,6 +51,7 @@ class LifecycleNodes:
             "post_data_missing": [],
             "post_data_blocking": [],
             "explicit_generate": False,
+            "brief_just_completed": False,
             "followup_question": None,
             "tools_called": [],
             "post_data_checked": False,
