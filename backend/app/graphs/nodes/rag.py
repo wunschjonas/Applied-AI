@@ -166,11 +166,11 @@ class RagNodes:
                         state,
                         agent="manager_agent",
                         status="success" if status == "success" else "skipped",
-                        step="manager_react",
+                        step=f"tool:{name}" if name else "tool",
                         started_at=started_at,
                         tool_called=name or None,
                         event=event,
-                        output_summary=(observation or "")[:300],
+                        output_summary=(observation or "")[:2000],
                     )
 
                     messages.append(
@@ -194,15 +194,7 @@ class RagNodes:
                     "tools_called": list(state.get("tools_called") or []),
                 },
             )
-            self.recorder.log(
-                state,
-                agent="manager_agent",
-                status=done.status,
-                step="manager_react_done",
-                started_at=started_at,
-                event=done,
-                output_summary=f"tools={state.get('tools_called')}",
-            )
+            self.recorder.record(state, done)
             return state
         except Exception as exc:
             warning = f"Tool-calling loop failed safely: {type(exc).__name__}: {exc}"
@@ -275,11 +267,9 @@ class RagNodes:
             state,
             agent="manager_agent",
             status="success" if status == "success" else "skipped",
-            step="manager_react_forced",
-            started_at=started_at,
-            tool_called="memory_store",
+            step="tool:memory_store",
             event=event,
-            output_summary=observation[:300],
+            output_summary=observation[:2000],
         )
         return state
 
@@ -320,11 +310,11 @@ class RagNodes:
             state,
             agent="manager_agent",
             status="success" if status == "success" else "skipped",
-            step="manager_react_forced",
+            step="tool:memory_search",
             started_at=started_at,
-            tool_called="mcp_memory_search",
+            tool_called="memory_search",
             event=event,
-            output_summary=observation[:300],
+            output_summary=observation[:2000],
         )
         return state
 
@@ -351,14 +341,6 @@ class RagNodes:
                 facts={"rag_mode": "fallback", "skipped": True, "detail": observation},
             )
             self.recorder.record(state, event)
-            self.recorder.log(
-                state,
-                agent="manager_agent",
-                status="skipped",
-                step="manager_react_fallback",
-                started_at=started_at,
-                event=event,
-            )
             return state
 
         observation, status, effects = self.dispatcher.dispatch(
@@ -387,11 +369,11 @@ class RagNodes:
             state,
             agent="manager_agent",
             status="success" if status == "success" else "skipped",
-            step="manager_react_fallback",
+            step="tool:memory_search",
             started_at=started_at,
-            tool_called="mcp_memory_search",
+            tool_called="memory_search",
             event=event,
-            output_summary=observation[:300],
+            output_summary=observation[:2000],
         )
         return state
 

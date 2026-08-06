@@ -11,40 +11,73 @@
   min-height: 0;
   min-width: 0;
   padding: 1.25rem 1.75rem;
-  overflow-x: hidden;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
 }
 
 h1 {
-  margin: 0 0 0.25rem;
+  margin: 0;
   color: #17324d;
   font-size: 2rem;
+  flex-shrink: 0;
 }
 
 .page-subtitle {
-  margin: 0 0 2rem;
+  margin: 0;
   color: #6b7280;
   font-size: 0.95rem;
+  flex-shrink: 0;
 }
 
-// Split layout
+// Split layout — fills remaining viewport height
 
 .memory-layout {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
-  align-items: start;
+  overflow: hidden;
 }
 
-.memory-left {
+.memory-left,
+.memory-right {
+  min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  overflow: hidden;
+}
+
+.memory-left__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-right: 0.15rem;
 }
 
 .memory-right {
-  position: sticky;
-  top: 2.5rem;
+  .memory-card--full {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+}
+
+.entries-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0.15rem;
 }
 
 // Card
@@ -54,10 +87,7 @@ h1 {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 1.5rem;
-}
-
-.memory-card--full {
-  min-height: 200px;
+  flex-shrink: 0;
 }
 
 .card-header {
@@ -65,6 +95,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .card-title {
@@ -92,7 +123,7 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  min-height: 140px;
+  min-height: 120px;
   padding: 1.25rem;
   border: 2px dashed #c7d2fe;
   border-radius: 8px;
@@ -201,16 +232,6 @@ h1 {
   }
 }
 
-.search-row {
-  display: flex;
-  gap: 0.75rem;
-
-  .memory-input {
-    flex: 1;
-    margin-bottom: 0;
-  }
-}
-
 // Buttons
 
 .primary-btn {
@@ -270,27 +291,18 @@ h1 {
 .empty-msg {
   font-size: 0.9rem;
   color: #9ca3af;
+  margin: 0;
 }
 
 // Lists
 
-.result-list,
 .entry-list {
   list-style: none;
   padding: 0;
-  margin: 1rem 0 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.result-item {
-  padding: 0.6rem 0.85rem;
-  background: #ede9fe;
-  border-left: 3px solid #6366f1;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  color: #374151;
 }
 
 .entry-item {
@@ -355,9 +367,11 @@ h1 {
 
   .memory-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   }
 
+  .memory-left,
   .memory-right {
-    position: static;
+    min-height: 0;
   }
 }

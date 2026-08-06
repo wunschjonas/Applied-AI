@@ -67,15 +67,16 @@ class PostSyncNodes:
             },
         )
         self.recorder.record(state, event)
-        self.recorder.log(
-            state,
-            agent="manager_agent",
-            status="success",
-            step="collect_post_brief",
-            started_at=started_at,
-            event=event,
-            output_summary=post_fields.post_data_summary(post),
-        )
+        if updates or state.get("brief_just_completed"):
+            self.recorder.log(
+                state,
+                agent="manager_agent",
+                status="success",
+                step="steckbrief",
+                started_at=started_at,
+                event=event,
+                output_summary=post_fields.post_data_summary(post),
+            )
         return state
 
     def context_question_node(self, state: ManagerChatState) -> ManagerChatState:
@@ -109,8 +110,8 @@ class PostSyncNodes:
         self.recorder.log(
             state,
             agent="manager_agent",
-            status="skipped",
-            step="ask_post_context",
+            status="needs_input",
+            step="frage",
             started_at=started_at,
             event=event,
             output_summary=state["assistant_message"],

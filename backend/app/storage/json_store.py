@@ -73,3 +73,19 @@ class JSONStore:
 
             self._write(filtered)
             return True
+
+    def clear(self) -> int:
+        with self.lock:
+            count = len(self._read())
+            self._write([])
+            return count
+
+    def delete_where(self, predicate) -> int:
+        """Remove items for which predicate(item) is True. Returns deleted count."""
+        with self.lock:
+            items = self._read()
+            kept = [item for item in items if not predicate(item)]
+            deleted = len(items) - len(kept)
+            if deleted:
+                self._write(kept)
+            return deleted

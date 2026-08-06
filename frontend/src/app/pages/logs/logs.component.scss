@@ -63,6 +63,65 @@
   }
 }
 
+.post-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+
+  &__select {
+    min-width: 180px;
+    max-width: 260px;
+    padding: 0.4rem 0.65rem;
+    border: 1.5px solid #c8d4e0;
+    border-radius: 8px;
+    background: #fff;
+    color: #17324d;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+}
+
+.delete-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.delete-btn {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #fef2f2;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &--all {
+    border-color: #fca5a5;
+    background: #fef2f2;
+  }
+}
+
+.delete-msg {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
 .loading,
 .empty {
   color: #6b7a8d;
@@ -153,6 +212,11 @@
         background: #f3f4f6;
         color: #6b7280;
       }
+
+      &.needs-input {
+        background: #fff7ed;
+        color: #c2410c;
+      }
     }
   }
 
@@ -238,6 +302,16 @@
       font-size: 0.75rem;
       font-family: monospace;
       cursor: help;
+    }
+
+    .log-post {
+      color: #34506b;
+      font-size: 0.8rem;
+      font-weight: 600;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .log-meta,

@@ -60,7 +60,7 @@ class SpecialistNodes:
             state,
             agent="text_agent",
             status="success",
-            step="generate_text",
+            step="text",
             started_at=started_at,
             tool_called="huggingface_generate_text",
             event=event,
@@ -136,33 +136,12 @@ class SpecialistNodes:
             state,
             agent="image_agent",
             status="success" if status == "success" else "error",
-            step="generate_image",
+            step="image",
             started_at=started_at,
             tool_called="huggingface_text_to_image",
             event=event,
             output_summary=self._image_summary(result),
         )
-        if "get_post_data" in (result.get("tools_called") or []):
-            self.recorder.log(
-                state,
-                agent="image_agent",
-                status="success",
-                step="get_post_data",
-                started_at=started_at,
-                tool_called="get_post_data",
-                event=TaoEvent(
-                    phase="delegate_image",
-                    node="image_agent_node",
-                    agent="image_agent_node",
-                    status="success",
-                    intent=state.get("intent"),
-                    facts={
-                        "tool_name": "get_post_data",
-                        "detail": "ImageAgent las Steckbrief aus posts.json.",
-                    },
-                ),
-                output_summary="get_post_data",
-            )
         return state
 
     def clarification_node(self, state: ManagerChatState) -> ManagerChatState:
@@ -210,8 +189,8 @@ class SpecialistNodes:
         self.recorder.log(
             state,
             agent="manager_agent",
-            status="skipped",
-            step="ask_clarification",
+            status="needs_input",
+            step="frage",
             started_at=started_at,
             event=event,
         )
@@ -294,11 +273,11 @@ class SpecialistNodes:
             state,
             agent="manager_agent",
             status="success" if status == "success" else "skipped",
-            step="memory_answer",
+            step="memory",
             started_at=started_at,
-            tool_called="mcp_memory_search" if source == "memory_search" else "mcp_memory_list",
+            tool_called="memory_search" if source == "memory_search" else "memory_list",
             event=event,
-            output_summary=state["assistant_message"][:300],
+            output_summary=state["assistant_message"][:2000],
         )
         return state
 
@@ -359,11 +338,11 @@ class SpecialistNodes:
             state,
             agent="manager_agent",
             status="success" if status == "success" else "skipped",
-            step="memory_store_ack",
+            step="memory_store",
             started_at=started_at,
             tool_called="memory_store",
             event=event,
-            output_summary=state["assistant_message"][:300],
+            output_summary=state["assistant_message"][:2000],
         )
         return state
 
@@ -407,11 +386,11 @@ class SpecialistNodes:
             state,
             agent="manager_agent",
             status="success" if status == "success" else "skipped",
-            step="web_answer",
+            step="web",
             started_at=started_at,
             tool_called="web_search",
             event=event,
-            output_summary=state["assistant_message"][:300],
+            output_summary=state["assistant_message"][:2000],
         )
         return state
 
@@ -456,7 +435,7 @@ class SpecialistNodes:
             step="post_status",
             started_at=started_at,
             event=event,
-            output_summary=state["assistant_message"][:300],
+            output_summary=state["assistant_message"][:2000],
         )
         return state
 
@@ -498,7 +477,7 @@ class SpecialistNodes:
             state,
             agent=f"{artifact_type}_agent",
             status="error",
-            step=f"generate_{artifact_type}",
+            step=f"{artifact_type}",
             started_at=started_at,
             tool_called="huggingface_generate_text" if is_text else "huggingface_text_to_image",
             event=event,

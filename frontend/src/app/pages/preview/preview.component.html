@@ -23,7 +23,9 @@
             @if (artifactFacade.imageUrl()) {
               <img [src]="artifactFacade.imageUrl()" alt="Generiertes Bild" />
             } @else {
-              <span class="preview-placeholder">Noch kein Bild generiert</span>
+              <div class="preview-empty">
+                <span class="preview-placeholder">Noch kein Bild generiert</span>
+              </div>
             }
           </div>
         </section>
@@ -36,7 +38,9 @@
             @if (artifactFacade.generatedText()) {
               <p class="preview-text">{{ artifactFacade.generatedText() }}</p>
             } @else {
-              <span class="preview-placeholder">Noch kein Text generiert</span>
+              <div class="preview-empty">
+                <span class="preview-placeholder">Noch kein Text generiert</span>
+              </div>
             }
           </div>
           @if (artifactFacade.hashtags().length) {

@@ -10,8 +10,9 @@ export interface LogEntry {
   observation: string | null;
   input_summary: string;
   output_summary: string | null;
-  status: 'success' | 'error' | 'skipped';
+  status: 'success' | 'error' | 'skipped' | 'needs_input';
   duration_ms: number;
+  post_id?: string | null;
 }
 
 export interface LogsResponse {

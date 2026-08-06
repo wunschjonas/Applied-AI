@@ -98,12 +98,14 @@ class AgentService:
                 status="error",
                 duration_ms=self._ms(t0),
                 run_id=trace["trace_id"],
-                step="generate_text",
+                step="text",
                 tool_called="huggingface_generate_text",
                 thought=triple.thought,
                 observation=triple.observation,
                 output_summary=error,
+                post_id=None,
             )
+
             raise self._to_http_error(exc) from exc
 
         done = compose(
@@ -124,12 +126,14 @@ class AgentService:
             status="success",
             duration_ms=self._ms(t0),
             run_id=trace["trace_id"],
-            step="generate_text",
+            step="text",
             tool_called="huggingface_generate_text",
             thought=done.thought,
             observation=done.observation,
             output_summary=f"{len(result.get('generated_text', ''))} chars generated",
+            post_id=None,
         )
+
         return {**result, "trace_id": trace["trace_id"]}
 
     def generate_image_prompt(
@@ -166,12 +170,14 @@ class AgentService:
                 status="error",
                 duration_ms=self._ms(t0),
                 run_id=trace["trace_id"],
-                step="generate_image_prompt",
+                step="image",
                 tool_called="huggingface_generate_text",
                 thought=triple.thought,
                 observation=triple.observation,
                 output_summary=error,
+                post_id=None,
             )
+
             raise self._to_http_error(exc) from exc
 
         done = compose(
@@ -189,12 +195,14 @@ class AgentService:
             status="success",
             duration_ms=self._ms(t0),
             run_id=trace["trace_id"],
-            step="generate_image_prompt",
+            step="image",
             tool_called="huggingface_generate_text",
             thought=done.thought,
             observation=done.observation,
             output_summary=f"Image prompt: {len(result.get('image_prompt', ''))} chars",
+            post_id=None,
         )
+
         return {**result, "trace_id": trace["trace_id"]}
 
     def generate_image(
@@ -234,12 +242,14 @@ class AgentService:
                 status="error",
                 duration_ms=self._ms(t0),
                 run_id=trace["trace_id"],
-                step="generate_image",
+                step="image",
                 tool_called="huggingface_text_to_image",
                 thought=triple.thought,
                 observation=triple.observation,
                 output_summary=error,
+                post_id=post_id,
             )
+
             raise self._to_http_error(exc) from exc
 
         done = compose(
@@ -264,12 +274,14 @@ class AgentService:
             status="success" if result.get("image_url") else "error",
             duration_ms=self._ms(t0),
             run_id=trace["trace_id"],
-            step="generate_image",
+            step="image",
             tool_called="huggingface_text_to_image",
             thought=done.thought,
             observation=done.observation,
             output_summary=f"image_url={result.get('image_url')}; error={result.get('image_error')}",
+            post_id=post_id,
         )
+
         return {**result, "trace_id": trace["trace_id"]}
 
     def _hf(self) -> HuggingFaceService:
@@ -343,11 +355,13 @@ class AgentService:
             self.log_service.add_log(
                 agent="text_agent", action="text_chat", input_summary=message,
                 status="error", duration_ms=self._ms(t0), run_id=trace["trace_id"],
-                step="refine_text", tool_called="huggingface_generate_text",
+                step="text", tool_called="huggingface_generate_text",
                 thought=fail.thought,
                 observation=fail.observation,
                 output_summary=error,
+                post_id=post_id,
             )
+
             raise self._to_http_error(exc) from exc
 
         generated_text = result.get("generated_text", "")
@@ -385,11 +399,13 @@ class AgentService:
         self.log_service.add_log(
             agent="text_agent", action="text_chat", input_summary=message,
             status="success", duration_ms=self._ms(t0), run_id=trace["trace_id"],
-            step="refine_text", tool_called="huggingface_generate_text",
+            step="text", tool_called="huggingface_generate_text",
             thought=done.thought,
             observation=done.observation,
             output_summary=f"{len(generated_text)} chars, {len(result.get('hashtags', []))} hashtags",
+            post_id=post_id,
         )
+
         return {
             "chat_id": chat["id"],
             "assistant_message": reply,
@@ -465,11 +481,13 @@ class AgentService:
             self.log_service.add_log(
                 agent="image_agent", action="image_chat", input_summary=message,
                 status="error", duration_ms=self._ms(t0), run_id=trace["trace_id"],
-                step="refine_image", tool_called=tool_called,
+                step="image", tool_called=tool_called,
                 thought=fail.thought,
                 observation=fail.observation,
                 output_summary=error,
+                post_id=post_id,
             )
+
             raise self._to_http_error(exc) from exc
 
         image_ready = bool(result.get("image_url"))
@@ -544,11 +562,13 @@ class AgentService:
         self.log_service.add_log(
             agent="image_agent", action="image_chat", input_summary=message,
             status="success" if image_ready else "error", duration_ms=self._ms(t0),
-            run_id=trace["trace_id"], step="refine_image", tool_called=tool_called,
+            run_id=trace["trace_id"], step="image", tool_called=tool_called,
             thought=done.thought,
             observation=done.observation,
             output_summary=summary,
+            post_id=post_id,
         )
+
         return {
             "chat_id": chat["id"],
             "assistant_message": reply,

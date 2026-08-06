@@ -74,7 +74,7 @@ class StepRecorder:
         self.deps.log_service.add_log(
             agent=agent,
             action=action,
-            input_summary=state["user_message"][:300],
+            input_summary=state["user_message"][:500],
             status=status,
             duration_ms=self.elapsed_ms(started_at) if started_at else 0,
             run_id=state.get("trace_id"),
@@ -83,6 +83,7 @@ class StepRecorder:
             thought=thought,
             observation=observation,
             output_summary=output_summary,
+            post_id=state.get("post_id"),
         )
 
     @staticmethod

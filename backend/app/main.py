@@ -13,6 +13,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes_image_agent import router as image_router
+from app.api.routes_logs import router as logs_router
 from app.api.routes_manager_agent import router as manager_router
 from app.api.routes_memory import router as memory_router
 from app.api.routes_posts import router as posts_router
@@ -42,6 +43,7 @@ app.include_router(manager_router)
 app.include_router(text_router)
 app.include_router(image_router)
 app.include_router(memory_router)
+app.include_router(logs_router)
 
 settings.generated_images_dir.mkdir(parents=True, exist_ok=True)
 app.mount(

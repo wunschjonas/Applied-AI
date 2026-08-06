@@ -25,12 +25,6 @@ export class RagComponent implements OnInit {
   public uploadMessage = signal('');
   public uploadError = signal('');
 
-  // Search
-  public searchQuery = signal('');
-  public searchResults = signal<string[]>([]);
-  public isSearching = signal(false);
-  public hasSearched = signal(false);
-
   // List
   public allEntries = signal<MemoryListEntry[]>([]);
   public isLoadingList = signal(false);
@@ -113,22 +107,6 @@ export class RagComponent implements OnInit {
         this.isUploading.set(false);
       },
       complete: () => this.isUploading.set(false),
-    });
-  }
-
-  public search(): void {
-    const q = this.searchQuery().trim();
-    if (!q) return;
-
-    this.isSearching.set(true);
-    this.hasSearched.set(false);
-    this.memoryService.search(q).subscribe({
-      next: (res) => {
-        this.searchResults.set(res.results);
-        this.hasSearched.set(true);
-      },
-      error: (err) => console.error('[Memory] Search error:', err),
-      complete: () => this.isSearching.set(false),
     });
   }
 

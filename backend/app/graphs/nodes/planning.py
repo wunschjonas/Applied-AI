@@ -72,7 +72,7 @@ class PlanningNodes:
             state,
             agent="manager_agent",
             status=status,
-            step="classify_intent",
+            step="intent",
             started_at=started_at,
             event=event,
             output_summary=f"Intent: {state['intent']}",
