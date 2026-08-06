@@ -15,7 +15,11 @@ class FakeHF:
     hf_image_model_id = "fake-image-model"
     hf_image_to_image_model_id = "fake-img2img-model"
 
-    def __init__(self, image_failures: int = 0, short_text_failures: int = 0):
+    def __init__(
+        self,
+        image_failures: int = 0,
+        short_text_failures: int = 0,
+    ):
         self.image_failures = image_failures
         self.short_text_failures = short_text_failures
         self.user_prompts: list[str] = []

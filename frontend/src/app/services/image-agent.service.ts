@@ -25,31 +25,16 @@ export class ImageAgentService {
     );
   }
 
-  public chat(
-    message: string,
-    postId: string,
-    sourceImage?: File | null,
-    strength = 0.7,
-  ): Observable<ChatResponse> {
+  public chat(message: string, postId: string): Observable<ChatResponse> {
     const endpoint = `${this.baseUrl}/api/agents/image/chat`;
-    const form = new FormData();
-    form.append('message', message);
-    form.append('post_id', postId);
-    form.append('strength', String(strength));
-    if (sourceImage) {
-      form.append('source_image', sourceImage, sourceImage.name);
-    }
-    console.log('[ImageAgent] POST', endpoint, {
-      message,
-      post_id: postId,
-      has_source_image: Boolean(sourceImage),
-      strength,
-    });
-    return this.http.post<ChatResponse>(endpoint, form).pipe(
-      tap({
-        next: (response) => console.log('[ImageAgent] Response:', response),
-        error: (err) => console.error('[ImageAgent] Error:', err),
-      }),
-    );
+    console.log('[ImageAgent] POST', endpoint, { message, post_id: postId });
+    return this.http
+      .post<ChatResponse>(endpoint, { message, post_id: postId })
+      .pipe(
+        tap({
+          next: (response) => console.log('[ImageAgent] Response:', response),
+          error: (err) => console.error('[ImageAgent] Error:', err),
+        }),
+      );
   }
 }

@@ -38,6 +38,7 @@ class AgentService:
         context: str | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         try:
+            self._require_post(post_id)
             graph = ManagerChatGraph(
                 chat_service=self.chat_service,
                 trace_service=self.trace_service,
@@ -48,8 +49,18 @@ class AgentService:
             )
             return graph.run(message=message, post_id=post_id, context=context)
         except Exception as exc:
-            inc_manager_chat_request("exception")
+            if not isinstance(exc, HTTPException):
+                inc_manager_chat_request("exception")
             raise self._to_http_error(exc) from exc
+
+    def _require_post(self, post_id: str) -> dict[str, Any]:
+        post = self.post_repository.get(post_id)
+        if post is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Post not found",
+            )
+        return post
 
     def generate_text(
         self,
@@ -275,18 +286,27 @@ class AgentService:
         if isinstance(exc, HTTPException):
             return exc
 
+        message = str(exc)
+        if isinstance(exc, ValueError) and (
+            "HF_TOKEN" in message or "Configure it in backend/.env" in message
+        ):
+            return HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="HuggingFace is not configured (HF_TOKEN missing).",
+            )
+
         return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Agent execution failed: {type(exc).__name__}: {exc}",
+            detail=f"Agent execution failed: {type(exc).__name__}",
         )
 
     def text_agent_chat(self, message: str, post_id: str) -> dict[str, Any]:
         """Refine the stored marketing copy: regenerate it and write it back to the post preview."""
         t0 = datetime.utcnow()
+        post = self._require_post(post_id)
         chat = self.chat_service.get_or_create_chat(post_id, agent="text_agent")
         self.chat_service.add_message(chat, role="USER", content=message)
 
-        post = self.post_repository.get(post_id) or {}
         preview = post.get("preview") or {}
         trace = self.trace_service.create_trace(
             chat_id=chat["id"],
@@ -381,18 +401,14 @@ class AgentService:
         self,
         message: str,
         post_id: str,
-        source_image: bytes | None = None,
-        strength: float = 0.7,
+        strength: float = 0.65,
     ) -> dict[str, Any]:
-        """Regenerate the post image from the user message, optional reference, and current image."""
+        """Regenerate the post image from the user message and current post image."""
         t0 = datetime.utcnow()
+        post = self._require_post(post_id)
         chat = self.chat_service.get_or_create_chat(post_id, agent="image_agent")
-        chat_message = message
-        if source_image:
-            chat_message = f"{message}\n[Referenzbild angehaengt]"
-        self.chat_service.add_message(chat, role="USER", content=chat_message)
+        self.chat_service.add_message(chat, role="USER", content=message)
 
-        post = self.post_repository.get(post_id) or {}
         preview = post.get("preview") or {}
         image_agent = ImageAgent(self._hf(), self.trace_service)
         current_image = image_agent.image_storage.read_post_image(post_id)
@@ -405,7 +421,6 @@ class AgentService:
             metadata={
                 "entrypoint": "image_agent_chat",
                 "post_id": post_id,
-                "has_reference_image": bool(source_image),
                 "has_current_image": bool(current_image),
             },
         )
@@ -415,9 +430,7 @@ class AgentService:
             preview.get("generated_text"),
         )
         tool_called = (
-            "huggingface_image_to_image"
-            if (source_image or current_image)
-            else "huggingface_text_to_image"
+            "huggingface_image_to_image" if current_image else "huggingface_text_to_image"
         )
 
         try:
@@ -434,7 +447,6 @@ class AgentService:
                     "topic": post.get("topic"),
                 },
                 post_id=post_id,
-                source_image=source_image,
                 current_image=current_image,
                 strength=strength,
                 post_repository=self.post_repository,
@@ -469,25 +481,8 @@ class AgentService:
             self.post_repository.merge_preview(post_id, patch)
 
         if image_ready:
-            used_ref = bool(result.get("used_reference_image"))
             used_cur = bool(result.get("used_current_image"))
-            if used_ref and used_cur:
-                fallback = (
-                    "Ich habe das aktuelle Post-Bild und dein Referenzbild kombiniert "
-                    "und daraus ein neues Bild generiert."
-                )
-                situation = (
-                    "Image regenerated successfully using both the current post image "
-                    "and the user reference image."
-                )
-            elif used_ref:
-                fallback = (
-                    "Ich habe dein Referenzbild einbezogen und ein neues Bild generiert."
-                )
-                situation = (
-                    "Image regenerated successfully using the user reference image."
-                )
-            elif used_cur:
+            if used_cur:
                 fallback = (
                     "Ich habe das aktuelle Post-Bild weiterentwickelt und ein neues Bild generiert."
                 )

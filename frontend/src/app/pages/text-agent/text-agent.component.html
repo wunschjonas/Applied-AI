@@ -36,6 +36,7 @@
         <div class="main-split__chat">
           <app-chat-panel
             [messages]="chatFacade.textAgentChat()"
+            [errorMessage]="chatError()"
             (userSend)="onUserSend($event)"
           />
         </div>

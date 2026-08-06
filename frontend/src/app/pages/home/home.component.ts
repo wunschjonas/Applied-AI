@@ -12,6 +12,7 @@ import { PostService } from '../../services/post.service';
 import { ManagerAgentService } from '../../services/manager-agent.service';
 import { ChatSender } from '../../models/chat.model';
 import { Post } from '../../models/post.model';
+import { httpErrorDetail } from '../../core/http-error';
 
 const FIELD_LABELS: Record<string, string> = {
   topic: 'Thema',
@@ -49,6 +50,7 @@ export class HomeComponent implements OnInit {
   public isCreating = signal(false);
   public allPosts = signal<Post[]>([]);
   public isLoadingPosts = signal(false);
+  public chatError = signal('');
 
   public ngOnInit(): void {
     this.loadPosts();
@@ -113,6 +115,7 @@ export class HomeComponent implements OnInit {
     const postId = this.postFacade.currentPostId();
     if (!postId) return;
 
+    this.chatError.set('');
     this.chatFacade.updateMainAgentChat([
       ...this.chatFacade.mainAgentChat(),
       { sender: ChatSender.User, text },
@@ -131,7 +134,10 @@ export class HomeComponent implements OnInit {
         }
       },
       complete: () => this.chatFacade.updateIsMainAgentWorking(false),
-      error: () => this.chatFacade.updateIsMainAgentWorking(false),
+      error: (err) => {
+        this.chatFacade.updateIsMainAgentWorking(false);
+        this.chatError.set(httpErrorDetail(err, 'Manager-Anfrage fehlgeschlagen.'));
+      },
     });
   }
 

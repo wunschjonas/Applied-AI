@@ -12,6 +12,10 @@ export class ChatInputComponent {
 
   public inputText = signal<string>('');
 
+  public canSend(): boolean {
+    return this.inputText().trim().length > 0;
+  }
+
   public sendMessage(): void {
     const text = this.inputText().trim();
     if (!text) return;

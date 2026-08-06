@@ -1,7 +1,16 @@
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
+from fastapi.exception_handlers import (
+    http_exception_handler,
+    request_validation_exception_handler,
+)
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes_image_agent import router as image_router
 from app.api.routes_manager_agent import router as manager_router
@@ -11,6 +20,8 @@ from app.api.routes_text_agent import router as text_router
 from app.core.config import settings
 from app.services.health_service import build_health_report
 import app.metrics  # noqa: F401 — register custom counters on default registry
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Applied AI Marketing Agent Backend",
@@ -40,6 +51,20 @@ app.mount(
 )
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # Keep FastAPI defaults for HTTP / validation errors; only sanitize true crashes.
+    if isinstance(exc, StarletteHTTPException):
+        return await http_exception_handler(request, exc)
+    if isinstance(exc, RequestValidationError):
+        return await request_validation_exception_handler(request, exc)
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
 
 
 @app.get("/health")

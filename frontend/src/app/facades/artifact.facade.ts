@@ -23,6 +23,9 @@ export class ArtifactFacade {
   private _imageUrl = signal<string | null>(null);
   public imageUrl = this._imageUrl.asReadonly();
 
+  private _generationMode = signal<string | null>(null);
+  public generationMode = this._generationMode.asReadonly();
+
   private _missingFields = signal<string[]>([]);
   public missingFields = this._missingFields.asReadonly();
 
@@ -47,6 +50,9 @@ export class ArtifactFacade {
       // Cache buster: the file name stays {post_id}.png across regenerations.
       this._imageUrl.set(`${toAbsoluteApiUrl(image.image_url)}?t=${Date.now()}`);
     }
+    if (image?.generation_mode) {
+      this._generationMode.set(image.generation_mode);
+    }
   }
 
   /** Restore the stored state of a post, e.g. after a reload or when switching posts. */
@@ -57,6 +63,7 @@ export class ArtifactFacade {
     this._imageUrl.set(
       preview?.image_url ? `${toAbsoluteApiUrl(preview.image_url)}?t=${Date.now()}` : null,
     );
+    this._generationMode.set(null);
   }
 
   public updateMissingFields(fields: string[] | undefined | null): void {
@@ -68,6 +75,7 @@ export class ArtifactFacade {
     this._hashtags.set([]);
     this._imagePrompt.set(null);
     this._imageUrl.set(null);
+    this._generationMode.set(null);
     this._missingFields.set([]);
   }
 }

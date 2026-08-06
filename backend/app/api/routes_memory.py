@@ -4,10 +4,11 @@ import re
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
-from pydantic import BaseModel
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import settings
+from app.schemas.chat import _strip_nonempty
 from app.services.huggingface_service import HuggingFaceService
 from app.services.rag_service import RAGService, chunk_text
 
@@ -27,8 +28,15 @@ PDF_MAGIC = b"%PDF"
 
 
 class MemoryStoreRequest(BaseModel):
-    content: str
+    content: str = Field(min_length=1, max_length=20000)
     tags: list[str] = []
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def strip_content(cls, value: object) -> object:
+        if isinstance(value, str):
+            return _strip_nonempty(value, max_length=20000)
+        return value
 
 
 class MemoryStoreResponse(BaseModel):
@@ -73,11 +81,17 @@ def store_memory(body: MemoryStoreRequest):
 
 
 @router.get("/search", response_model=MemorySearchResponse)
-def search_memory(q: str):
-    print(f"[Memory] GET /api/memory/search | q='{q}'")
-    raw = rag_service.retrieve(q)
+def search_memory(q: str = Query(..., min_length=1, max_length=4000)):
+    query = q.strip()
+    if not query:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="q must not be empty or whitespace-only",
+        )
+    print(f"[Memory] GET /api/memory/search | q='{query}'")
+    raw = rag_service.retrieve(query)
     results = [line for line in raw.splitlines() if line.strip()] if raw else []
-    return MemorySearchResponse(query=q, results=results)
+    return MemorySearchResponse(query=query, results=results)
 
 
 @router.get("/list", response_model=MemoryListResponse)

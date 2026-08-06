@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from io import BytesIO
 from typing import Any
-
-from PIL import Image
 
 from app.agents.base_agent import BaseAgent
 from app.graphs.support.manager_tools import GET_POST_DATA_TOOL, ManagerToolDispatcher
@@ -69,16 +66,14 @@ class ImageAgent(BaseAgent):
         rag_context: str | None = None,
         validation_feedback: str | None = None,
         post_id: str | None = None,
-        source_image: bytes | None = None,
         current_image: bytes | None = None,
-        strength: float = 0.7,
+        strength: float = 0.65,
         post_repository: Any | None = None,
     ) -> dict[str, Any]:
-        """Generate a new image from text and optional visual inputs.
+        """Generate or refine a post image from text.
 
-        - ``source_image``: user reference upload
-        - ``current_image``: existing post preview image on disk
-        When both are present, they are composed into one img2img input.
+        When ``current_image`` (or a stored post image) exists, use img2img;
+        otherwise text-to-image.
         """
         if current_image is None and post_id:
             current_image = self.image_storage.read_post_image(post_id)
@@ -116,7 +111,8 @@ class ImageAgent(BaseAgent):
 
         prompt = artifact.get("image_prompt", "")
         negative_prompt = artifact.get("negative_prompt_optional")
-        img2img_bytes, img2img_source = self._resolve_img2img_source(current_image, source_image)
+        img2img_bytes = current_image
+        img2img_source = "current_post" if img2img_bytes else "none"
         use_img2img = bool(img2img_bytes)
         model_id = (
             getattr(self.hf, "hf_image_to_image_model_id", None)
@@ -175,7 +171,6 @@ class ImageAgent(BaseAgent):
             artifact["generation_mode"] = generation_mode
             artifact["img2img_source"] = img2img_source
             artifact["used_current_image"] = bool(current_image)
-            artifact["used_reference_image"] = bool(source_image)
             if use_img2img:
                 artifact["used_image_to_image"] = generation_mode == "image_to_image"
                 artifact["image_to_image_strength"] = strength
@@ -199,6 +194,9 @@ class ImageAgent(BaseAgent):
                     "image_error": error,
                     "partial_success": True,
                     "retryable": self._is_retryable_error(error),
+                    "generation_mode": generation_mode,
+                    "img2img_source": img2img_source,
+                    "used_current_image": bool(current_image),
                 }
             )
             self.record(
@@ -209,40 +207,6 @@ class ImageAgent(BaseAgent):
                 image_mode=generation_mode,
             )
             return artifact
-
-    def _resolve_img2img_source(
-        self,
-        current_image: bytes | None,
-        reference_image: bytes | None,
-    ) -> tuple[bytes | None, str]:
-        if current_image and reference_image:
-            return self._compose_side_by_side(current_image, reference_image), "current_plus_reference"
-        if current_image:
-            return current_image, "current_post"
-        if reference_image:
-            return reference_image, "reference"
-        return None, "none"
-
-    def _compose_side_by_side(self, left_bytes: bytes, right_bytes: bytes) -> bytes:
-        """Pack current post (left) + reference (right) into one img2img input."""
-        left = Image.open(BytesIO(left_bytes)).convert("RGB")
-        right = Image.open(BytesIO(right_bytes)).convert("RGB")
-        target_height = min(max(left.height, right.height, 512), 1024)
-        left = self._resize_to_height(left, target_height)
-        right = self._resize_to_height(right, target_height)
-        canvas = Image.new("RGB", (left.width + right.width, target_height), color=(255, 255, 255))
-        canvas.paste(left, (0, 0))
-        canvas.paste(right, (left.width, 0))
-        buffer = BytesIO()
-        canvas.save(buffer, format="PNG")
-        return buffer.getvalue()
-
-    @staticmethod
-    def _resize_to_height(image: Image.Image, height: int) -> Image.Image:
-        if image.height == height:
-            return image
-        width = max(1, int(image.width * (height / image.height)))
-        return image.resize((width, height), Image.Resampling.LANCZOS)
 
     def _enrich_context_from_post(
         self,

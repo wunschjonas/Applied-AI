@@ -58,8 +58,13 @@ button {
     transform 0.2s ease,
     background-color 0.2s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #244a70;
     transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 }

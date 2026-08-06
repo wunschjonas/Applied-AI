@@ -1,14 +1,23 @@
 from typing import Any
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field, field_validator
+
+from app.schemas.chat import _strip_nonempty
 
 
 class TextGenerateRequest(BaseModel):
-    task: constr(min_length=1, max_length=4000)
+    task: str = Field(min_length=1, max_length=4000)
     platform: str | None = "linkedin"
     tone: str | None = "professional"
     target_audience: str | None = None
     context: str | dict[str, Any] | None = None
+
+    @field_validator("task", mode="before")
+    @classmethod
+    def strip_task(cls, value: object) -> object:
+        if isinstance(value, str):
+            return _strip_nonempty(value)
+        return value
 
 
 class TextGenerateResponse(BaseModel):
@@ -18,11 +27,18 @@ class TextGenerateResponse(BaseModel):
 
 
 class ImagePromptRequest(BaseModel):
-    task: constr(min_length=1, max_length=4000)
+    task: str = Field(min_length=1, max_length=4000)
     platform: str | None = None
     visual_style: str | None = None
     context: str | dict[str, Any] | None = None
     post_id: str | None = None
+
+    @field_validator("task", mode="before")
+    @classmethod
+    def strip_task(cls, value: object) -> object:
+        if isinstance(value, str):
+            return _strip_nonempty(value)
+        return value
 
 
 class ImagePromptResponse(BaseModel):

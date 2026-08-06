@@ -12,6 +12,8 @@
   ></textarea>
 
   <div class="chat-input__footer">
-    <button type="button" (click)="sendMessage()">Senden</button>
+    <button type="button" [disabled]="!canSend()" (click)="sendMessage()">
+      Senden
+    </button>
   </div>
 </div>

@@ -10,6 +10,7 @@ export interface ImageArtifact {
   image_url?: string | null;
   image_filename?: string | null;
   image_error?: string | null;
+  generation_mode?: string | null;
 }
 
 export interface GeneratedArtifacts {

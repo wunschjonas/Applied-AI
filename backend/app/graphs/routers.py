@@ -4,6 +4,7 @@ from app.graphs.dependencies import GraphDependencies, StepRecorder
 from app.graphs.state import ManagerChatState
 from app.graphs.support import post_fields
 from app.graphs.support.tao_composer import TaoEvent
+from app.graphs.support.validation import ArtifactValidator
 from app.metrics import inc_manager_chat_route
 
 INTENT_ROUTES = {
@@ -20,9 +21,7 @@ INTENT_ROUTES = {
 class GraphRouters:
     def __init__(self, deps: GraphDependencies):
         self.recorder = StepRecorder(deps)
-
-    def maybe_rag_router(self, state: ManagerChatState) -> str:
-        return "rag_retrieval_node" if state.get("rag_needed") else "route_by_intent"
+        self.validator = ArtifactValidator(deps.image_storage)
 
     def intent_router(self, state: ManagerChatState) -> str:
         tools = state.get("tools_called") or []
@@ -109,7 +108,14 @@ class GraphRouters:
         return bool(blocking)
 
     def after_text_router(self, state: ManagerChatState) -> str:
-        return "image_agent_node" if state["intent"] == "text_and_image" else "validation_node"
+        if state["intent"] != "text_and_image":
+            return "validation_node"
+        # On a text retry the image already exists; regenerating it would cost a
+        # second run and could replace a valid image with a failed one.
+        image = state["generated_artifacts"].get("image") or {}
+        if self.validator.image_file_available(image):
+            return "validation_node"
+        return "image_agent_node"
 
     def retry_router(self, state: ManagerChatState) -> str:
         result = state.get("validation_result")

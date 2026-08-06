@@ -36,3 +36,14 @@ app-chat-input {
   display: block;
   flex: 0 0 auto;
 }
+
+.chat-panel__error {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+

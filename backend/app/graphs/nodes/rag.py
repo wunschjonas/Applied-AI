@@ -440,9 +440,3 @@ class RagNodes:
             f"Steckbrief snapshot:\n{json.dumps(brief, ensure_ascii=False)}\n\n"
             "Choose tools as needed, then stop."
         )
-
-    def rag_decision_node(self, state: ManagerChatState) -> ManagerChatState:
-        return self.rag_react_node(state)
-
-    def rag_retrieval_node(self, state: ManagerChatState) -> ManagerChatState:
-        return state

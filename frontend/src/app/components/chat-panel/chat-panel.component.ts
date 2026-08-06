@@ -12,5 +12,6 @@ import { ChatMessage } from '../../models/chat.model';
 })
 export class ChatPanelComponent {
   public messages = input<ChatMessage[]>([]);
+  public errorMessage = input<string>('');
   public userSend = output<string>();
 }
