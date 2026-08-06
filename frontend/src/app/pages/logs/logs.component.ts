@@ -8,6 +8,7 @@ import { PostService } from '../../services/post.service';
 import { PostFacade } from '../../facades/post.facade';
 import { LogEntry, LogsResponse } from '../../models/log.model';
 import { Post } from '../../models/post.model';
+import { httpErrorDetail } from '../../core/http-error';
 
 export type LogFilter = 'all' | 'manager' | 'text' | 'image';
 
@@ -27,6 +28,7 @@ export class LogsComponent implements OnInit {
   readonly posts = signal<Post[]>([]);
   readonly isLoading = signal(false);
   readonly isDeleting = signal(false);
+  readonly loadError = signal('');
   readonly activeFilter = signal<LogFilter>('all');
   readonly selectedPostId = signal<string>('');
   readonly deleteMessage = signal('');
@@ -58,7 +60,9 @@ export class LogsComponent implements OnInit {
     }
     this.postService.getAllPosts().subscribe({
       next: (posts) => this.posts.set(posts),
-      error: (err) => console.error('[Logs] Failed to load posts:', err),
+      error: (err) => {
+        this.loadError.set(httpErrorDetail(err, 'Posts konnten nicht geladen werden.'));
+      },
     });
     this.reloadActiveFilter();
   }
@@ -71,36 +75,48 @@ export class LogsComponent implements OnInit {
   loadManagerLogs() {
     this.activeFilter.set('manager');
     this.isLoading.set(true);
+    this.loadError.set('');
     this.logService.getManagerLogs().subscribe({
       next: (response: LogsResponse) => {
         this.allLogs.set(this.sortNewestFirst(response.logs));
         this.isLoading.set(false);
       },
-      error: () => this.isLoading.set(false),
+      error: (err) => {
+        this.loadError.set(httpErrorDetail(err, 'Manager-Logs konnten nicht geladen werden.'));
+        this.isLoading.set(false);
+      },
     });
   }
 
   loadTextLogs() {
     this.activeFilter.set('text');
     this.isLoading.set(true);
+    this.loadError.set('');
     this.logService.getTextLogs().subscribe({
       next: (response: LogsResponse) => {
         this.allLogs.set(this.sortNewestFirst(response.logs));
         this.isLoading.set(false);
       },
-      error: () => this.isLoading.set(false),
+      error: (err) => {
+        this.loadError.set(httpErrorDetail(err, 'Text-Logs konnten nicht geladen werden.'));
+        this.isLoading.set(false);
+      },
     });
   }
 
   loadImageLogs() {
     this.activeFilter.set('image');
     this.isLoading.set(true);
+    this.loadError.set('');
     this.logService.getImageLogs().subscribe({
       next: (response: LogsResponse) => {
         this.allLogs.set(this.sortNewestFirst(response.logs));
         this.isLoading.set(false);
       },
-      error: () => this.isLoading.set(false),
+      error: (err) => {
+        this.loadError.set(httpErrorDetail(err, 'Bild-Logs konnten nicht geladen werden.'));
+        this.isLoading.set(false);
+      },
     });
   }
 
@@ -169,6 +185,7 @@ export class LogsComponent implements OnInit {
 
   private fetchAllAgents(): void {
     this.isLoading.set(true);
+    this.loadError.set('');
     forkJoin([
       this.logService.getManagerLogs(),
       this.logService.getTextLogs(),
@@ -180,7 +197,10 @@ export class LogsComponent implements OnInit {
         );
         this.isLoading.set(false);
       },
-      error: () => this.isLoading.set(false),
+      error: (err) => {
+        this.loadError.set(httpErrorDetail(err, 'Logs konnten nicht geladen werden.'));
+        this.isLoading.set(false);
+      },
     });
   }
 

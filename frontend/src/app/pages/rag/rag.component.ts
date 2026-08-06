@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { MemoryListEntry, MemoryService } from '../../services/memory.service';
+import { httpErrorDetail } from '../../core/http-error';
 
 @Component({
   selector: 'app-rag',
@@ -18,6 +19,7 @@ export class RagComponent implements OnInit {
   public storeTags = signal('');
   public isStoring = signal(false);
   public storeSuccess = signal(false);
+  public storeError = signal('');
 
   // Upload
   public isUploading = signal(false);
@@ -46,6 +48,7 @@ export class RagComponent implements OnInit {
 
     this.isStoring.set(true);
     this.storeSuccess.set(false);
+    this.storeError.set('');
     this.memoryService.store(content, tags).subscribe({
       next: () => {
         this.storeContent.set('');
@@ -54,7 +57,9 @@ export class RagComponent implements OnInit {
         this.loadAll();
         setTimeout(() => this.storeSuccess.set(false), 3000);
       },
-      error: (err) => console.error('[Memory] Store error:', err),
+      error: (err) => {
+        this.storeError.set(httpErrorDetail(err, 'Speichern fehlgeschlagen.'));
+      },
       complete: () => this.isStoring.set(false),
     });
   }
@@ -99,11 +104,7 @@ export class RagComponent implements OnInit {
         this.loadAll();
       },
       error: (err) => {
-        console.error('[Memory] Upload error:', err);
-        const detail = err?.error?.detail;
-        this.uploadError.set(
-          typeof detail === 'string' ? detail : 'Upload fehlgeschlagen.'
-        );
+        this.uploadError.set(httpErrorDetail(err, 'Upload fehlgeschlagen.'));
         this.isUploading.set(false);
       },
       complete: () => this.isUploading.set(false),
@@ -138,11 +139,7 @@ export class RagComponent implements OnInit {
         );
       },
       error: (err) => {
-        console.error('[Memory] Delete error:', err);
-        const detail = err?.error?.detail;
-        this.deleteError.set(
-          typeof detail === 'string' ? detail : 'Löschen fehlgeschlagen.'
-        );
+        this.deleteError.set(httpErrorDetail(err, 'Löschen fehlgeschlagen.'));
         this.deletingHash.set(null);
       },
       complete: () => this.deletingHash.set(null),

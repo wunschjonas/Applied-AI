@@ -55,23 +55,7 @@ class LogService:
         return [entry for entry in self.store.list() if entry.get("agent") == agent]
 
     def delete_all(self) -> int:
-        clear = getattr(self.store, "clear", None)
-        if callable(clear):
-            return int(clear())
-        items = self.store.list()
-        for item in items:
-            item_id = item.get("id")
-            if item_id:
-                self.store.delete(item_id)
-        return len(items)
+        return int(self.store.clear())
 
     def delete_by_post_id(self, post_id: str) -> int:
-        delete_where = getattr(self.store, "delete_where", None)
-        if callable(delete_where):
-            return int(delete_where(lambda entry: entry.get("post_id") == post_id))
-        matches = [entry for entry in self.store.list() if entry.get("post_id") == post_id]
-        for item in matches:
-            item_id = item.get("id")
-            if item_id:
-                self.store.delete(item_id)
-        return len(matches)
+        return int(self.store.delete_where(lambda entry: entry.get("post_id") == post_id))

@@ -5,7 +5,7 @@
 
   <textarea
     id="agent-command"
-    placeholder="Beschreibe, was dein Agent als Naechstes erledigen soll ..."
+    placeholder="Beschreibe, was dein Agent als Nächstes erledigen soll ..."
     [value]="inputText()"
     (input)="inputText.set($any($event.target).value)"
     (keydown.enter)="$event.preventDefault(); sendMessage()"

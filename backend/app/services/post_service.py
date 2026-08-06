@@ -12,7 +12,10 @@ from app.schemas.post import Platform, PostCreate, PostInit, PostInitResponse, P
 from app.services.agent_service import AgentService
 from app.services.chat_service import ChatService
 from app.services.huggingface_service import HuggingFaceService
+from app.services.image_storage_service import ImageStorageService
+from app.services.log_service import LogService
 from app.services.post_repository import PostRepository
+from app.services.trace_service import TraceService
 
 
 class PostService:
@@ -100,6 +103,9 @@ class PostService:
         if not self.store.delete(post_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
         self.chat_service.delete_chats_for_post(post_id)
+        LogService().delete_by_post_id(post_id)
+        TraceService().delete_by_post_id(post_id)
+        ImageStorageService().delete_post_image(post_id)
 
     def generate_preview(self, post_id: str) -> PostResponse:
         post = self.store.get(post_id)
@@ -149,6 +155,10 @@ class PostService:
             self.store.save(post)
             return self._to_response(post)
 
+        except HTTPException:
+            post["status"] = PostStatus.error.value
+            self.store.save(post)
+            raise
         except Exception as exc:
             post["status"] = PostStatus.error.value
             self.store.save(post)

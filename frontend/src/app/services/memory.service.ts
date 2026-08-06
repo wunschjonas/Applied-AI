@@ -7,11 +7,6 @@ export interface MemoryStoreResponse {
   status: string;
 }
 
-export interface MemorySearchResponse {
-  query: string;
-  results: string[];
-}
-
 export interface MemoryListEntry {
   content: string;
   content_hash: string;
@@ -45,12 +40,6 @@ export class MemoryService {
     return this.http.post<MemoryStoreResponse>(`${this.baseUrl}/api/memory/store`, {
       content,
       tags,
-    });
-  }
-
-  search(q: string): Observable<MemorySearchResponse> {
-    return this.http.get<MemorySearchResponse>(`${this.baseUrl}/api/memory/search`, {
-      params: { q },
     });
   }
 

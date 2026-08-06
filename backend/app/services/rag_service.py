@@ -291,10 +291,6 @@ class RAGService:
         async with self._session() as session:
             await session.call_tool("memory_store", payload)
 
-    async def _list(self) -> list[str]:
-        entries = await self._list_entries()
-        return [entry["content"] for entry in entries if entry.get("content")]
-
     async def _list_entries(self) -> list[dict[str, Any]]:
         async with self._session() as session:
             result = await session.call_tool("memory_list", {"page": 1, "page_size": 100})

@@ -17,6 +17,7 @@
               (click)="loadPosts()"
               [disabled]="isLoadingPosts()"
               title="Aktualisieren"
+              aria-label="Postliste aktualisieren"
             >
               &#x21bb;
             </button>
@@ -54,6 +55,7 @@
               [disabled]="!postFacade.currentPostId() || isDeleting()"
               (click)="deleteSelectedPost()"
               title="Ausgewählten Post löschen"
+              aria-label="Ausgewählten Post löschen"
             >
               {{ isDeleting() ? "Lösche..." : "Löschen" }}
             </button>
@@ -78,7 +80,7 @@
               [disabled]="isCreating() || !postTitle().trim()"
               (click)="createPost()"
             >
-              {{ isCreating() ? "Erstelle..." : "Create" }}
+              {{ isCreating() ? "Erstelle..." : "Erstellen" }}
             </button>
           </div>
         </div>

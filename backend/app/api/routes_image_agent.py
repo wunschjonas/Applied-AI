@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.schemas.agent import ImageGenerateResponse, ImagePromptRequest, ImagePromptResponse
 from app.schemas.chat import ChatHistoryResponse, ImageAgentChatRequest, ImageAgentChatResponse
 from app.schemas.logs import AgentLogsResponse
 from app.services.agent_service import AgentService
@@ -14,29 +13,6 @@ router = APIRouter(prefix="/api/agents/image", tags=["image-agent"])
 agent_service = AgentService()
 chat_service = ChatService()
 log_service = LogService()
-
-
-@router.post("/generate-prompt", response_model=ImagePromptResponse)
-def generate_image_prompt(request: ImagePromptRequest):
-    print("[ImageAgent] POST /generate-prompt aufgerufen")
-    return agent_service.generate_image_prompt(
-        task=request.task,
-        platform=request.platform,
-        visual_style=request.visual_style,
-        context=request.context,
-    )
-
-
-@router.post("/generate", response_model=ImageGenerateResponse)
-def generate_image(request: ImagePromptRequest):
-    print(f"[ImageAgent] POST /generate aufgerufen | post_id={request.post_id}")
-    return agent_service.generate_image(
-        task=request.task,
-        platform=request.platform,
-        visual_style=request.visual_style,
-        context=request.context,
-        post_id=request.post_id,
-    )
 
 
 @router.post("/chat", response_model=ImageAgentChatResponse)

@@ -1,39 +1,9 @@
-export interface HealthResponse {
-  status: string;
-  service: string;
-  version: string;
-}
-
 export interface InitPostResponse {
   post_id: string;
   title: string;
   created_at?: string;
   welcome_message?: string;
   missing_fields?: string[];
-}
-
-export interface CreatePostRequest {
-  title: string;
-  topic: string;
-  platform: string;
-  target_audience: string;
-  tone_of_voice: string;
-  text_context?: string;
-  text_length?: string;
-  image_context?: string;
-  image_style?: string;
-}
-
-export interface UpdatePostRequest {
-  title?: string;
-  topic?: string;
-  platform?: string;
-  target_audience?: string;
-  tone_of_voice?: string;
-  text_context?: string;
-  text_length?: string;
-  image_context?: string;
-  image_style?: string;
 }
 
 export type PostStatus = 'draft' | 'processing' | 'preview_ready' | 'error';
@@ -61,11 +31,4 @@ export interface Post {
   image_style?: string | null;
   preview?: PostPreview | null;
   missing_fields?: string[];
-}
-
-export interface AgentTraceStep {
-  timestamp: string;
-  thought: string;
-  action: string;
-  observation: string;
 }

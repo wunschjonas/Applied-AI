@@ -107,7 +107,6 @@ export class HomeComponent implements OnInit {
     this.loadPosts();
     const postId = this.postFacade.currentPostId();
     if (postId) {
-      this.refreshSelectedPost(postId);
       this.loadManagerChatHistory(postId);
       this.artifactSync.loadForPost(postId);
     }
@@ -122,14 +121,11 @@ export class HomeComponent implements OnInit {
         if (currentId) {
           const match = posts.find((post) => post.id === currentId) ?? null;
           this.selectedPost.set(match);
-          if (match) {
-            this.artifactFacade.updateMissingFields(
-              match.missing_fields ?? this.missingFieldsFromPost(match),
-            );
-          }
         }
       },
-      error: (err) => console.error('[Home] Failed to load posts:', err),
+      error: (err) => {
+        this.chatError.set(httpErrorDetail(err, 'Posts konnten nicht geladen werden.'));
+      },
       complete: () => this.isLoadingPosts.set(false),
     });
   }
@@ -143,9 +139,6 @@ export class HomeComponent implements OnInit {
     });
     this.loadManagerChatHistory(post.id);
     this.artifactFacade.applyPreview(post.preview);
-    this.artifactFacade.updateMissingFields(
-      post.missing_fields ?? this.missingFieldsFromPost(post),
-    );
   }
 
   public deleteSelectedPost(): void {
@@ -180,10 +173,9 @@ export class HomeComponent implements OnInit {
     const title = this.postTitle().trim();
     if (!title) return;
     this.isCreating.set(true);
-    console.log('[Home] POST /api/posts/init', { title });
+    this.chatError.set('');
     this.postService.initPost(title).subscribe({
       next: (response) => {
-        console.log('[Home] Response:', response);
         this.postFacade.updateCurrentPost(response);
         this.selectedPost.set({
           id: response.post_id,
@@ -198,14 +190,11 @@ export class HomeComponent implements OnInit {
           welcome ? [{ sender: ChatSender.Agent, text: welcome }] : [],
         );
         this.artifactFacade.reset();
-        this.artifactFacade.updateMissingFields(
-          response.missing_fields ?? ['topic', 'platform', 'target_audience', 'tone_of_voice'],
-        );
         this.postTitle.set('');
         this.loadPosts();
       },
       error: (err) => {
-        console.error('[Home] Error:', err);
+        this.chatError.set(httpErrorDetail(err, 'Post konnte nicht erstellt werden.'));
         this.isCreating.set(false);
       },
       complete: () => this.isCreating.set(false),
@@ -221,7 +210,6 @@ export class HomeComponent implements OnInit {
       ...this.chatFacade.mainAgentChat(),
       { sender: ChatSender.User, text },
     ]);
-    this.chatFacade.updateIsMainAgentWorking(true);
     this.managerAgentService.chat(text, postId).subscribe({
       next: (response) => {
         this.chatFacade.updateMainAgentChat([
@@ -229,32 +217,12 @@ export class HomeComponent implements OnInit {
           { sender: ChatSender.Agent, text: response.assistant_message },
         ]);
         this.artifactFacade.applyArtifacts(response.generated_artifacts);
-        this.artifactFacade.updateMissingFields(response.missing_fields);
-        this.refreshSelectedPost(postId);
         this.loadPosts();
       },
-      complete: () => this.chatFacade.updateIsMainAgentWorking(false),
       error: (err) => {
-        this.chatFacade.updateIsMainAgentWorking(false);
         this.chatError.set(httpErrorDetail(err, 'Manager-Anfrage fehlgeschlagen.'));
       },
     });
-  }
-
-  private refreshSelectedPost(postId: string): void {
-    this.postService.getPost(postId).subscribe({
-      next: (post) => {
-        this.selectedPost.set(post);
-        this.artifactFacade.updateMissingFields(
-          post.missing_fields ?? this.missingFieldsFromPost(post),
-        );
-      },
-      error: (err) => console.error('[Home] Failed to refresh selected post:', err),
-    });
-  }
-
-  private missingFieldsFromPost(post: Post): string[] {
-    return FIELD_KEYS.filter((field) => !post[field]);
   }
 
   private loadManagerChatHistory(postId: string): void {
@@ -266,8 +234,9 @@ export class HomeComponent implements OnInit {
         }));
         this.chatFacade.updateMainAgentChat(messages);
       },
-      error: (err) =>
-        console.error('[Home] Failed to load manager chat history:', err),
+      error: (err) => {
+        this.chatError.set(httpErrorDetail(err, 'Chat-Verlauf konnte nicht geladen werden.'));
+      },
     });
   }
 }

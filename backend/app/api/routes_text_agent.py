@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 
-from app.schemas.agent import TextGenerateRequest, TextGenerateResponse
 from app.schemas.chat import ChatHistoryResponse, TextAgentChatRequest, TextAgentChatResponse
 from app.schemas.logs import AgentLogsResponse
 from app.services.agent_service import AgentService
@@ -12,18 +11,6 @@ router = APIRouter(prefix="/api/agents/text", tags=["text-agent"])
 agent_service = AgentService()
 chat_service = ChatService()
 log_service = LogService()
-
-
-@router.post("/generate", response_model=TextGenerateResponse)
-def generate_text(request: TextGenerateRequest):
-    print("[TextAgent] POST /generate aufgerufen")
-    return agent_service.generate_text(
-        task=request.task,
-        platform=request.platform,
-        tone=request.tone,
-        target_audience=request.target_audience,
-        context=request.context,
-    )
 
 
 @router.post("/chat", response_model=TextAgentChatResponse)

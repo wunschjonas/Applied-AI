@@ -131,7 +131,6 @@ Fix: `.gitignore` um `__pycache__/`, `*.py[cod]`, `.pytest_cache/`, `.venv/`, `b
 - `backend/app/services/post_service.py:150-156`: `generate_preview` fängt alle Exceptions und wirft immer 500 — auch wenn darunter bereits eine `HTTPException` (z.B. 503 bei fehlendem HF-Token) lag. `HTTPException` durchreichen.
 - `backend/app/graphs/support/validation.py:10`: `MIN_TEXT_LENGTH = 180` widerspricht `text_length=kurz` (40-80 Wörter laut `post_fields.py:131`) — kurze Posts triggern fast immer einen Retry. Schwelle von `text_length` abhängig machen.
 - `delete_post` (`post_service.py:97-100`) räumt Logs, Traces und generierte Bilder nicht mit auf.
-- Logs, Traces und Chats wachsen unbegrenzt ohne Pagination oder Retention.
 - Toter Code: `ManagerAgent` (`manager_agent.py:236-237`), `chat_service.get_chats_by_agent`, `rag_service._list`, die `getattr`-Fallbacks in `log_service.py:58-77`, State-Felder `tool_safety_blocked` / `validation_requirements` / `errors` / `warnings`.
 
 **Frontend**
@@ -139,12 +138,12 @@ Fix: `.gitignore` um `__pycache__/`, `*.py[cod]`, `.pytest_cache/`, `.venv/`, `b
 - Ungenutzt: `getHealth`, `createPost`, `updatePost`, `generatePreview`, `getPreview` in `post.service.ts`, `memory.service.ts:search`, sowie die Facade-Signale `is*AgentWorking` und `missingFields`/`hasText`/`hasImage`.
 - `home.component.ts:106-113` und `225-234` feuern je zwei `GET /api/posts/:id`-Requests für denselben Zweck.
 - Fehlerbehandlung uneinheitlich: `createPost` (home), `store` (rag) und das Laden in `logs` melden Fehler nur auf der Konsole, während die Agent-Seiten `chatError` anzeigen. Überall `httpErrorDetail` aus `core/http-error.ts` nutzen.
-- `chat-input` wird während der Agent arbeitet nicht deaktiviert — Doppel-Sends möglich. Die vorhandenen `is*AgentWorking`-Signale lösen genau das.
-- `text-agent.component.scss` und `image-agent.component.scss` sind fast identisch — in ein gemeinsames SCSS-Partial ziehen.
 - Sprachmix: Button "Create" in `home.component.html:81`, Sidebar mischt "Preview"/"Rag"/"Logs" mit "Kontakt"/"Gedächtnis", `index.html` hat `lang="en"`, "Naechstes" statt "Nächstes" in `chat-input`.
 - Barrierefreiheit: Icon-Buttons ohne `aria-label`, Chat-Container ohne `role="log"`, Filter-Buttons in Logs ohne `aria-pressed`.
 
-**Ungenutzte Backend-Endpunkte** (vom Frontend nie aufgerufen): `/api/agents/text/generate`, `/api/agents/image/generate`, `/api/agents/image/generate-prompt`, `/api/agents/manager/traces/{trace_id}`. Entweder anbinden oder entfernen.
+**Ungenutzte Backend-Endpunkte — entfernen:** `/api/agents/text/generate`, `/api/agents/image/generate`, `/api/agents/image/generate-prompt`, `/api/agents/manager/traces/{trace_id}` (vom Frontend nie aufgerufen).
+
+**Bewusst raus (egal fürs Projekt):** Retention/Pagination für Logs/Traces/Chats; Chat-Input während Agent-Arbeit sperren; SCSS-Partial für Text-/Image-Agent.
 
 ---
 

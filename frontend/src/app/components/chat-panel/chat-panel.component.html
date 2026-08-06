@@ -4,7 +4,7 @@
   </div>
 
   @if (errorMessage()) {
-    <p class="chat-panel__error">{{ errorMessage() }}</p>
+    <p class="chat-panel__error" role="alert">{{ errorMessage() }}</p>
   }
 
   <app-chat-input (userSend)="userSend.emit($event)" />

@@ -7,10 +7,25 @@ from app.graphs.support.delegation import IMAGE_INTENTS, TEXT_INTENTS
 from app.services.image_storage_service import ImageStorageService
 
 HASHTAG_PLATFORMS = frozenset({"linkedin", "instagram", "x"})
+# Defaults match text_length=mittel; kurz/lang override via min_text_chars_for().
 MIN_TEXT_LENGTH = 180
+MIN_TEXT_LENGTH_SHORT = 80
+MIN_TEXT_LENGTH_LONG = 300
 MIN_HASHTAGS = 3
 MIN_IMAGE_PROMPT_LENGTH = 120
 MIN_IMAGE_PROMPT_WORDS = 18
+
+
+def min_text_chars_for(text_length: str | None) -> int:
+    """Char floor aligned with kurz/mittel/lang guidance in post_fields."""
+    raw = (text_length or "").strip().casefold()
+    if not raw:
+        return MIN_TEXT_LENGTH
+    if any(token in raw for token in ("kurz", "short", "knapp", "brief")):
+        return MIN_TEXT_LENGTH_SHORT
+    if any(token in raw for token in ("lang", "long", "ausfuehrlich", "ausführlich", "detailed")):
+        return MIN_TEXT_LENGTH_LONG
+    return MIN_TEXT_LENGTH
 
 META_PREAMBLE_PATTERNS = (
     r"^\s*here is\b",
@@ -34,6 +49,7 @@ class ArtifactValidator:
         artifacts: dict[str, Any],
         platform: str | None,
         assistant_message: str | None,
+        text_length: str | None = None,
     ) -> dict[str, str]:
         feedback: dict[str, str] = {}
 
@@ -44,7 +60,7 @@ class ArtifactValidator:
             return feedback
 
         if intent in TEXT_INTENTS:
-            issues = self.validate_text(artifacts.get("text"), platform)
+            issues = self.validate_text(artifacts.get("text"), platform, text_length=text_length)
             if issues:
                 feedback["text"] = "; ".join(issues)
 
@@ -64,7 +80,12 @@ class ArtifactValidator:
 
         return feedback
 
-    def validate_text(self, artifact: dict[str, Any] | None, platform: str | None) -> list[str]:
+    def validate_text(
+        self,
+        artifact: dict[str, Any] | None,
+        platform: str | None,
+        text_length: str | None = None,
+    ) -> list[str]:
         if not artifact:
             return ["text artifact missing"]
 
@@ -74,7 +95,8 @@ class ArtifactValidator:
             issues.append("generated_text missing")
         else:
             text = str(generated_text).strip()
-            if len(text) < MIN_TEXT_LENGTH:
+            min_chars = min_text_chars_for(text_length)
+            if len(text) < min_chars:
                 issues.append("generated_text too short")
             if any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in META_PREAMBLE_PATTERNS):
                 issues.append("generated_text contains meta preamble or code fences")

@@ -2,17 +2,14 @@ from fastapi import APIRouter
 
 from app.schemas.chat import ChatHistoryResponse, ManagerChatRequest, ManagerChatResponse
 from app.schemas.logs import AgentLogsResponse
-from app.schemas.trace import TraceResponse
 from app.services.agent_service import AgentService
 from app.services.chat_service import ChatService
 from app.services.log_service import LogService
-from app.services.trace_service import TraceService
 
 router = APIRouter(prefix="/api/agents/manager", tags=["manager-agent"])
 
 agent_service = AgentService()
 chat_service = ChatService()
-trace_service = TraceService()
 log_service = LogService()
 
 
@@ -30,12 +27,6 @@ def manager_chat(request: ManagerChatRequest):
 def get_chat(chat_id: str):
     print(f"[ManagerAgent] GET /chats/{chat_id} aufgerufen")
     return chat_service.get_chat(chat_id)
-
-
-@router.get("/traces/{trace_id}", response_model=TraceResponse)
-def get_trace(trace_id: str):
-    print(f"[ManagerAgent] GET /traces/{trace_id} aufgerufen")
-    return trace_service.get_trace(trace_id)
 
 
 @router.get("/logs", response_model=AgentLogsResponse)

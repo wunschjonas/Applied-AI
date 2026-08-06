@@ -28,6 +28,7 @@ class ResponseNodes:
             artifacts=state["generated_artifacts"],
             platform=state.get("platform"),
             assistant_message=state.get("assistant_message"),
+            text_length=(state.get("post") or {}).get("text_length"),
         )
         result = self.validator.decide(
             feedback=feedback,

@@ -58,6 +58,3 @@ class ChatService:
         if not chat:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
         return chat
-
-    def get_chats_by_agent(self, agent: str) -> list[dict[str, Any]]:
-        return [c for c in self.store.list() if c.get("agent") == agent]

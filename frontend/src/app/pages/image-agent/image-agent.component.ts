@@ -55,8 +55,6 @@ export class ImageAgentComponent implements OnInit {
       { sender: ChatSender.User, text },
     ]);
 
-    this.chatFacade.updateIsImageAgentWorking(true);
-
     this.imageAgentService.chat(text, postId).subscribe({
       next: (response) => {
         this.chatFacade.updateImageAgentChat([
@@ -65,9 +63,7 @@ export class ImageAgentComponent implements OnInit {
         ]);
         this.artifactFacade.applyArtifacts(response.generated_artifacts);
       },
-      complete: () => this.chatFacade.updateIsImageAgentWorking(false),
       error: (err) => {
-        this.chatFacade.updateIsImageAgentWorking(false);
         this.chatError.set(httpErrorDetail(err, 'Image-Agent-Anfrage fehlgeschlagen.'));
       },
     });

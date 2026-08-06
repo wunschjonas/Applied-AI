@@ -54,5 +54,18 @@ class ImageStorageService:
         path = self.storage_dir / filename
         return path.exists() and path.is_file() and path.stat().st_size > 0
 
+    def delete_post_image(self, post_id: str | None) -> bool:
+        """Delete ``{post_id}.png`` if present. Returns True when a file was removed."""
+        if not post_id:
+            return False
+        filename = f"{post_id}.png"
+        if not self.is_safe_filename(filename):
+            return False
+        path = self.storage_dir / filename
+        if not path.exists() or not path.is_file():
+            return False
+        path.unlink()
+        return True
+
     def is_safe_filename(self, filename: str) -> bool:
         return bool(re.fullmatch(r"[0-9a-fA-F-]{36}\.png", filename))

@@ -11,6 +11,7 @@
       <button
         class="filter-btn"
         [class.active]="activeFilter() === 'all'"
+        [attr.aria-pressed]="activeFilter() === 'all'"
         (click)="loadAll()"
       >
         Alle Logs
@@ -18,6 +19,7 @@
       <button
         class="filter-btn"
         [class.active]="activeFilter() === 'manager'"
+        [attr.aria-pressed]="activeFilter() === 'manager'"
         (click)="loadManagerLogs()"
       >
         Manager Agent
@@ -25,6 +27,7 @@
       <button
         class="filter-btn"
         [class.active]="activeFilter() === 'text'"
+        [attr.aria-pressed]="activeFilter() === 'text'"
         (click)="loadTextLogs()"
       >
         Text Agent
@@ -32,6 +35,7 @@
       <button
         class="filter-btn"
         [class.active]="activeFilter() === 'image'"
+        [attr.aria-pressed]="activeFilter() === 'image'"
         (click)="loadImageLogs()"
       >
         Bild Agent
@@ -75,6 +79,10 @@
 
     @if (deleteMessage()) {
       <p class="delete-msg">{{ deleteMessage() }}</p>
+    }
+
+    @if (loadError()) {
+      <p class="delete-msg" role="alert">{{ loadError() }}</p>
     }
 
     <div class="loading" *ngIf="isLoading()">Lade Logs...</div>

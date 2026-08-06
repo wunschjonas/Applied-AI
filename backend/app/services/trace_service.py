@@ -75,3 +75,10 @@ class TraceService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trace not found")
 
         return trace
+
+    def delete_by_post_id(self, post_id: str) -> int:
+        """Remove traces whose chat_id belongs to this post (``{post_id}::…``)."""
+        prefix = f"{post_id}::"
+        return self.store.delete_where(
+            lambda entry: str(entry.get("chat_id") or "").startswith(prefix)
+        )

@@ -1,4 +1,4 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { toAbsoluteApiUrl } from '../core/api.config';
 import { GeneratedArtifacts } from '../models/artifact.model';
 import { PostPreview } from '../models/post.model';
@@ -25,12 +25,6 @@ export class ArtifactFacade {
 
   private _generationMode = signal<string | null>(null);
   public generationMode = this._generationMode.asReadonly();
-
-  private _missingFields = signal<string[]>([]);
-  public missingFields = this._missingFields.asReadonly();
-
-  public hasText = computed(() => !!this._generatedText());
-  public hasImage = computed(() => !!this._imageUrl());
 
   /** Merge a chat response so a text-only answer keeps the existing image and vice versa. */
   public applyArtifacts(artifacts: GeneratedArtifacts | undefined | null): void {
@@ -66,16 +60,11 @@ export class ArtifactFacade {
     this._generationMode.set(null);
   }
 
-  public updateMissingFields(fields: string[] | undefined | null): void {
-    this._missingFields.set(fields ?? []);
-  }
-
   public reset(): void {
     this._generatedText.set(null);
     this._hashtags.set([]);
     this._imagePrompt.set(null);
     this._imageUrl.set(null);
     this._generationMode.set(null);
-    this._missingFields.set([]);
   }
 }

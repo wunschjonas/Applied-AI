@@ -52,7 +52,6 @@ export class TextAgentComponent implements OnInit {
       ...this.chatFacade.textAgentChat(),
       { sender: ChatSender.User, text },
     ]);
-    this.chatFacade.updateIsTextAgentWorking(true);
     this.textAgentService.chat(text, postId).subscribe({
       next: (response) => {
         this.chatFacade.updateTextAgentChat([
@@ -61,9 +60,7 @@ export class TextAgentComponent implements OnInit {
         ]);
         this.artifactFacade.applyArtifacts(response.generated_artifacts);
       },
-      complete: () => this.chatFacade.updateIsTextAgentWorking(false),
       error: (err) => {
-        this.chatFacade.updateIsTextAgentWorking(false);
         this.chatError.set(httpErrorDetail(err, 'Text-Agent-Anfrage fehlgeschlagen.'));
       },
     });

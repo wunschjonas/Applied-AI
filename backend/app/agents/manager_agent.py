@@ -231,7 +231,3 @@ class ManagerIntentClassifier:
             elif candidate in normalized_message:
                 return True
         return False
-
-
-class ManagerAgent(ManagerIntentClassifier):
-    name = "ManagerAgent"

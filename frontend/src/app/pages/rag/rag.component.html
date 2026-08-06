@@ -80,6 +80,9 @@
               @if (storeSuccess()) {
                 <span class="success-msg">&#10003; Erfolgreich gespeichert</span>
               }
+              @if (storeError()) {
+                <p class="error-msg">{{ storeError() }}</p>
+              }
             </div>
           </div>
         </div>
@@ -95,6 +98,7 @@
               (click)="loadAll()"
               [disabled]="isLoadingList()"
               title="Aktualisieren"
+              aria-label="Einträge aktualisieren"
             >
               &#x21bb;
             </button>

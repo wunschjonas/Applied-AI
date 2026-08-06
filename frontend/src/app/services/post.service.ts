@@ -3,15 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../core/api.config';
-import {
-  AgentTraceStep,
-  CreatePostRequest,
-  HealthResponse,
-  InitPostResponse,
-  Post,
-  PostPreview,
-  UpdatePostRequest,
-} from '../models/post.model';
+import { InitPostResponse, Post } from '../models/post.model';
 
 @Injectable({
   providedIn: 'root',
@@ -27,16 +19,6 @@ export class PostService {
     });
   }
 
-  /** GET /health */
-  getHealth(): Observable<HealthResponse> {
-    return this.http.get<HealthResponse>(`${this.baseUrl}/health`);
-  }
-
-  /** POST /api/posts */
-  createPost(body: CreatePostRequest): Observable<Post> {
-    return this.http.post<Post>(`${this.baseUrl}/api/posts`, body);
-  }
-
   /** GET /api/posts */
   getAllPosts(): Observable<Post[]> {
     return this.http.get<Post[]>(`${this.baseUrl}/api/posts`);
@@ -45,33 +27,6 @@ export class PostService {
   /** GET /api/posts/:postId */
   getPost(postId: string): Observable<Post> {
     return this.http.get<Post>(`${this.baseUrl}/api/posts/${postId}`);
-  }
-
-  /** PUT /api/posts/:postId */
-  updatePost(postId: string, body: UpdatePostRequest): Observable<Post> {
-    return this.http.put<Post>(`${this.baseUrl}/api/posts/${postId}`, body);
-  }
-
-  /** POST /api/posts/:postId/generate-preview - returns the whole post, preview included */
-  generatePreview(postId: string): Observable<Post> {
-    return this.http.post<Post>(
-      `${this.baseUrl}/api/posts/${postId}/generate-preview`,
-      {},
-    );
-  }
-
-  /** GET /api/posts/:postId/preview */
-  getPreview(postId: string): Observable<PostPreview> {
-    return this.http.get<PostPreview>(
-      `${this.baseUrl}/api/posts/${postId}/preview`,
-    );
-  }
-
-  /** GET /api/posts/:postId/agent-trace */
-  getAgentTrace(postId: string): Observable<AgentTraceStep[]> {
-    return this.http.get<AgentTraceStep[]>(
-      `${this.baseUrl}/api/posts/${postId}/agent-trace`,
-    );
   }
 
   /** DELETE /api/posts/:postId */
