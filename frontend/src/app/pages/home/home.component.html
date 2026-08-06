@@ -3,90 +3,144 @@
 
   <section class="page-content">
     <div class="agent-stage">
-      <h1>Home</h1>
+      <header class="page-header">
+        <h1>Manager Agent</h1>
+      </header>
 
-      <div class="post-select-section">
-        <label class="post-select-label" for="postSelect">
-          Post auswählen
-          <button
-            class="refresh-btn"
-            (click)="loadPosts()"
-            [disabled]="isLoadingPosts()"
-            title="Aktualisieren"
-          >
-            &#x21bb;
-          </button>
-        </label>
-        <select
-          id="postSelect"
-          class="post-select"
-          [disabled]="isLoadingPosts() || allPosts().length === 0"
-          (change)="
-            selectPost(allPosts()[$any($event.target).selectedIndex - 1])
-          "
-        >
-          <option value="" disabled [selected]="!postFacade.currentPostId()">
-            {{
-              isLoadingPosts()
-                ? "Lädt..."
-                : allPosts().length === 0
-                  ? "Keine Posts vorhanden"
-                  : "Post wählen..."
-            }}
-          </option>
-          @for (post of allPosts(); track post.id) {
-            <option
-              [value]="post.id"
-              [selected]="postFacade.currentPostId() === post.id"
+      <div class="toolbar">
+        <div class="toolbar__select">
+          <label class="toolbar__label" for="postSelect">
+            Post auswählen
+            <button
+              type="button"
+              class="refresh-btn"
+              (click)="loadPosts()"
+              [disabled]="isLoadingPosts()"
+              title="Aktualisieren"
+              aria-label="Postliste aktualisieren"
             >
-              {{ post.title }}
-            </option>
-          }
-        </select>
-      </div>
-
-      <div class="post-init">
-        <input
-          type="text"
-          class="post-title-input"
-          placeholder="Post-Titel eingeben..."
-          [(ngModel)]="postTitle"
-          (keydown.enter)="createPost()"
-        />
-        <button
-          class="create-btn"
-          [disabled]="isCreating() || !postTitle().trim()"
-          (click)="createPost()"
-        >
-          {{ isCreating() ? "Erstelle..." : "Create" }}
-        </button>
-      </div>
-
-      @if (postFacade.currentPost()) {
-        <div class="post-info">
-          <span
-            ><strong>Post ID:</strong>
-            {{ postFacade.currentPost()!.post_id }}</span
-          >
-          <span
-            ><strong>Titel:</strong> {{ postFacade.currentPost()!.title }}</span
-          >
-          @if (postFacade.currentPost()!.created_at) {
-            <span
-              ><strong>Erstellt am:</strong>
-              {{
-                postFacade.currentPost()!.created_at | date: "dd.MM.yyyy HH:mm"
-              }}</span
+              &#x21bb;
+            </button>
+          </label>
+          <div class="toolbar__select-row">
+            <select
+              id="postSelect"
+              class="post-select"
+              [disabled]="isLoadingPosts() || allPosts().length === 0"
+              (change)="
+                selectPost(allPosts()[$any($event.target).selectedIndex - 1])
+              "
             >
-          }
+              <option value="" disabled [selected]="!postFacade.currentPostId()">
+                {{
+                  isLoadingPosts()
+                    ? "Lädt..."
+                    : allPosts().length === 0
+                      ? "Keine Posts vorhanden"
+                      : "Post wählen..."
+                }}
+              </option>
+              @for (post of allPosts(); track post.id) {
+                <option
+                  [value]="post.id"
+                  [selected]="postFacade.currentPostId() === post.id"
+                >
+                  {{ post.title }}
+                </option>
+              }
+            </select>
+            <button
+              type="button"
+              class="delete-btn"
+              [disabled]="!postFacade.currentPostId() || isDeleting()"
+              (click)="deleteSelectedPost()"
+              title="Ausgewählten Post löschen"
+              aria-label="Ausgewählten Post löschen"
+            >
+              {{ isDeleting() ? "Lösche..." : "Löschen" }}
+            </button>
+          </div>
         </div>
-      }
 
-      <app-chat-panel
-        [messages]="chatFacade.mainAgentChat()"
-        (userSend)="onUserSend($event)"
-        (agentSend)="onAgentSend($event)"
-      />
+        <div class="toolbar__create">
+          <label class="toolbar__label" for="postTitleInput">Neuer Post</label>
+          <div class="toolbar__create-row">
+            <input
+              id="postTitleInput"
+              type="text"
+              class="post-title-input"
+              placeholder="Post-Titel eingeben..."
+              [ngModel]="postTitle()"
+              (ngModelChange)="postTitle.set($event)"
+              (keydown.enter)="createPost()"
+            />
+            <button
+              type="button"
+              class="create-btn"
+              [disabled]="isCreating() || !postTitle().trim()"
+              (click)="createPost()"
+            >
+              {{ isCreating() ? "Erstelle..." : "Erstellen" }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <app-post-context />
+
+      <div class="main-split">
+        <div class="main-split__chat">
+          <app-chat-panel
+            [messages]="chatFacade.mainAgentChat()"
+            [errorMessage]="chatError()"
+            (userSend)="onUserSend($event)"
+          />
+        </div>
+
+        <aside class="main-split__fields">
+          @if (selectedPost(); as post) {
+            <header class="fields-header">
+              <h2>Steckbrief</h2>
+              <p class="fields-title">{{ post.title }}</p>
+            </header>
+            <div class="field-groups">
+              @for (group of fieldGroups(); track group.id) {
+                <section class="field-group" [attr.data-group]="group.id">
+                  <h3 class="field-group__title">{{ group.title }}</h3>
+                  <ul class="field-list">
+                    @for (row of group.rows; track row.key) {
+                      <li class="field-row">
+                        <div class="field-row__top">
+                          <span class="field-row__label">{{ row.label }}</span>
+                          <span
+                            class="field-status"
+                            [class.filled]="row.filled"
+                            [class.open]="!row.filled"
+                          >
+                            {{ row.filled ? "Gefüllt" : "Offen" }}
+                          </span>
+                        </div>
+                        @if (row.filled) {
+                          <p
+                            class="field-row__value"
+                            [class.field-row__value--scroll]="
+                              row.key === 'text_context' || row.key === 'image_context'
+                            "
+                          >
+                            {{ row.value }}
+                          </p>
+                        }
+                      </li>
+                    }
+                  </ul>
+                </section>
+              }
+            </div>
+          } @else {
+            <div class="fields-empty">Post wählen…</div>
+          }
+        </aside>
+      </div>
     </div>
   </section>
 </div>

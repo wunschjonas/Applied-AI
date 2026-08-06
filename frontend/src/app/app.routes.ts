@@ -4,10 +4,15 @@ export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'home',
+    redirectTo: 'manager_agent',
   },
   {
     path: 'home',
+    pathMatch: 'full',
+    redirectTo: 'manager_agent',
+  },
+  {
+    path: 'manager_agent',
     loadComponent: () =>
       import('./pages/home/home.component').then(
         (module) => module.HomeComponent,
@@ -28,10 +33,10 @@ export const routes: Routes = [
       ),
   },
   {
-    path: 'logs',
+    path: 'preview',
     loadComponent: () =>
-      import('./pages/logs/logs.component').then(
-        (module) => module.LogsComponent,
+      import('./pages/preview/preview.component').then(
+        (module) => module.PreviewComponent,
       ),
   },
   {
@@ -40,10 +45,10 @@ export const routes: Routes = [
       import('./pages/rag/rag.component').then((module) => module.RagComponent),
   },
   {
-    path: 'preview',
+    path: 'logs',
     loadComponent: () =>
-      import('./pages/preview/preview.component').then(
-        (module) => module.PreviewComponent,
+      import('./pages/logs/logs.component').then(
+        (module) => module.LogsComponent,
       ),
   },
   {
@@ -55,6 +60,6 @@ export const routes: Routes = [
   },
   {
     path: '**',
-    redirectTo: 'home',
+    redirectTo: 'manager_agent',
   },
 ];

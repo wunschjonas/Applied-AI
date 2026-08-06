@@ -4,18 +4,35 @@
   <section class="page-content">
     <div class="agent-stage">
       <h1>Text Agent</h1>
-      <div class="preview-box">
-        @if (generatedText()) {
-          <p class="preview-text">{{ generatedText() }}</p>
-        } @else {
-          <span class="preview-placeholder">Noch kein Text generiert</span>
-        }
+
+      <app-post-context />
+
+      @if (!postFacade.currentPostId()) {
+        <p class="agent-hint">
+          Wähle zuerst auf der Manager-Agent-Seite einen Post aus, damit
+          Änderungen gespeichert werden können.
+        </p>
+      }
+
+      <div class="main-split">
+        <div class="main-split__preview">
+          <div class="preview-box">
+            @if (artifactFacade.generatedText()) {
+              <p class="preview-text">{{ artifactFacade.generatedText() }}</p>
+            } @else {
+              <span class="preview-placeholder">Noch kein Text generiert</span>
+            }
+          </div>
+        </div>
+
+        <div class="main-split__chat">
+          <app-chat-panel
+            [messages]="chatFacade.textAgentChat()"
+            [errorMessage]="chatError()"
+            (userSend)="onUserSend($event)"
+          />
+        </div>
       </div>
-      <app-chat-panel
-        [messages]="chatFacade.textAgentChat()"
-        (userSend)="onUserSend($event)"
-        (agentSend)="onAgentSend($event)"
-      />
     </div>
   </section>
 </div>

@@ -3,8 +3,9 @@
     <app-chat [messages]="messages()" />
   </div>
 
-  <app-chat-input
-    (userSend)="userSend.emit($event)"
-    (agentSend)="agentSend.emit($event)"
-  />
+  @if (errorMessage()) {
+    <p class="chat-panel__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <app-chat-input (userSend)="userSend.emit($event)" />
 </div>

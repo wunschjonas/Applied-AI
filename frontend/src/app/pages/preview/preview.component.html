@@ -3,22 +3,54 @@
 
   <section class="page-content">
     <div class="preview-stage">
-      <h1>Preview</h1>
-
-      <div class="preview-grid">
-        <div class="preview-card">
-          <h2>Generiertes Bild</h2>
-          <div class="preview-box preview-box--image">
-            <span class="preview-placeholder">Noch kein Bild generiert</span>
-          </div>
+      <header class="preview-header">
+        <div>
+          <h1>Preview</h1>
+          <p class="preview-lead">
+            Fertige Vorschau für den aktuell gewählten Post.
+          </p>
         </div>
+      </header>
 
-        <div class="preview-card">
-          <h2>Generierter Text</h2>
-          <div class="preview-box preview-box--text">
-            <span class="preview-placeholder">Noch kein Text generiert</span>
+      <app-post-context />
+
+      <div class="preview-layout">
+        <section class="preview-visual">
+          <div class="section-heading">
+            <h2>Bild</h2>
           </div>
-        </div>
+          <div class="visual-frame">
+            @if (artifactFacade.imageUrl()) {
+              <img [src]="artifactFacade.imageUrl()" alt="Generiertes Bild" />
+            } @else {
+              <div class="preview-empty">
+                <span class="preview-placeholder">Noch kein Bild generiert</span>
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="preview-copy">
+          <div class="section-heading">
+            <h2>Text</h2>
+          </div>
+          <div class="copy-frame">
+            @if (artifactFacade.generatedText()) {
+              <p class="preview-text">{{ artifactFacade.generatedText() }}</p>
+            } @else {
+              <div class="preview-empty">
+                <span class="preview-placeholder">Noch kein Text generiert</span>
+              </div>
+            }
+          </div>
+          @if (artifactFacade.hashtags().length) {
+            <div class="hashtag-bar">
+              @for (tag of artifactFacade.hashtags(); track tag) {
+                <span class="hashtag-chip">{{ tag }}</span>
+              }
+            </div>
+          }
+        </section>
       </div>
     </div>
   </section>

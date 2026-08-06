@@ -1,1 +1,37 @@
 .env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+.env.local
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Backend runtime data (JSON store, generated images, uploads)
+backend/app/storage/data/*
+!backend/app/storage/data/.gitkeep
+backend/app/storage/generated_images/*
+!backend/app/storage/generated_images/.gitkeep
+backend/app/storage/uploads/
+
+# Node / Angular (also covered by frontend/.gitignore)
+node_modules/
+.angular/
+frontend/dist/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

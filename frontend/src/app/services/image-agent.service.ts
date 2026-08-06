@@ -1,10 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
+import { API_BASE_URL } from '../core/api.config';
 import { AgentChatHistory } from '../models/chat.model';
+import { GeneratedArtifacts } from '../models/artifact.model';
 
 export interface ChatResponse {
-  message: string;
+  chat_id: string;
+  assistant_message: string;
+  generated_artifacts?: GeneratedArtifacts;
+  trace_id?: string;
 }
 
 @Injectable({
@@ -12,7 +17,7 @@ export interface ChatResponse {
 })
 export class ImageAgentService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:8080';
+  private readonly baseUrl = API_BASE_URL;
 
   public getChatHistory(postId: string): Observable<AgentChatHistory> {
     return this.http.get<AgentChatHistory>(
@@ -22,13 +27,14 @@ export class ImageAgentService {
 
   public chat(message: string, postId: string): Observable<ChatResponse> {
     const endpoint = `${this.baseUrl}/api/agents/image/chat`;
-    const payload = { message, post_id: postId };
-    console.log('[ImageAgent] POST', endpoint, payload);
-    return this.http.post<ChatResponse>(endpoint, payload).pipe(
-      tap({
-        next: (response) => console.log('[ImageAgent] Response:', response),
-        error: (err) => console.error('[ImageAgent] Error:', err),
-      }),
-    );
+    console.log('[ImageAgent] POST', endpoint, { message, post_id: postId });
+    return this.http
+      .post<ChatResponse>(endpoint, { message, post_id: postId })
+      .pipe(
+        tap({
+          next: (response) => console.log('[ImageAgent] Response:', response),
+          error: (err) => console.error('[ImageAgent] Error:', err),
+        }),
+      );
   }
 }

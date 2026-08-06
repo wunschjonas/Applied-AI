@@ -44,14 +44,11 @@ class ChatService:
         chat: dict[str, Any],
         role: str,
         content: str,
-        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         message = {
             "role": role,
             "content": content,
         }
-        if metadata:
-            message["metadata"] = metadata
         chat["messages"].append(message)
         self.store.save(chat)
         return message
@@ -61,6 +58,3 @@ class ChatService:
         if not chat:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
         return chat
-
-    def get_chats_by_agent(self, agent: str) -> list[dict[str, Any]]:
-        return [c for c in self.store.list() if c.get("agent") == agent]

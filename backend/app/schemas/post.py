@@ -9,6 +9,8 @@ class Platform(str, Enum):
     instagram = "instagram"
     x = "x"
     blog = "blog"
+    tiktok = "tiktok"
+    facebook = "facebook"
 
 
 class PostStatus(str, Enum):
@@ -25,6 +27,8 @@ class PostInit(BaseModel):
 class PostInitResponse(BaseModel):
     post_id: str
     title: str
+    welcome_message: str | None = None
+    missing_fields: list[str] = Field(default_factory=list)
 
 
 class PostCreate(BaseModel):
@@ -33,7 +37,10 @@ class PostCreate(BaseModel):
     platform: Platform
     target_audience: constr(min_length=3, max_length=300)
     tone_of_voice: constr(min_length=3, max_length=120)
-    additional_context: str | None = Field(default=None, max_length=1000)
+    text_context: str | None = Field(default=None, max_length=1000)
+    text_length: str | None = Field(default=None, max_length=40)
+    image_context: str | None = Field(default=None, max_length=500)
+    image_style: str | None = Field(default=None, max_length=120)
 
 
 class PostUpdate(BaseModel):
@@ -42,14 +49,19 @@ class PostUpdate(BaseModel):
     platform: Platform | None = None
     target_audience: constr(min_length=3, max_length=300) | None = None
     tone_of_voice: constr(min_length=3, max_length=120) | None = None
-    additional_context: str | None = Field(default=None, max_length=1000)
+    text_context: str | None = Field(default=None, max_length=1000)
+    text_length: str | None = Field(default=None, max_length=40)
+    image_context: str | None = Field(default=None, max_length=500)
+    image_style: str | None = Field(default=None, max_length=120)
 
 
 class PostPreview(BaseModel):
-    generated_text: str
-    post_structure: dict[str, Any]
-    hashtags: list[str]
+    generated_text: str = ""
+    post_structure: dict[str, Any] = Field(default_factory=dict)
+    hashtags: list[str] = Field(default_factory=list)
     image_prompt_optional: str | None = None
+    image_url: str | None = None
+    image_filename: str | None = None
 
 
 class PostResponse(BaseModel):
@@ -60,5 +72,9 @@ class PostResponse(BaseModel):
     platform: Platform | None = None
     target_audience: str | None = None
     tone_of_voice: str | None = None
-    additional_context: str | None = None
+    text_context: str | None = None
+    text_length: str | None = None
+    image_context: str | None = None
+    image_style: str | None = None
     preview: PostPreview | None = None
+    missing_fields: list[str] = Field(default_factory=list)

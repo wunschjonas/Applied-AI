@@ -5,20 +5,15 @@
 
   <textarea
     id="agent-command"
-    placeholder="Beschreibe, was dein Agent als Naechstes erledigen soll ..."
+    placeholder="Beschreibe, was dein Agent als Nächstes erledigen soll ..."
     [value]="inputText()"
     (input)="inputText.set($any($event.target).value)"
     (keydown.enter)="$event.preventDefault(); sendMessage()"
   ></textarea>
 
   <div class="chat-input__footer">
-    <button
-      type="button"
-      (click)="simulateAgentMessage()"
-      class="btn-secondary"
-    >
-      Agent Test
+    <button type="button" [disabled]="!canSend()" (click)="sendMessage()">
+      Senden
     </button>
-    <button type="button" (click)="sendMessage()">Senden</button>
   </div>
 </div>

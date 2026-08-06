@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
+
+from app.graphs.dependencies import record_trace_event
+from app.graphs.support.tao_composer import TaoEvent
 from app.services.huggingface_service import HuggingFaceService
 from app.services.trace_service import TraceService
 
@@ -11,19 +15,23 @@ class BaseAgent:
         self.hf = hf
         self.trace_service = trace_service
 
-    def trace(
+    def record(
         self,
         trace: dict,
-        decision: str,
-        action: str,
-        observation: str,
-        status_value: str = "success",
+        phase: str,
+        status: str = "success",
+        intent: str | None = None,
+        **facts: Any,
     ) -> None:
-        self.trace_service.add_step(
-            trace=trace,
-            agent=self.name,
-            decision=decision,
-            action=action,
-            observation=observation,
-            status_value=status_value,
+        record_trace_event(
+            self.trace_service,
+            trace,
+            TaoEvent(
+                phase=phase,
+                node=self.name,
+                agent=self.name,
+                status=status,
+                intent=intent,
+                facts=facts,
+            ),
         )

@@ -1,45 +1,83 @@
 .page-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
   background: #ffffff;
 }
 
 .page-content {
   flex: 1;
-  padding: 2.5rem;
-  overflow-y: auto;
+  min-height: 0;
+  min-width: 0;
+  padding: 1.25rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
 }
 
 h1 {
-  margin: 0 0 0.25rem;
+  margin: 0;
   color: #17324d;
   font-size: 2rem;
+  flex-shrink: 0;
 }
 
 .page-subtitle {
-  margin: 0 0 2rem;
+  margin: 0;
   color: #6b7280;
   font-size: 0.95rem;
+  flex-shrink: 0;
 }
 
-// Split layout
+// Split layout — fills remaining viewport height
 
 .memory-layout {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
-  align-items: start;
+  overflow: hidden;
 }
 
-.memory-left {
+.memory-left,
+.memory-right {
+  min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  overflow: hidden;
+}
+
+.memory-left__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-right: 0.15rem;
 }
 
 .memory-right {
-  position: sticky;
-  top: 2.5rem;
+  .memory-card--full {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+}
+
+.entries-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0.15rem;
 }
 
 // Card
@@ -49,10 +87,7 @@ h1 {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 1.5rem;
-}
-
-.memory-card--full {
-  min-height: 200px;
+  flex-shrink: 0;
 }
 
 .card-header {
@@ -60,6 +95,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .card-title {
@@ -71,6 +107,82 @@ h1 {
 
 .card-header .card-title {
   margin-bottom: 0;
+}
+
+// Upload drop zone
+
+.upload-hint {
+  margin: -0.5rem 0 1rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 120px;
+  padding: 1.25rem;
+  border: 2px dashed #c7d2fe;
+  border-radius: 8px;
+  background: #eef2ff;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.drop-zone--active {
+  border-color: #4f46e5;
+  background: #e0e7ff;
+}
+
+.drop-zone--busy {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.drop-zone-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #17324d;
+}
+
+.drop-zone-sub {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.file-picker-btn {
+  display: inline-block;
+  padding: 0.45rem 1rem;
+  background: #6366f1;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &:hover:not(.disabled) {
+    background: #4f46e5;
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.error-msg {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: #dc2626;
+}
+
+.drop-zone + .success-msg,
+.drop-zone + .error-msg {
+  margin-top: 0.75rem;
 }
 
 // Form fields
@@ -117,16 +229,6 @@ h1 {
   &:focus {
     outline: none;
     border-color: #6366f1;
-  }
-}
-
-.search-row {
-  display: flex;
-  gap: 0.75rem;
-
-  .memory-input {
-    flex: 1;
-    margin-bottom: 0;
   }
 }
 
@@ -189,30 +291,25 @@ h1 {
 .empty-msg {
   font-size: 0.9rem;
   color: #9ca3af;
+  margin: 0;
 }
 
 // Lists
 
-.result-list,
 .entry-list {
   list-style: none;
   padding: 0;
-  margin: 1rem 0 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.result-item {
-  padding: 0.6rem 0.85rem;
-  background: #ede9fe;
-  border-left: 3px solid #6366f1;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  color: #374151;
-}
-
 .entry-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding: 0.6rem 0.85rem;
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -220,6 +317,41 @@ h1 {
   font-size: 0.9rem;
   color: #374151;
   word-break: break-word;
+}
+
+.entry-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.entry-content {
+  margin: 0;
+}
+
+.entry-tags {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.delete-btn {
+  flex-shrink: 0;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.8rem;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #fee2e2;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 // Responsive
@@ -230,14 +362,16 @@ h1 {
   }
 
   .page-content {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .memory-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   }
 
+  .memory-left,
   .memory-right {
-    position: static;
+    min-height: 0;
   }
 }

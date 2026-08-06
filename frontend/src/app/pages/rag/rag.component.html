@@ -6,83 +6,86 @@
     <p class="page-subtitle">Speichere Fakten und Kontext, die die Agenten bei der Inhaltserstellung berücksichtigen.</p>
 
     <div class="memory-layout">
-
-      <!-- LINKE SPALTE: Speichern + Suchen -->
       <div class="memory-left">
+        <div class="memory-left__scroll">
+          <!-- Datei-Upload -->
+          <div class="memory-card">
+            <h2 class="card-title">Datei als Kontext hochladen</h2>
+            <p class="upload-hint">PDF-Text oder Bildbeschreibung landet im Gedächtnis für die Agenten.</p>
 
-        <!-- Fakt speichern -->
-        <div class="memory-card">
-          <h2 class="card-title">Fakt speichern</h2>
-
-          <label class="field-label" for="storeContent">Inhalt</label>
-          <textarea
-            id="storeContent"
-            class="memory-textarea"
-            placeholder="z.B. Unsere Zielgruppe sind Fachkräfte zwischen 25 und 35."
-            [ngModel]="storeContent()"
-            (ngModelChange)="storeContent.set($event)"
-            rows="4"
-          ></textarea>
-
-          <label class="field-label" for="storeTags">Tags <span class="field-hint">(optional, kommagetrennt)</span></label>
-          <input
-            id="storeTags"
-            type="text"
-            class="memory-input"
-            placeholder="z.B. zielgruppe, brand"
-            [ngModel]="storeTags()"
-            (ngModelChange)="storeTags.set($event)"
-          />
-
-          <div class="card-actions">
-            <button
-              class="primary-btn"
-              [disabled]="isStoring() || !storeContent().trim()"
-              (click)="store()"
+            <div
+              class="drop-zone"
+              [class.drop-zone--active]="isDragOver()"
+              [class.drop-zone--busy]="isUploading()"
+              (dragover)="onDragOver($event)"
+              (dragleave)="onDragLeave($event)"
+              (drop)="onDrop($event)"
             >
-              {{ isStoring() ? 'Speichert...' : 'Speichern' }}
-            </button>
-            @if (storeSuccess()) {
-              <span class="success-msg">&#10003; Erfolgreich gespeichert</span>
+              <p class="drop-zone-title">
+                {{ isUploading() ? 'Upload läuft...' : 'PDF oder Bild hierher ziehen' }}
+              </p>
+              <p class="drop-zone-sub">PNG, JPEG, WebP oder PDF</p>
+              <label class="file-picker-btn" [class.disabled]="isUploading()">
+                Datei wählen
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                  [disabled]="isUploading()"
+                  (change)="onFileSelected($event)"
+                  hidden
+                />
+              </label>
+            </div>
+
+            @if (uploadMessage()) {
+              <p class="success-msg">{{ uploadMessage() }}</p>
+            }
+            @if (uploadError()) {
+              <p class="error-msg">{{ uploadError() }}</p>
             }
           </div>
-        </div>
 
-        <!-- Semantisch suchen -->
-        <div class="memory-card">
-          <h2 class="card-title">Semantisch suchen</h2>
+          <!-- Fakt speichern -->
+          <div class="memory-card">
+            <h2 class="card-title">Fakt speichern</h2>
 
-          <div class="search-row">
+            <label class="field-label" for="storeContent">Inhalt</label>
+            <textarea
+              id="storeContent"
+              class="memory-textarea"
+              placeholder="z.B. Unsere Zielgruppe sind Fachkräfte zwischen 25 und 35."
+              [ngModel]="storeContent()"
+              (ngModelChange)="storeContent.set($event)"
+              rows="4"
+            ></textarea>
+
+            <label class="field-label" for="storeTags">Tags <span class="field-hint">(optional, kommagetrennt)</span></label>
             <input
+              id="storeTags"
               type="text"
               class="memory-input"
-              placeholder="z.B. Zielgruppe, Tonalität, Produktname..."
-              [ngModel]="searchQuery()"
-              (ngModelChange)="searchQuery.set($event)"
-              (keydown.enter)="search()"
+              placeholder="z.B. zielgruppe, brand"
+              [ngModel]="storeTags()"
+              (ngModelChange)="storeTags.set($event)"
             />
-            <button
-              class="primary-btn"
-              [disabled]="isSearching() || !searchQuery().trim()"
-              (click)="search()"
-            >
-              {{ isSearching() ? 'Sucht...' : 'Suchen' }}
-            </button>
+
+            <div class="card-actions">
+              <button
+                class="primary-btn"
+                [disabled]="isStoring() || !storeContent().trim()"
+                (click)="store()"
+              >
+                {{ isStoring() ? 'Speichert...' : 'Speichern' }}
+              </button>
+              @if (storeSuccess()) {
+                <span class="success-msg">&#10003; Erfolgreich gespeichert</span>
+              }
+              @if (storeError()) {
+                <p class="error-msg">{{ storeError() }}</p>
+              }
+            </div>
           </div>
-
-          @if (hasSearched()) {
-            @if (searchResults().length > 0) {
-              <ul class="result-list">
-                @for (result of searchResults(); track $index) {
-                  <li class="result-item">{{ result }}</li>
-                }
-              </ul>
-            } @else {
-              <p class="empty-msg">Keine passenden Einträge gefunden.</p>
-            }
-          }
         </div>
-
       </div>
 
       <!-- RECHTE SPALTE: Alle Einträge -->
@@ -95,25 +98,46 @@
               (click)="loadAll()"
               [disabled]="isLoadingList()"
               title="Aktualisieren"
+              aria-label="Einträge aktualisieren"
             >
               &#x21bb;
             </button>
           </div>
 
-          @if (isLoadingList()) {
-            <p class="loading-msg">Lädt...</p>
-          } @else if (allEntries().length === 0) {
-            <p class="empty-msg">Noch keine Einträge gespeichert.</p>
-          } @else {
-            <ul class="entry-list">
-              @for (entry of allEntries(); track $index) {
-                <li class="entry-item">{{ entry }}</li>
+          <div class="entries-scroll">
+            @if (isLoadingList()) {
+              <p class="loading-msg">Lädt...</p>
+            } @else if (allEntries().length === 0) {
+              <p class="empty-msg">Noch keine Einträge gespeichert.</p>
+            } @else {
+              @if (deleteError()) {
+                <p class="error-msg">{{ deleteError() }}</p>
               }
-            </ul>
-          }
+              <ul class="entry-list">
+                @for (entry of allEntries(); track entry.content_hash || $index) {
+                  <li class="entry-item">
+                    <div class="entry-body">
+                      <p class="entry-content">{{ entry.content }}</p>
+                      @if (entry.tags.length > 0) {
+                        <p class="entry-tags">{{ entry.tags.join(', ') }}</p>
+                      }
+                    </div>
+                    <button
+                      class="delete-btn"
+                      type="button"
+                      title="Eintrag löschen"
+                      [disabled]="!entry.content_hash || deletingHash() === entry.content_hash"
+                      (click)="deleteEntry(entry)"
+                    >
+                      {{ deletingHash() === entry.content_hash ? '...' : 'Löschen' }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
         </div>
       </div>
-
     </div>
   </section>
 </div>

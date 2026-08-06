@@ -4,67 +4,191 @@
   <section class="page-content">
     <div class="page-header">
       <h1>Logs</h1>
-      <span class="log-count">{{ logs.length }} Einträge</span>
+      <span class="log-count">{{ logs().length }} Einträge</span>
     </div>
 
     <div class="filter-bar">
-      <button class="filter-btn" [class.active]="activeFilter === 'all'" (click)="loadAll()">
+      <button
+        class="filter-btn"
+        [class.active]="activeFilter() === 'all'"
+        [attr.aria-pressed]="activeFilter() === 'all'"
+        (click)="loadAll()"
+      >
         Alle Logs
       </button>
-      <button class="filter-btn" [class.active]="activeFilter === 'manager'" (click)="loadManagerLogs()">
+      <button
+        class="filter-btn"
+        [class.active]="activeFilter() === 'manager'"
+        [attr.aria-pressed]="activeFilter() === 'manager'"
+        (click)="loadManagerLogs()"
+      >
         Manager Agent
       </button>
-      <button class="filter-btn" [class.active]="activeFilter === 'text'" (click)="loadTextLogs()">
+      <button
+        class="filter-btn"
+        [class.active]="activeFilter() === 'text'"
+        [attr.aria-pressed]="activeFilter() === 'text'"
+        (click)="loadTextLogs()"
+      >
         Text Agent
       </button>
-      <button class="filter-btn" [class.active]="activeFilter === 'image'" (click)="loadImageLogs()">
+      <button
+        class="filter-btn"
+        [class.active]="activeFilter() === 'image'"
+        [attr.aria-pressed]="activeFilter() === 'image'"
+        (click)="loadImageLogs()"
+      >
         Bild Agent
       </button>
+
+      <label class="post-filter" for="logPostFilter">
+        Post
+        <select
+          id="logPostFilter"
+          class="post-filter__select"
+          [ngModel]="selectedPostId()"
+          (ngModelChange)="onPostFilterChange($event)"
+        >
+          <option value="">Alle Posts</option>
+          @for (post of posts(); track post.id) {
+            <option [value]="post.id">{{ post.title }}</option>
+          }
+        </select>
+      </label>
+
+      <div class="delete-actions">
+        <button
+          type="button"
+          class="delete-btn"
+          [disabled]="!deleteTargetPostId() || isDeleting()"
+          (click)="deleteSelectedPostLogs()"
+          title="Logs des gefilterten bzw. aktuellen Posts löschen"
+        >
+          {{ isDeleting() ? "Lösche..." : "Post-Logs löschen" }}
+        </button>
+        <button
+          type="button"
+          class="delete-btn delete-btn--all"
+          [disabled]="isDeleting()"
+          (click)="deleteAllLogs()"
+        >
+          {{ isDeleting() ? "Lösche..." : "Alle Logs löschen" }}
+        </button>
+      </div>
     </div>
 
-    <div class="loading" *ngIf="isLoading">Lade Logs...</div>
+    @if (deleteMessage()) {
+      <p class="delete-msg">{{ deleteMessage() }}</p>
+    }
 
-    <div class="empty" *ngIf="!isLoading && logs.length === 0">
+    @if (loadError()) {
+      <p class="delete-msg" role="alert">{{ loadError() }}</p>
+    }
+
+    <div class="loading" *ngIf="isLoading()">Lade Logs...</div>
+
+    <div class="empty" *ngIf="!isLoading() && logs().length === 0">
       Keine Logs vorhanden.
     </div>
 
-    <ul class="log-list" *ngIf="!isLoading && logs.length > 0">
-      <li class="log-item" *ngFor="let log of logs">
-
+    <ul class="log-list" *ngIf="!isLoading() && logs().length > 0">
+      <li class="log-item" *ngFor="let log of logs()">
         <div class="log-header">
           <div class="log-header-left">
-            <span class="log-step">{{ log.step }}</span>
+            <div class="log-field">
+              <span class="log-field-label">Schritt:</span>
+              <span class="log-step">{{ log.step }}</span>
+            </div>
             @if (log.tool_called) {
-              <span class="tool-badge" [class.hf]="log.tool_called === 'huggingface_generate'" [class.mcp]="log.tool_called.startsWith('mcp_')">
-                &#9874; {{ log.tool_called }}
-              </span>
+              <div class="log-field">
+                <span class="log-field-label">Tool:</span>
+                <span
+                  class="tool-badge"
+                  [class.hf]="
+                    log.tool_called === 'huggingface_generate' ||
+                    log.tool_called.startsWith('huggingface_')
+                  "
+                  [class.mcp]="
+                    log.tool_called.startsWith('mcp_') ||
+                    log.tool_called.startsWith('memory_')
+                  "
+                >
+                  {{ log.tool_called }}
+                </span>
+              </div>
             }
           </div>
-          <span class="log-status" [class.success]="log.status === 'success'" [class.error]="log.status === 'error'" [class.skipped]="log.status === 'skipped'">
-            {{ log.status }}
-          </span>
+          <div class="log-field log-field--status">
+            <span class="log-field-label">Status:</span>
+            <span
+              class="log-status"
+              [class.success]="log.status === 'success'"
+              [class.error]="log.status === 'error'"
+              [class.skipped]="log.status === 'skipped'"
+              [class.needs-input]="log.status === 'needs_input'"
+            >
+              {{ log.status }}
+            </span>
+          </div>
         </div>
 
-        @if (log.decision) {
-          <div class="log-decision">
-            <span class="decision-label">Entscheidung:</span> {{ log.decision }}
+        <div class="log-tao">
+          @if (log.thought) {
+            <div class="tao-line">
+              <span class="tao-label">Thought:</span> {{ log.thought }}
+            </div>
+          }
+          <div class="tao-line">
+            <span class="tao-label">Action:</span> {{ log.action }}
           </div>
-        }
+          @if (log.observation) {
+            <div class="tao-line">
+              <span class="tao-label">Observation:</span> {{ log.observation }}
+            </div>
+          }
+        </div>
 
         <div class="log-body">
-          <span class="log-summary">{{ log.input_summary }}</span>
+          <div class="log-field log-field--block">
+            <span class="log-field-label">Eingabe:</span>
+            <span class="log-summary">{{ log.input_summary }}</span>
+          </div>
           @if (log.output_summary) {
-            <span class="log-output">&#8594; {{ log.output_summary }}</span>
+            <div class="log-field log-field--block">
+              <span class="log-field-label">Ausgabe:</span>
+              <span class="log-output">{{ log.output_summary }}</span>
+            </div>
           }
         </div>
 
         <div class="log-footer">
-          <span class="log-agent">{{ log.agent }}</span>
-          <span class="log-run-id" title="Run ID: {{ log.run_id }}">run: {{ log.run_id | slice:0:8 }}…</span>
-          <span class="log-meta">{{ log.timestamp | date: 'dd.MM.yyyy, HH:mm:ss' }}</span>
-          <span class="log-duration">{{ log.duration_ms }} ms</span>
+          <div class="log-field">
+            <span class="log-field-label">Agent:</span>
+            <span class="log-agent">{{ log.agent }}</span>
+          </div>
+          <div class="log-field">
+            <span class="log-field-label">Post:</span>
+            <span class="log-post" [title]="log.post_id || ''">{{
+              postLabel(log)
+            }}</span>
+          </div>
+          <div class="log-field">
+            <span class="log-field-label">Lauf-ID:</span>
+            <span class="log-run-id" title="Run ID: {{ log.run_id }}"
+              >{{ log.run_id | slice: 0 : 8 }}…</span
+            >
+          </div>
+          <div class="log-field">
+            <span class="log-field-label">Zeit:</span>
+            <span class="log-meta">{{
+              log.timestamp | date: "dd.MM.yyyy, HH:mm:ss" : "Europe/Berlin"
+            }}</span>
+          </div>
+          <div class="log-field">
+            <span class="log-field-label">Dauer:</span>
+            <span class="log-duration">{{ log.duration_ms }} ms</span>
+          </div>
         </div>
-
       </li>
     </ul>
   </section>

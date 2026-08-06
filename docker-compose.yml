@@ -1,4 +1,3 @@
-version: '3.9'
 services:
   memory:
     image: doobidoo/mcp-memory-service:latest
@@ -22,8 +21,22 @@ services:
       - '8080:8080'
     depends_on:
       - memory
+    env_file:
+      - ./backend/.env
     environment:
       - MCP_MEMORY_URL=http://memory:8765/mcp
+    volumes:
+      - backend_data:/app/app/storage
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:8080/health')
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   frontend:
@@ -32,8 +45,9 @@ services:
     ports:
       - '4200:4200'
     restart: unless-stopped
-    environment:
-      - BACKEND_URL=http://localhost:8080
+    # Browser calls the host-mapped backend; URL is baked into the Angular build
+    # (src/environments). No runtime BACKEND_URL injection.
 
 volumes:
   memory_data:
+  backend_data:

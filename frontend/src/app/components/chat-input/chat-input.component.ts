@@ -9,21 +9,17 @@ import { Component, output, signal } from '@angular/core';
 })
 export class ChatInputComponent {
   public userSend = output<string>();
-  public agentSend = output<string>();
 
   public inputText = signal<string>('');
+
+  public canSend(): boolean {
+    return this.inputText().trim().length > 0;
+  }
 
   public sendMessage(): void {
     const text = this.inputText().trim();
     if (!text) return;
     this.userSend.emit(text);
-    this.inputText.set('');
-  }
-
-  public simulateAgentMessage(): void {
-    const text = this.inputText().trim();
-    if (!text) return;
-    this.agentSend.emit(text);
     this.inputText.set('');
   }
 }
