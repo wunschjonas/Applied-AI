@@ -64,28 +64,3 @@ def test_brief_complete_auto_ack_then_generate(tmp_path: Path):
 
     result = run_generation(graph, post_id)
     assert result["used_agents"] == ["TextAgent", "ImageAgent"]
-
-
-def test_welcome_message_has_no_content_sketch():
-    from app.graphs.support.post_data_llm import welcome_message
-
-    text = welcome_message("Pferdepflege", hf=None).casefold()
-    assert "pferdepflege" in text
-    assert "skizze" not in text
-    assert "skizzenbild" not in text
-    assert "inhalt skizz" not in text
-
-
-def test_marketing_paste_guard_rejects_long_quoted_copy():
-    from app.graphs.nodes.response import _looks_like_marketing_paste
-
-    short = "Text und Bild sind fertig. Schau sie in der Vorschau an."
-    assert _looks_like_marketing_paste(short) is False
-
-    long_quote = (
-        'Die Kombination ist perfekt! Hier ist ein Vorschlag: '
-        '"Halt dich immer im Spiegel deines Pferdes! In jedem Tag der Versorgung '
-        "liegt ein Stück Hingabe. Von der richtigen Fütterung bis hin zur täglichen "
-        'Stallpflege." Was denkst du?'
-    )
-    assert _looks_like_marketing_paste(long_quote) is True

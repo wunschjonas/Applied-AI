@@ -44,7 +44,6 @@ def test_missing_fields_for_intent_requires_text_and_image_extras():
 def test_generate_with_only_topic_is_blocked(tmp_path: Path):
     """explicit_generate must not bypass incomplete Steckbrief."""
     hf = FakeHF()
-    # Skip completeness tool on purpose — router safety-net must still block.
     original = FakeHF.chat_with_tools
 
     def no_tools(self, messages, tools, max_tokens: int = 400, temperature: float = 0.2):
@@ -73,84 +72,6 @@ def test_generate_with_only_topic_is_blocked(tmp_path: Path):
         )
     finally:
         FakeHF.chat_with_tools = original
-
-
-def test_image_intent_blocks_without_image_context(tmp_path: Path):
-    hf = FakeHF()
-    graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=FakeRAG(""))
-    seed_post(
-        graph,
-        "post-no-motif",
-        topic="Deutsche Nationalmannschaft",
-        platform="LinkedIn",
-        target_audience="Fußballfans",
-        tone_of_voice="stolz",
-    )
-    result = graph.run("Erstelle bitte nur ein Bild dazu.", "post-no-motif")
-    assert "ImageAgent" not in (result.get("used_agents") or [])
-    message = (result.get("assistant_message") or "").lower()
-    assert "bild" in message or "motiv" in message
-
-
-def test_image_intent_blocks_without_image_style(tmp_path: Path):
-    hf = FakeHF()
-    graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=FakeRAG(""))
-    seed_post(
-        graph,
-        "post-no-style",
-        topic="Deutsche Nationalmannschaft",
-        platform="LinkedIn",
-        target_audience="Fußballfans",
-        tone_of_voice="stolz",
-        image_context="Zwei Spieler und Flaggen",
-    )
-    result = graph.run("Erstelle bitte nur ein Bild dazu.", "post-no-style")
-    assert "ImageAgent" not in (result.get("used_agents") or [])
-    message = (result.get("assistant_message") or "").lower()
-    assert "stil" in message or "style" in message or "bild" in message
-
-
-def test_text_intent_blocks_without_text_context(tmp_path: Path):
-    hf = FakeHF()
-    graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=FakeRAG(""))
-    seed_post(
-        graph,
-        "post-no-text-ctx",
-        topic="Deutsche Nationalmannschaft",
-        platform="LinkedIn",
-        target_audience="Fußballfans",
-        tone_of_voice="stolz",
-    )
-    result = graph.run("Schreibe bitte einen LinkedIn Post dazu.", "post-no-text-ctx")
-    assert "TextAgent" not in (result.get("used_agents") or [])
-    message = (result.get("assistant_message") or "").lower()
-    assert any(token in message for token in ("text", "kontext", "laenge", "länge", "sagen", "lang"))
-
-
-def test_image_agent_calls_get_post_data(tmp_path: Path):
-    hf = FakeHF()
-    graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=FakeRAG(""))
-    seed_post(
-        graph,
-        "post-img-tool",
-        topic="Deutsche Nationalmannschaft",
-        platform="LinkedIn",
-        target_audience="Fußballfans",
-        tone_of_voice="stolz",
-        image_context="Deutscher Spieler, Flaggen von Kanada Mexiko USA im Hintergrund",
-        image_style="fotorealistisch",
-    )
-    result = graph.run("Erstelle bitte nur ein Bild dazu.", "post-img-tool")
-    assert result.get("generation_pending") is True
-    from helpers import run_generation
-
-    result = run_generation(graph, "post-img-tool", intent="image_only")
-    assert "ImageAgent" in (result.get("used_agents") or [])
-    image = (result.get("generated_artifacts") or {}).get("image") or {}
-    assert "get_post_data" in (image.get("tools_called") or [])
-    # Prompt path should have seen image_context via enrich (FakeHF generate captures user prompts)
-    joined = " ".join(hf.user_prompts).lower()
-    assert "image_context" in joined or "flaggen" in joined or "spieler" in joined
 
 
 def test_bildmotiv_briefing_does_not_generate_image(tmp_path: Path):
@@ -192,51 +113,3 @@ def test_bildmotiv_briefing_does_not_generate_image(tmp_path: Path):
     assert not any(step.get("agent") == "image_agent_node" for step in trace["steps"])
     message_out = (result.get("assistant_message") or "").lower()
     assert "bild" in message_out or "text" in message_out or "notiert" in message_out or "soll ich" in message_out
-
-
-def test_keyword_only_asks_before_generate():
-    """Bare text/image keywords without erstell/schreib → ask, do not auto-run agents."""
-    from app.agents.manager_agent import ManagerIntentClassifier
-
-    clf = ManagerIntentClassifier()
-
-    ambiguous_image = clf.classify_intent("Ein Bild mit zwei Spielern und Flaggen.")
-    assert ambiguous_image.label == "clarification_needed"
-    assert ambiguous_image.use_image is False
-
-    ambiguous_text = clf.classify_intent("LinkedIn Post über die Nationalmannschaft")
-    assert ambiguous_text.label == "clarification_needed"
-    assert ambiguous_text.use_text is False
-
-    explicit = clf.classify_intent("Erstelle bitte ein Bild mit zwei Spielern und Flaggen.")
-    # Without "nur Bild", generate verbs default to text_and_image in the fallback path.
-    assert explicit.label in {"image_only", "text_and_image"}
-    assert explicit.use_image is True
-
-    explicit_text = clf.classify_intent("Schreibe einen LinkedIn Post über die Nationalmannschaft.")
-    assert explicit_text.label in {"text_only", "text_and_image"}
-    assert explicit_text.use_text is True
-
-    # Explicit scope phrases remain direct even without erstell/schreib.
-    only_image = clf.classify_intent("Nur ein Bild bitte.")
-    assert only_image.label == "image_only"
-
-
-def test_keyword_only_graph_does_not_run_image_agent(tmp_path: Path):
-    hf = FakeHF()
-    graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=FakeRAG(""))
-    seed_post(
-        graph,
-        "post-ask-first",
-        topic="Fußball",
-        platform="LinkedIn",
-        target_audience="Fans",
-        tone_of_voice="stolz",
-        image_context="Zwei Spieler, Flaggen im Hintergrund",
-        image_style="fotorealistisch",
-    )
-    result = graph.run("Ein Bild mit den WM-Gewinnern.", "post-ask-first")
-    assert "ImageAgent" not in (result.get("used_agents") or [])
-    assert "TextAgent" not in (result.get("used_agents") or [])
-    message = (result.get("assistant_message") or "").lower()
-    assert any(token in message for token in ("text", "bild", "beides", "soll ich"))

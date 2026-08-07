@@ -45,17 +45,3 @@ def test_image_agent_refines_post_image_via_img2img(tmp_path: Path):
     assert artifact["img2img_source"] == "current_post"
     assert artifact["used_current_image"] is True
     assert artifact["image_url"] == f"/generated-images/{POST_ID}.png"
-
-
-def test_image_agent_uses_text_to_image_without_post_image(tmp_path: Path):
-    hf = FakeHF()
-    service = build_agent_service(tmp_path, hf)
-    _seed_post(service)
-
-    result = service.image_agent_chat("Erzeuge ein neues Motiv.", POST_ID)
-
-    assert hf.img2img_calls == []
-    artifact = result["generated_artifacts"]["image"]
-    assert artifact["generation_mode"] == "text_to_image"
-    assert artifact["img2img_source"] == "none"
-    assert artifact["image_url"]

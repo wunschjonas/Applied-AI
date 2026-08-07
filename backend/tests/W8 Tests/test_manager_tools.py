@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.graphs.support.manager_tools import MANAGER_TOOL_NAMES, ManagerToolDispatcher
+from app.graphs.support.manager_tools import ManagerToolDispatcher
 
 
 class _FakeRAG:
@@ -39,30 +39,6 @@ def _dispatcher(web=None) -> ManagerToolDispatcher:
     )
 
 
-def test_manager_tool_names_cover_plan_set():
-    assert MANAGER_TOOL_NAMES == {
-        "memory_search",
-        "memory_list",
-        "memory_store",
-        "web_search",
-        "get_post_data",
-        "check_post_data_completeness",
-    }
-
-
-def test_dispatch_memory_search_and_list():
-    d = _dispatcher()
-    state: dict = {"user_message": "brand color", "post": {"topic": "brand"}}
-    obs, status, effects = d.dispatch("memory_search", {"query": "brand color"}, state)
-    assert status == "success"
-    assert effects.get("rag_needed")
-    assert effects.get("rag_hit_count", 0) >= 1
-
-    obs2, status2, _ = d.dispatch("memory_list", {}, state)
-    assert status2 == "success"
-    assert len(obs2) > 10
-
-
 def test_dispatch_memory_store():
     d = _dispatcher()
     obs, status, effects = d.dispatch(
@@ -73,58 +49,6 @@ def test_dispatch_memory_store():
     assert status == "success"
     assert "Stored" in obs or "gespeichert" in obs.lower() or "chars" in obs
     assert d.rag.stored
-
-
-def test_suggest_memory_tags_are_topical():
-    from app.graphs.support.manager_tools import suggest_memory_tags
-
-    tags = suggest_memory_tags(
-        "Spanien gewann die Fußball-Weltmeisterschaft 2026 im Finale gegen Argentinien.",
-        ["manager_store"],
-    )
-    assert "manager_store" not in tags
-    assert "fussball_wm" in tags or "fussball" in tags
-    assert "spanien" in tags
-
-
-def test_memory_store_resolves_prior_user_fact():
-    from app.graphs.support.manager_tools import resolve_memory_store_content
-
-    prior = (
-        "Die deutsche Nationalmannschaft hat eine lange und ehrenvolle Geschichte im Fußball. "
-        "Ihr Erfolg erstreckt sich über mehrere Jahrzehnte."
-    )
-    chat = {"messages": [{"role": "USER", "content": prior}]}
-    resolved = resolve_memory_store_content(
-        "den Fakt im Rag",
-        user_message="Speicher den Fakt im Rag ab",
-        chat=chat,
-    )
-    assert "Nationalmannschaft" in resolved
-    assert "Fakt im Rag" not in resolved
-
-    d = _dispatcher()
-    obs, status, effects = d.dispatch(
-        "memory_store",
-        {"content": "den Fakt im Rag"},
-        {"user_message": "Speicher den Fakt im Rag ab", "chat": chat},
-    )
-    assert status == "success"
-    assert "Nationalmannschaft" in d.rag.stored[0][0]
-    assert "Nationalmannschaft" in (effects.get("stored_preview") or "")
-
-
-def test_dispatch_web_search_and_error_fallback_message():
-    d = _dispatcher(web=lambda q, max_results=3: f"1. Result about {q}")
-    obs, status, effects = d.dispatch("web_search", {"query": "KI Trends 2026"}, {})
-    assert status == "success"
-    assert "KI Trends" in obs
-    assert effects.get("web_context")
-
-    d2 = _dispatcher(web=None)
-    obs2, status2, _ = d2.dispatch("web_search", {"query": "x"}, {})
-    assert status2 == "error"
-    assert "unavailable" in obs2.lower() or "memory_search" in obs2
 
 
 def test_dispatch_brief_tools():

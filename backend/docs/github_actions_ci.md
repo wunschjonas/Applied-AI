@@ -15,7 +15,7 @@ Im Job wird aus dem Ordner `backend/` Folgendes ausgeführt:
 python -m pytest "tests/W8 Tests/" -q
 ```
 
-Damit laufen alle Tests unter [`backend/tests/W8 Tests/`](../tests/W8%20Tests/).  
+Damit laufen die **Kern-Tests** unter [`backend/tests/W8 Tests/`](../tests/W8%20Tests/) (aktuell **15** Unit-/Integrationstests zu Steckbrief, Ack/Generate, Validation, Tools, TAO, Image-Refine und Health).  
 Schlägt ein Test fehl, schlägt der gesamte Workflow fehl.
 
 Zusätzlich prüft CI:
