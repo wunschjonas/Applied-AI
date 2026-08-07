@@ -64,10 +64,7 @@
   overflow: hidden;
 }
 
-.preview-visual {
-  flex: 1.1 1 0;
-}
-
+.preview-visual,
 .preview-copy {
   flex: 1 1 0;
 }
@@ -166,13 +163,14 @@
     flex-direction: column;
   }
 
-  .preview-visual {
-    flex: 0 0 auto;
-    max-height: 45%;
-  }
-
+  .preview-visual,
   .preview-copy {
     flex: 1 1 auto;
+  }
+
+  .preview-visual {
+    max-height: 45%;
+    flex: 0 0 auto;
   }
 }
 

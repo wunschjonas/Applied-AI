@@ -96,6 +96,7 @@ export class HomeComponent implements OnInit {
   public allPosts = signal<Post[]>([]);
   public isLoadingPosts = signal(false);
   public chatError = signal('');
+  public chatBusy = signal(false);
   public selectedPost = signal<Post | null>(null);
 
   public fieldGroups = computed<PostFieldGroup[]>(() => {
@@ -219,9 +220,10 @@ export class HomeComponent implements OnInit {
 
   public onUserSend(text: string): void {
     const postId = this.postFacade.currentPostId();
-    if (!postId) return;
+    if (!postId || this.chatBusy()) return;
 
     this.chatError.set('');
+    this.chatBusy.set(true);
     this.chatFacade.updateMainAgentChat([
       ...this.chatFacade.mainAgentChat(),
       { sender: ChatSender.User, text },
@@ -232,11 +234,34 @@ export class HomeComponent implements OnInit {
           ...this.chatFacade.mainAgentChat(),
           { sender: ChatSender.Agent, text: response.assistant_message },
         ]);
+        if (response.generation_pending) {
+          this.loadPosts();
+          this.managerAgentService.generate(postId).subscribe({
+            next: (gen) => {
+              this.chatFacade.updateMainAgentChat([
+                ...this.chatFacade.mainAgentChat(),
+                { sender: ChatSender.Agent, text: gen.assistant_message },
+              ]);
+              this.artifactFacade.applyArtifacts(gen.generated_artifacts);
+              this.loadPosts();
+              this.chatBusy.set(false);
+            },
+            error: (err) => {
+              this.chatError.set(
+                httpErrorDetail(err, 'Generierung von Text und Bild fehlgeschlagen.'),
+              );
+              this.chatBusy.set(false);
+            },
+          });
+          return;
+        }
         this.artifactFacade.applyArtifacts(response.generated_artifacts);
         this.loadPosts();
+        this.chatBusy.set(false);
       },
       error: (err) => {
         this.chatError.set(httpErrorDetail(err, 'Manager-Anfrage fehlgeschlagen.'));
+        this.chatBusy.set(false);
       },
     });
   }

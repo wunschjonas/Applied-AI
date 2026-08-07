@@ -30,6 +30,7 @@ export class TextAgentComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   public chatError = signal('');
+  public chatBusy = signal(false);
 
   public ngOnInit(): void {
     this.reloadChat();
@@ -61,9 +62,10 @@ export class TextAgentComponent implements OnInit {
 
   public onUserSend(text: string): void {
     const postId = this.postFacade.currentPostId();
-    if (!postId) return;
+    if (!postId || this.chatBusy()) return;
 
     this.chatError.set('');
+    this.chatBusy.set(true);
     this.chatFacade.updateTextAgentChat([
       ...this.chatFacade.textAgentChat(),
       { sender: ChatSender.User, text },
@@ -75,9 +77,11 @@ export class TextAgentComponent implements OnInit {
           { sender: ChatSender.Agent, text: response.assistant_message },
         ]);
         this.artifactFacade.applyArtifacts(response.generated_artifacts);
+        this.chatBusy.set(false);
       },
       error: (err) => {
         this.chatError.set(httpErrorDetail(err, 'Text-Agent-Anfrage fehlgeschlagen.'));
+        this.chatBusy.set(false);
       },
     });
   }

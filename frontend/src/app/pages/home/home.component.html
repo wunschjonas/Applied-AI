@@ -93,6 +93,7 @@
           <app-chat-panel
             [messages]="chatFacade.mainAgentChat()"
             [errorMessage]="chatError()"
+            [busy]="chatBusy()"
             (userSend)="onUserSend($event)"
           />
         </div>

@@ -7,4 +7,14 @@
   >
     <span class="chat__bubble">{{ message.text }}</span>
   </div>
+
+  @if (busy()) {
+    <div class="chat__message chat__message--agent" aria-busy="true" aria-label="Agent arbeitet">
+      <span class="chat__bubble chat__bubble--loading">
+        <span class="chat__dot"></span>
+        <span class="chat__dot"></span>
+        <span class="chat__dot"></span>
+      </span>
+    </div>
+  }
 </div>

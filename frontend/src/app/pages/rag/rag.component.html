@@ -9,9 +9,9 @@
       <div class="memory-left">
         <div class="memory-left__scroll">
           <!-- Datei-Upload -->
-          <div class="memory-card">
-            <h2 class="card-title">Datei als Kontext hochladen</h2>
-            <p class="upload-hint">PDF-Text oder Bildbeschreibung landet im Gedächtnis für die Agenten.</p>
+          <div class="memory-card memory-card--upload">
+            <h2 class="card-title">PDF als Kontext hochladen</h2>
+            <p class="upload-hint">Der PDF-Text landet im Gedächtnis für die Agenten.</p>
 
             <div
               class="drop-zone"
@@ -22,14 +22,14 @@
               (drop)="onDrop($event)"
             >
               <p class="drop-zone-title">
-                {{ isUploading() ? 'Upload läuft...' : 'PDF oder Bild hierher ziehen' }}
+                {{ isUploading() ? 'Upload läuft...' : 'PDF hierher ziehen' }}
               </p>
-              <p class="drop-zone-sub">PNG, JPEG, WebP oder PDF</p>
+              <p class="drop-zone-sub">Nur PDF-Dateien</p>
               <label class="file-picker-btn" [class.disabled]="isUploading()">
-                Datei wählen
+                PDF wählen
                 <input
                   type="file"
-                  accept=".pdf,application/pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                  accept=".pdf,application/pdf"
                   [disabled]="isUploading()"
                   (change)="onFileSelected($event)"
                   hidden
@@ -46,7 +46,7 @@
           </div>
 
           <!-- Fakt speichern -->
-          <div class="memory-card">
+          <div class="memory-card memory-card--store">
             <h2 class="card-title">Fakt speichern</h2>
 
             <label class="field-label" for="storeContent">Inhalt</label>
@@ -56,7 +56,6 @@
               placeholder="z.B. Unsere Zielgruppe sind Fachkräfte zwischen 25 und 35."
               [ngModel]="storeContent()"
               (ngModelChange)="storeContent.set($event)"
-              rows="4"
             ></textarea>
 
             <label class="field-label" for="storeTags">Tags <span class="field-hint">(optional, kommagetrennt)</span></label>

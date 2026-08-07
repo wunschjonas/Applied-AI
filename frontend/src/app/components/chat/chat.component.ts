@@ -11,6 +11,7 @@ import { ChatMessage, ChatSender } from '../../models/chat.model';
 })
 export class ChatComponent {
   public messages = input<ChatMessage[]>([]);
+  public busy = input(false);
 
   public readonly ChatSender = ChatSender;
 }

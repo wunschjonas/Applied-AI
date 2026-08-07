@@ -42,6 +42,7 @@
           <app-chat-panel
             [messages]="chatFacade.imageAgentChat()"
             [errorMessage]="chatError()"
+            [busy]="chatBusy()"
             (userSend)="onUserSend($event)"
           />
         </div>

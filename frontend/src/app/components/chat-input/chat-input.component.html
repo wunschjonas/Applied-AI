@@ -7,6 +7,7 @@
     id="agent-command"
     placeholder="Beschreibe, was dein Agent als Nächstes erledigen soll ..."
     [value]="inputText()"
+    [disabled]="disabled()"
     (input)="inputText.set($any($event.target).value)"
     (keydown.enter)="$event.preventDefault(); sendMessage()"
   ></textarea>

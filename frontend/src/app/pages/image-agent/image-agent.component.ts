@@ -31,6 +31,7 @@ export class ImageAgentComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   public chatError = signal('');
+  public chatBusy = signal(false);
 
   public ngOnInit(): void {
     this.reloadChat();
@@ -63,9 +64,10 @@ export class ImageAgentComponent implements OnInit {
 
   public onUserSend(text: string): void {
     const postId = this.postFacade.currentPostId();
-    if (!postId) return;
+    if (!postId || this.chatBusy()) return;
 
     this.chatError.set('');
+    this.chatBusy.set(true);
     this.chatFacade.updateImageAgentChat([
       ...this.chatFacade.imageAgentChat(),
       { sender: ChatSender.User, text },
@@ -78,9 +80,11 @@ export class ImageAgentComponent implements OnInit {
           { sender: ChatSender.Agent, text: response.assistant_message },
         ]);
         this.artifactFacade.applyArtifacts(response.generated_artifacts);
+        this.chatBusy.set(false);
       },
       error: (err) => {
         this.chatError.set(httpErrorDetail(err, 'Image-Agent-Anfrage fehlgeschlagen.'));
+        this.chatBusy.set(false);
       },
     });
   }

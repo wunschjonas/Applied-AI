@@ -15,6 +15,8 @@ export interface ChatResponse {
   post_updates?: Record<string, unknown>;
   /** Steckbrief fields that are still open, in the order the manager will ask for them. */
   missing_fields?: string[];
+  /** True when specialists should be started via /generate next. */
+  generation_pending?: boolean;
 }
 
 @Injectable({
@@ -33,6 +35,12 @@ export class ManagerAgentService {
   public chat(message: string, postId: string): Observable<ChatResponse> {
     return this.http.post<ChatResponse>(`${this.baseUrl}/api/agents/manager/chat`, {
       message,
+      post_id: postId,
+    });
+  }
+
+  public generate(postId: string): Observable<ChatResponse> {
+    return this.http.post<ChatResponse>(`${this.baseUrl}/api/agents/manager/generate`, {
       post_id: postId,
     });
   }

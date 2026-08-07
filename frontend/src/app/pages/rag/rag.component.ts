@@ -93,9 +93,16 @@ export class RagComponent implements OnInit {
   }
 
   public uploadFile(file: File): void {
-    this.isUploading.set(true);
     this.uploadMessage.set('');
     this.uploadError.set('');
+    const isPdf =
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      this.uploadError.set('Bitte nur eine PDF-Datei hochladen.');
+      return;
+    }
+
+    this.isUploading.set(true);
     this.memoryService.upload(file).subscribe({
       next: (res) => {
         this.uploadMessage.set(

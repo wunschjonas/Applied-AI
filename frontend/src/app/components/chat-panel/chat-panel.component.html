@@ -1,11 +1,11 @@
 <div class="chat-panel">
   <div class="chat-panel__history">
-    <app-chat [messages]="messages()" />
+    <app-chat [messages]="messages()" [busy]="busy()" />
   </div>
 
   @if (errorMessage()) {
     <p class="chat-panel__error" role="alert">{{ errorMessage() }}</p>
   }
 
-  <app-chat-input (userSend)="userSend.emit($event)" />
+  <app-chat-input [disabled]="busy()" (userSend)="userSend.emit($event)" />
 </div>
