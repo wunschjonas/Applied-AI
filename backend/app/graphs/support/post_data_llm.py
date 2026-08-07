@@ -53,7 +53,9 @@ COMPOSE_SYSTEM = (
     "If the source mixes languages, answer only in German about the German-relevant content. "
     "Acknowledge what you learned, ask at most one clear next question if needed, "
     "and stay concrete. Do not mention that you are an AI. Do not use markdown fences. "
-    "Never repeat the same sentence or question twice in one reply."
+    "Never repeat the same sentence or question twice in one reply. "
+    "When the situation says generation finished: do NOT invent or paste marketing copy, "
+    "captions, image prompts, or long quotes — only confirm readiness and where to look."
 )
 
 COMPOSE_WEB_SYSTEM = (
@@ -451,8 +453,7 @@ def welcome_message(title: str, hf: HuggingFaceService | None = None) -> str:
     fallback = (
         f"Ich sehe, du willst einen Post zum Thema „{title}“ erstellen. "
         "Erzähl mir bitte, für welche Plattform er gedacht ist, wen du ansprechen "
-        "möchtest und welche Tonalität passen soll. Wenn du magst, kannst du auch "
-        "schon kurz den Inhalt skizzieren."
+        "möchtest und welche Tonalität passen soll."
     )
     if hf is None:
         return fallback
@@ -465,15 +466,16 @@ def welcome_message(title: str, hf: HuggingFaceService | None = None) -> str:
         "or 'Willkommen bei unserem Post'. "
         "Open by noticing the user wants to create a post about the given title only. "
         "Do not invent extra domains, products, or topics beyond that title. "
-        "Then ask them (to you: mir) for platform, target audience and tone; "
-        "optionally invite a short content sketch. No markdown."
+        "Then ask them (to you: mir) for platform, target audience and tone. "
+        "Do NOT ask for a content sketch, Skizze, Skizzenbild, or draft of the post body. "
+        "Vary the wording naturally. No markdown."
     )
     try:
         reply = hf.generate(
             system_prompt=system,
             user_prompt=f"Post title (use exactly this topic, nothing else): {title}",
             max_tokens=220,
-            temperature=0.4,
+            temperature=0.55,
         ).strip()
     except Exception:
         return fallback
@@ -481,6 +483,12 @@ def welcome_message(title: str, hf: HuggingFaceService | None = None) -> str:
         return fallback
     reply = _ensure_german_reply(_dedupe_repeated_sentences(reply), fallback)
     if _has_plural_team_voice(reply):
+        return fallback
+    lowered = reply.casefold()
+    if any(
+        marker in lowered
+        for marker in ("skizzenbild", "skizze", "inhalt skizz", "kurz den inhalt")
+    ):
         return fallback
     return reply
 

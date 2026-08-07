@@ -268,6 +268,11 @@ def seed_post(graph: ManagerChatGraph, post_id: str, **fields) -> dict:
     return graph.post_repository.save(post)
 
 
+def run_generation(graph: ManagerChatGraph, post_id: str, *, intent: str = "text_and_image") -> dict:
+    """Execute specialists after a chat turn that returned generation_pending."""
+    return graph.generate(post_id, intent=intent)
+
+
 def build_agent_service(tmp_path: Path, hf: FakeHF) -> AgentService:
     from app.core import config as config_module
 

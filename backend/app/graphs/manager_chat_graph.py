@@ -80,6 +80,28 @@ class ManagerChatGraph:
             }
         )
         inc_manager_chat_request(final_state.get("status") or "success")
+        return self._result_dict(final_state)
+
+    def generate(
+        self,
+        post_id: str,
+        *,
+        intent: str = "text_and_image",
+    ) -> dict[str, Any]:
+        """Run specialists for a complete Steckbrief (follow-up after generation_ack)."""
+        final_state = self.graph.invoke(
+            {
+                "post_id": post_id,
+                "chat_id": f"{post_id}::manager_agent",
+                "user_message": "Generiere Text und Bild aus dem Steckbrief.",
+                "force_generation": True,
+                "forced_intent": intent,
+            }
+        )
+        inc_manager_chat_request(final_state.get("status") or "success")
+        return self._result_dict(final_state)
+
+    def _result_dict(self, final_state: dict[str, Any]) -> dict[str, Any]:
         return {
             "chat_id": final_state["chat_id"],
             "assistant_message": final_state["assistant_message"],
@@ -88,6 +110,7 @@ class ManagerChatGraph:
             "trace_id": final_state["trace_id"],
             "post_updates": final_state.get("post_data_updates") or {},
             "missing_fields": final_state.get("post_data_missing") or [],
+            "generation_pending": bool(final_state.get("generation_pending")),
         }
 
     def _build_graph(self):
@@ -106,6 +129,7 @@ class ManagerChatGraph:
         graph.add_node("web_answer_node", self.specialist_nodes.web_answer_node)
         graph.add_node("post_status_node", self.specialist_nodes.post_status_node)
         graph.add_node("context_question_node", self.post_sync_nodes.context_question_node)
+        graph.add_node("generation_ack_node", self.post_sync_nodes.generation_ack_node)
         graph.add_node("validation_node", self.response_nodes.validation_node)
         graph.add_node("assemble_response_node", self.response_nodes.assemble_response_node)
         graph.add_node("persist_post_node", self.post_sync_nodes.persist_post_node)
@@ -129,6 +153,7 @@ class ManagerChatGraph:
                 "web_answer_node": "web_answer_node",
                 "post_status_node": "post_status_node",
                 "context_question_node": "context_question_node",
+                "generation_ack_node": "generation_ack_node",
             },
         )
         graph.add_conditional_edges(
@@ -151,8 +176,9 @@ class ManagerChatGraph:
                 "assemble_response_node": "assemble_response_node",
             },
         )
-        # A context question is the final answer already, so it skips validation and assembly.
+        # Ack and context questions are final chat answers; specialists run via /generate.
         graph.add_edge("context_question_node", "persist_post_node")
+        graph.add_edge("generation_ack_node", "persist_post_node")
         graph.add_edge("assemble_response_node", "persist_post_node")
         graph.add_edge("persist_post_node", "save_trace_node")
         graph.add_edge("save_trace_node", END)

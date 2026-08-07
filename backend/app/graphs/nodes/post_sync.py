@@ -118,6 +118,51 @@ class PostSyncNodes:
         )
         return state
 
+    def generation_ack_node(self, state: ManagerChatState) -> ManagerChatState:
+        """Fast ack when Steckbrief is ready — specialists run in a follow-up /generate call."""
+        started_at = datetime.utcnow()
+        fallback = messages.BRIEF_COMPLETE_GENERATING
+        state["assistant_message"] = post_data_llm.compose_manager_reply(
+            hf=post_data_llm.try_hf(self.deps.hf_factory),
+            fallback=fallback,
+            situation=(
+                "The Steckbrief is complete. Thank the user that you now have all needed "
+                "information and that you are starting text and image generation by handing "
+                "tasks to the TextAgent and ImageAgent. Do not ask any questions. "
+                "Do not invent marketing content or event details."
+            ),
+            user_message=state["user_message"],
+            post=state.get("post"),
+            post_data_updates=state.get("post_data_updates"),
+        )
+        state["generation_pending"] = True
+        state["status"] = "success"
+        state["followup_question"] = None
+        self._set_awaiting_field(state["post_id"], None)
+
+        event = TaoEvent(
+            phase="generation_ack",
+            node="generation_ack_node",
+            agent="generation_ack_node",
+            status="success",
+            intent=state.get("intent"),
+            facts={
+                "detail": "Steckbrief complete — ack only; generation deferred to /generate.",
+                "auto_generate": bool(state.get("auto_generate")),
+            },
+        )
+        self.recorder.record(state, event)
+        self.recorder.log(
+            state,
+            agent="manager_agent",
+            status="success",
+            step="generation_ack",
+            started_at=started_at,
+            event=event,
+            output_summary=state["assistant_message"],
+        )
+        return state
+
     def persist_post_node(self, state: ManagerChatState) -> ManagerChatState:
         if not state.get("post"):
             return state
@@ -166,6 +211,8 @@ class PostSyncNodes:
     def _append_followup(self, state: ManagerChatState) -> None:
         """Keep filling the brief over time: ask for one open field alongside the result."""
         if state.get("followup_question"):
+            return
+        if state.get("generation_pending"):
             return
 
         if state.get("intent") in {

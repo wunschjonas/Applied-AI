@@ -49,7 +49,9 @@ def test_short_text_triggers_one_retry_and_recovers(tmp_path: Path):
     _seed_text_post(graph, "post-retry-text")
 
     before = _retry_text_count()
-    result = graph.run("Schreibe bitte einen LinkedIn Post.", "post-retry-text")
+    from helpers import run_generation
+
+    result = run_generation(graph, "post-retry-text", intent="text_only")
     metadata = graph.trace_service.get_trace(result["trace_id"])["metadata"]
 
     assert _retry_text_count() == before + 1
@@ -64,7 +66,9 @@ def test_second_text_failure_does_not_retry_again(tmp_path: Path):
     graph = build_graph(tmp_path, hf_factory=lambda: hf, rag_service=FakeRAG(""))
     _seed_text_post(graph, "post-retry-exhausted")
 
-    result = graph.run("Schreibe bitte einen LinkedIn Post.", "post-retry-exhausted")
+    from helpers import run_generation
+
+    result = run_generation(graph, "post-retry-exhausted", intent="text_only")
     trace = graph.trace_service.get_trace(result["trace_id"])
     metadata = trace["metadata"]
     validation_states = [
@@ -98,6 +102,10 @@ def test_text_retry_keeps_existing_image(tmp_path: Path):
     )
 
     result = graph.run("Erstelle eine Instagram Caption mit Hashtags und Bildidee.", post_id)
+    assert result.get("generation_pending") is True
+    from helpers import run_generation
+
+    result = run_generation(graph, post_id)
     metadata = graph.trace_service.get_trace(result["trace_id"])["metadata"]
 
     assert metadata["retry_count"]["text"] == 1

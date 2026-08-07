@@ -1,6 +1,11 @@
 from fastapi import APIRouter
 
-from app.schemas.chat import ChatHistoryResponse, ManagerChatRequest, ManagerChatResponse
+from app.schemas.chat import (
+    ChatHistoryResponse,
+    ManagerChatRequest,
+    ManagerChatResponse,
+    ManagerGenerateRequest,
+)
 from app.schemas.logs import AgentLogsResponse
 from app.services.agent_service import AgentService
 from app.services.chat_service import ChatService
@@ -21,6 +26,12 @@ def manager_chat(request: ManagerChatRequest):
         post_id=request.post_id,
         context=request.context,
     )
+
+
+@router.post("/generate", response_model=ManagerChatResponse)
+def manager_generate(request: ManagerGenerateRequest):
+    print(f"[ManagerAgent] POST /generate aufgerufen | post_id={request.post_id}")
+    return agent_service.manager_generate(post_id=request.post_id)
 
 
 @router.get("/chats/{chat_id}", response_model=ChatHistoryResponse)

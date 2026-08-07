@@ -34,8 +34,11 @@ class GraphRouters:
         else:
             blocked = self._needs_post_data_first(state)
             if intent in GENERATION_INTENTS and not blocked:
-                # Generation wins; rag_context / web_context stay as briefing material.
-                target = INTENT_ROUTES[intent]
+                # Chat turns only acknowledge; specialists run via /generate (force_generation).
+                if state.get("force_generation"):
+                    target = INTENT_ROUTES[intent]
+                else:
+                    target = "generation_ack_node"
             elif intent == "web_inquiry":
                 target = "web_answer_node"
             elif intent == "memory_store":

@@ -100,6 +100,10 @@ def test_image_agent_prompt_includes_tone(tmp_path: Path):
         image_style="fotorealistisch",
     )
     result = graph.run("Erstelle bitte nur ein Bild dazu.", "post-tone-image")
+    assert result.get("generation_pending") is True
+    from helpers import run_generation
+
+    result = run_generation(graph, "post-tone-image", intent="image_only")
     assert "ImageAgent" in (result.get("used_agents") or [])
     joined = " ".join(hf.user_prompts).lower()
     assert "stolz" in joined or "tone" in joined or "mood" in joined

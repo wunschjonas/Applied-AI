@@ -20,10 +20,9 @@ def test_react_rag_calls_memory_search_tool(tmp_path: Path):
         text_length="mittel",
     )
 
-    result = graph.run(
-        "Schreibe einen LinkedIn Post basierend auf unserem PDF mit Brand Guidelines.",
-        "post-react-rag",
-    )
+    from helpers import run_generation
+
+    result = run_generation(graph, "post-react-rag", intent="text_only")
 
     assert rag.retrieve_called
     assert rag.search_queries

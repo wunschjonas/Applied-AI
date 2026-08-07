@@ -33,6 +33,10 @@ class ManagerChatState(TypedDict, total=False):
     post_data_blocking: list[str]
     explicit_generate: bool
     brief_just_completed: bool
+    auto_generate: bool
+    force_generation: bool
+    forced_intent: str | None
+    generation_pending: bool
     followup_question: str | None
     # Manager ReAct tool side-effects
     tools_called: list[str]

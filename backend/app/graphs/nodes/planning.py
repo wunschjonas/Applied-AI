@@ -46,14 +46,27 @@ class PlanningNodes:
         )
         state["intent"] = intent.label
         auto_started = False
-        if (
+        if state.get("force_generation"):
+            forced = state.get("forced_intent") or "text_and_image"
+            if forced not in {"text_only", "image_only", "text_and_image"}:
+                forced = "text_and_image"
+            state["intent"] = forced
+            state["explicit_generate"] = True
+        elif (
             state.get("brief_just_completed")
             and intent.label not in _SKIP_AUTO_GENERATE_INTENTS
         ):
             state["intent"] = "text_and_image"
             state["explicit_generate"] = True
             auto_started = True
-        status = "needs_input" if intent.needs_clarification and not auto_started else "success"
+        state["auto_generate"] = auto_started
+        status = (
+            "needs_input"
+            if intent.needs_clarification
+            and not auto_started
+            and not state.get("force_generation")
+            else "success"
+        )
         inc_manager_chat_intent(state["intent"])
 
         event = TaoEvent(

@@ -86,33 +86,42 @@ class ResponseNodes:
             if text_ok or image_prompt_only or image_ok:
                 state["status"] = "partial_success"
                 fallback = messages.partial_message(text_ok, image_ok, image_prompt_only)
-                detail = "Teilantwort nach Validierungsfehler."
+                detail = messages.SITUATION_PARTIAL_DONE
+                state["assistant_message"] = self._compose_generation_done(
+                    state, fallback, detail
+                )
             else:
                 fallback = messages.WORKFLOW_FAILED
                 detail = "Fehlerantwort zusammengestellt."
-            state["assistant_message"] = self._compose(state, fallback, detail)
+                state["assistant_message"] = self._compose(state, fallback, detail)
         elif intent == "text_only":
             fallback = messages.TEXT_SUCCESS
-            detail = "Text-Erfolg zusammengestellt."
-            state["assistant_message"] = self._compose(state, fallback, detail)
+            detail = messages.SITUATION_TEXT_DONE
+            state["assistant_message"] = self._compose_generation_done(
+                state, fallback, detail
+            )
         elif intent == "image_only":
             if image_ok:
                 fallback = messages.IMAGE_SUCCESS
-                detail = "Bild-Erfolg zusammengestellt."
+                detail = messages.SITUATION_IMAGE_DONE
             else:
                 state["status"] = "partial_success"
                 fallback = messages.IMAGE_PROMPT_ONLY
-                detail = "Nur Bildprompt — Teilerfolg."
-            state["assistant_message"] = self._compose(state, fallback, detail)
+                detail = messages.SITUATION_IMAGE_PROMPT_ONLY
+            state["assistant_message"] = self._compose_generation_done(
+                state, fallback, detail
+            )
         elif intent == "text_and_image":
             if text_ok and image_ok:
                 fallback = messages.COMBINED_SUCCESS
-                detail = "Text und Bild erfolgreich kombiniert."
+                detail = messages.SITUATION_COMBINED_DONE
             else:
                 state["status"] = "partial_success"
                 fallback = messages.partial_message(text_ok, image_ok, image_prompt_only)
-                detail = "Kombinierte Teilantwort."
-            state["assistant_message"] = self._compose(state, fallback, detail)
+                detail = messages.SITUATION_PARTIAL_DONE
+            state["assistant_message"] = self._compose_generation_done(
+                state, fallback, detail
+            )
         else:
             fallback = messages.WORKFLOW_UNCLEAR
             detail = "Fallback-Antwort."
@@ -147,3 +156,25 @@ class ResponseNodes:
             post=state.get("post"),
             artifact_summary=artifact_summary,
         )
+
+    def _compose_generation_done(
+        self, state: ManagerChatState, fallback: str, situation: str
+    ) -> str:
+        """Compose a short done-ack; reject replies that look like pasted marketing copy."""
+        reply = self._compose(state, fallback, situation)
+        if _looks_like_marketing_paste(reply):
+            return fallback
+        return reply
+
+
+def _looks_like_marketing_paste(reply: str) -> bool:
+    """True when the manager chat reply invents/quotes a long marketing body."""
+    text = (reply or "").strip()
+    if len(text) > 420:
+        return True
+    quote_chunks = 0
+    for marker in ('"', "„", "“", "»", "«"):
+        quote_chunks += text.count(marker)
+    if quote_chunks >= 2 and len(text) > 220:
+        return True
+    return False

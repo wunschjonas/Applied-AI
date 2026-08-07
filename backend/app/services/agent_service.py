@@ -53,6 +53,32 @@ class AgentService:
                 inc_manager_chat_request("exception")
             raise self._to_http_error(exc) from exc
 
+    def manager_generate(self, post_id: str) -> dict[str, Any]:
+        """Run Text+Image after a generation_ack chat turn."""
+        try:
+            from app.graphs.support import post_fields
+
+            post = self._require_post(post_id)
+            missing = post_fields.missing_fields_for_intent(post, "text_and_image")
+            if missing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Steckbrief incomplete: {', '.join(missing)}",
+                )
+            graph = ManagerChatGraph(
+                chat_service=self.chat_service,
+                trace_service=self.trace_service,
+                rag_service=self.rag_service,
+                hf_factory=self._hf,
+                log_service=self.log_service,
+                post_repository=self.post_repository,
+            )
+            return graph.generate(post_id=post_id)
+        except Exception as exc:
+            if not isinstance(exc, HTTPException):
+                inc_manager_chat_request("exception")
+            raise self._to_http_error(exc) from exc
+
     def _require_post(self, post_id: str) -> dict[str, Any]:
         post = self.post_repository.get(post_id)
         if post is None:

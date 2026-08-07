@@ -52,6 +52,10 @@ class LifecycleNodes:
             "post_data_blocking": [],
             "explicit_generate": False,
             "brief_just_completed": False,
+            "auto_generate": False,
+            "force_generation": bool(state.get("force_generation")),
+            "forced_intent": state.get("forced_intent"),
+            "generation_pending": False,
             "followup_question": None,
             "tools_called": [],
             "post_data_checked": False,
@@ -91,8 +95,11 @@ class LifecycleNodes:
             "retry_count": {"text": state["text_retry_count"], "image": state["image_retry_count"]},
         }
 
-        self.deps.chat_service.add_message(state["chat"], "USER", state["user_message"])
-        self.deps.chat_service.add_message(state["chat"], "AGENT", state["assistant_message"])
+        # Generate follow-up must not inject a synthetic USER line into the chat.
+        if not state.get("force_generation"):
+            self.deps.chat_service.add_message(state["chat"], "USER", state["user_message"])
+        if state.get("assistant_message"):
+            self.deps.chat_service.add_message(state["chat"], "AGENT", state["assistant_message"])
         state["trace"]["metadata"].update(metadata)
         self.deps.trace_service.store.save(state["trace"])
 

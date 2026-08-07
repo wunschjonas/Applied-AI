@@ -38,6 +38,18 @@ class ManagerChatResponse(BaseModel):
     trace_id: str
     post_updates: dict[str, Any] = Field(default_factory=dict)
     missing_fields: list[str] = Field(default_factory=list)
+    generation_pending: bool = False
+
+
+class ManagerGenerateRequest(BaseModel):
+    post_id: str = Field(min_length=1)
+
+    @field_validator("post_id", mode="before")
+    @classmethod
+    def strip_post_id(cls, value: object) -> object:
+        if isinstance(value, str):
+            return _strip_nonempty(value)
+        return value
 
 
 class TextAgentChatRequest(BaseModel):
