@@ -24,7 +24,8 @@ Damit das Projekt funktioniert, muss im Backend in die `.env`-Datei ein HuggingF
 
 ## Dokumentation
 
-LangGraph-Workflow (Manager-Graph): [`dokumentation/langgraph-manager-workflow.PNG`](dokumentation/langgraph-manager-workflow.PNG)
+- Projektdokumentation: [`dokumentation/Projektdokumentation - AAI - Jonas Wunsch, Fabian Sichert.pdf`](dokumentation/Projektdokumentation%20-%20AAI%20-%20Jonas%20Wunsch%2C%20Fabian%20Sichert.pdf)
+- LangGraph-Workflow (Manager-Graph): [`dokumentation/langgraph-manager-workflow.PNG`](dokumentation/langgraph-manager-workflow.PNG)
 
 ## Voraussetzungen
 
